@@ -1,0 +1,56 @@
+{
+  "domains": [
+    {
+      "id": "domain-1",
+      "name": "硅验证 (Silicon Validation)",
+      "owner": "张三",
+      "status": "in-progress",
+      "notes": "正在进行基础功能验证"
+    },
+    {
+      "id": "domain-2", 
+      "name": "电源管理 (Power Management)",
+      "owner": "李四",
+      "status": "not-started",
+      "notes": ""
+    },
+    {
+      "id": "domain-3",
+      "name": "热管理 (Thermal Management)", 
+      "owner": "王五",
+      "status": "blocked",
+      "notes": "等待散热方案确认"
+    }
+  ],
+  "bugs": [
+    {
+      "id": "bug-1",
+      "bugId": "MPW2-123",
+      "domain": "硅验证 (Silicon Validation)",
+      "description": "GPU核心频率不稳定",
+      "severity": "highest",
+      "status": "open",
+      "reportDate": "2026-03-01",
+      "owner": "张三"
+    }
+  ],
+  "dailyProgress": [
+    {
+      "id": "progress-1",
+      "date": "2026-03-04",
+      "domain": "硅验证 (Silicon Validation)",
+      "content": "完成基础功能测试，发现3个critical bug"
+    }
+  ],
+  "buExitCriteria": [
+    {
+      "id": "bu-1",
+      "index": 1,
+      "domain": "硅验证 (Silicon Validation)",
+      "criteria": "所有基本功能测试通过，无critical bug",
+      "owner": "张三", 
+      "status": "not-ready"
+    }
+  ],
+  "lastUpdated": "2026-03-04 21:15"
+}

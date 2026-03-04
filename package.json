@@ -1,0 +1,25 @@
+{
+  "name": "gpu-bringup-tracker",
+  "version": "1.0.0",
+  "description": "国产GPU芯片Bring-up每日追踪系统 - Web应用",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "gpu",
+    "bringup",
+    "tracker",
+    "daily",
+    "chinese-gpu"
+  ],
+  "author": "Kobe",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

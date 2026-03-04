@@ -1,0 +1,2139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>国产GPU芯片bring up每日追踪</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            body {
+                margin: 10px;
+                padding: 0;
+            }
+            
+            .container {
+                padding: 10px;
+                border-radius: 0;
+                box-shadow: none;
+                margin: 0;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+                margin-bottom: 20px;
+            }
+            
+            h2 {
+                font-size: 1.2rem;
+                margin-top: 20px;
+                margin-bottom: 15px;
+            }
+            
+            .status-table, .bug-table, .tasks-table, .daily-progress-section, .bu-exit-criteria-table {
+                font-size: 0.85rem;
+            }
+            
+            .status-table th, .status-table td,
+            .bug-table th, .bug-table td,
+            .tasks-table th, .tasks-table td,
+            .daily-progress-input, .daily-progress-item,
+            .bu-exit-criteria-table th, .bu-exit-criteria-table td {
+                padding: 8px 6px;
+            }
+            
+            .domain-input, .owner-input, .notes-input, 
+            .bug-id-input, .bug-domain-input, .bug-description-input,
+            .task-domain-input, .task-description-input, .task-priority-input,
+            .daily-date-input, .daily-domain-input, .daily-content-input,
+            .bu-criteria-index-input, .bu-criteria-domain-input, .bu-criteria-content-input, .bu-criteria-owner-input {
+                min-width: auto;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            
+            /* 添加水平滚动 */
+            .status-table-wrapper, .bug-table-wrapper, .tasks-table-wrapper, .daily-progress-wrapper, .bu-exit-criteria-table-wrapper {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin: 10px 0;
+            }
+            
+            .add-bug-form, .add-domain-section, .add-task-form, .daily-progress-form, .bu-exit-criteria-input-form {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .add-bug-form input, .add-bug-form select, .add-bug-form button,
+            .add-domain-section input, .add-domain-section button,
+            .add-task-form input, .add-task-form select, .add-task-form button,
+            .daily-progress-form input, .daily-progress-form select, .daily-progress-form button,
+            .bu-exit-criteria-input-form input, .bu-exit-criteria-input-form select, .bu-exit-criteria-input-form button {
+                width: 100%;
+                margin: 0;
+            }
+            
+            .save-btn, .add-btn, .delete-btn, .admin-toggle-btn, .edit-btn {
+                padding: 6px 12px;
+                font-size: 0.9rem;
+            }
+            
+            .bug-description, .task-description, .daily-content, .bu-criteria-content {
+                max-width: 150px !important;
+            }
+            
+            /* 简化表格列宽 */
+            .bug-table td:nth-child(1), .bug-table th:nth-child(1) { min-width: 80px; } /* Bug ID */
+            .bug-table td:nth-child(2), .bug-table th:nth-child(2) { min-width: 100px; } /* Domain */
+            .bug-table td:nth-child(3), .bug-table th:nth-child(3) { min-width: 120px; } /* Description */
+            .bug-table td:nth-child(4), .bug-table th:nth-child(4) { min-width: 80px; } /* Severity */
+            .bug-table td:nth-child(5), .bug-table th:nth-child(5) { min-width: 90px; } /* Status */
+            .bug-table td:nth-child(6), .bug-table th:nth-child(6) { min-width: 90px; } /* Date */
+            .bug-table td:nth-child(7), .bug-table th:nth-child(7) { min-width: 80px; } /* Owner */
+            .bug-table td:nth-child(8), .bug-table th:nth-child(8) { min-width: 80px; } /* Action */
+            
+            .tasks-table td:nth-child(1), .tasks-table th:nth-child(1) { min-width: 100px; } /* Domain */
+            .tasks-table td:nth-child(2), .tasks-table th:nth-child(2) { min-width: 150px; } /* Description */
+            .tasks-table td:nth-child(3), .tasks-table th:nth-child(3) { min-width: 80px; } /* Priority */
+            .tasks-table td:nth-child(4), .tasks-table th:nth-child(4) { min-width: 90px; } /* Date */
+            .tasks-table td:nth-child(5), .tasks-table th:nth-child(5) { min-width: 80px; } /* Owner */
+            .tasks-table td:nth-child(6), .tasks-table th:nth-child(6) { min-width: 80px; } /* Action */
+            
+            .bu-exit-criteria-table td:nth-child(1), .bu-exit-criteria-table th:nth-child(1) { min-width: 60px; } /* Index */
+            .bu-exit-criteria-table td:nth-child(2), .bu-exit-criteria-table th:nth-child(2) { min-width: 150px; } /* Domain */
+            .bu-exit-criteria-table td:nth-child(3), .bu-exit-criteria-table th:nth-child(3) { min-width: 200px; } /* Criteria */
+            .bu-exit-criteria-table td:nth-child(4), .bu-exit-criteria-table th:nth-child(4) { min-width: 120px; } /* Owner */
+            .bu-exit-criteria-table td:nth-child(5), .bu-exit-criteria-table th:nth-child(5) { min-width: 100px; } /* Status */
+            .bu-exit-criteria-table td:nth-child(6), .bu-exit-criteria-table th:nth-child(6) { min-width: 80px; } /* Action */
+        }
+        
+        /* 平板适配 */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .status-table, .bug-table, .tasks-table, .daily-progress-section, .bu-exit-criteria-table {
+                font-size: 0.9rem;
+            }
+            
+            .status-table th, .status-table td,
+            .bug-table th, .bug-table td,
+            .tasks-table th, .tasks-table td,
+            .daily-progress-input, .daily-progress-item,
+            .bu-exit-criteria-table th, .bu-exit-criteria-table td {
+                padding: 10px 8px;
+            }
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #34495e;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 30px;
+        }
+        .project-info {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .status-table, .tasks-table, .bu-exit-criteria-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .status-table th, .status-table td,
+        .tasks-table th, .tasks-table td,
+        .bu-exit-criteria-table th, .bu-exit-criteria-table td {
+            border: 1px solid #bdc3c7;
+            padding: 12px;
+            text-align: left;
+        }
+        .status-table th, .tasks-table th, .bu-exit-criteria-table th {
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+        .status-table tr:nth-child(even),
+        .tasks-table tr:nth-child(even),
+        .bu-exit-criteria-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .domain-input, .owner-input, .notes-input, .bug-input, .task-input,
+        .daily-date-input, .daily-domain-input, .daily-content-input,
+        .bu-criteria-index-input, .bu-criteria-domain-input, .bu-criteria-content-input, .bu-criteria-owner-input {
+            padding: 6px 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 120px;
+        }
+        .domain-input, .task-domain-input, .daily-domain-input, .bu-criteria-domain-input {
+            min-width: 180px;
+        }
+        .bug-id-input {
+            min-width: 150px;
+        }
+        .bug-domain-input, .task-description-input, .daily-content-input, .bu-criteria-content-input {
+            min-width: 200px;
+        }
+        .bug-severity-select, .bug-status-select, .task-priority-select, .status-select, .bu-criteria-status-select {
+            min-width: 120px;
+        }
+        
+        /* 下拉菜单样式 */
+        .status-select, .bug-severity-select, .bug-status-select, .task-priority-select, .daily-domain-select, .bu-criteria-status-select {
+            padding: 6px 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 120px;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 16px 12px;
+            padding-right: 24px;
+        }
+        
+        .add-domain-section, .add-bug-section, .add-task-section, .daily-progress-section, .bu-exit-criteria-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e8f4f8;
+            border-radius: 5px;
+        }
+        .add-domain-section input, .add-bug-section input, .add-bug-section select,
+        .add-task-section input, .add-task-section select,
+        .daily-progress-section input, .daily-progress-section select,
+        .bu-exit-criteria-section input, .bu-exit-criteria-section select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            min-width: 120px;
+        }
+        /* 确保添加表单在一行内 */
+        .add-bug-form, .add-task-form, .daily-progress-form, .add-domain-form, .bu-exit-criteria-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .add-bug-form input, .add-bug-form select, .add-bug-form button,
+        .add-task-form input, .add-task-form select, .add-task-form button,
+        .daily-progress-form input, .daily-progress-form select, .daily-progress-form button,
+        .add-domain-form input, .add-domain-form select, .add-domain-form button,
+        .bu-exit-criteria-form input, .bu-exit-criteria-form select, .bu-exit-criteria-form button {
+            margin: 0;
+        }
+        .add-btn, .save-btn, .delete-btn, .admin-toggle-btn, .edit-btn {
+            background-color: #3498db;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px 5px 5px 0;
+        }
+        .add-btn:hover, .save-btn:hover, .admin-toggle-btn:hover, .edit-btn:hover {
+            background-color: #2980b9;
+        }
+        .delete-btn {
+            background-color: #e74c3c;
+        }
+        .delete-btn:hover {
+            background-color: #c0392b;
+        }
+        .edit-btn {
+            background-color: #f39c12;
+        }
+        .edit-btn:hover {
+            background-color: #d35400;
+        }
+        
+        .daily-entry {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            background: #f8f9fa;
+        }
+        .date-header {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .task-item {
+            margin: 5px 0;
+            padding: 5px;
+            background: white;
+            border-radius: 3px;
+        }
+        .priority-high { border-left: 3px solid #e74c3c; }
+        .priority-medium { border-left: 3px solid #f39c12; }
+        .priority-low { border-left: 3px solid #27ae60; }
+        
+        .bug-table, .tasks-table, .daily-progress-table, .bu-exit-criteria-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .bug-table th, .bug-table td,
+        .tasks-table th, .tasks-table td,
+        .daily-progress-table th, .daily-progress-table td,
+        .bu-exit-criteria-table th, .bu-exit-criteria-table td {
+            border: 1px solid #bdc3c7;
+            padding: 10px;
+            text-align: left;
+        }
+        .bug-table th {
+            background-color: #e74c3c;
+            color: white;
+            cursor: pointer;
+            position: relative;
+        }
+        .tasks-table th, .daily-progress-table th, .bu-exit-criteria-table th {
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+            position: relative;
+        }
+        .bug-table th:hover, .tasks-table th:hover, .daily-progress-table th:hover, .bu-exit-criteria-table th:hover {
+            background-color: #c0392b;
+        }
+        .bug-table th.sort-asc::after, .tasks-table th.sort-asc::after, .daily-progress-table th.sort-asc::after, .bu-exit-criteria-table th.sort-asc::after {
+            content: " ↑";
+            font-size: 12px;
+        }
+        .bug-table th.sort-desc::after, .tasks-table th.sort-desc::after, .daily-progress-table th.sort-desc::after, .bu-exit-criteria-table th.sort-desc::after {
+            content: " ↓";
+            font-size: 12px;
+        }
+        
+        /* 严重性颜色样式 */
+        .severity-highest {
+            background-color: #e74c3c !important; /* 红色 */
+            color: white !important;
+            font-weight: bold;
+        }
+        .severity-high,
+        .severity-medium {
+            background-color: #f1c40f !important; /* 黄色 */
+            color: black !important;
+            font-weight: bold;
+        }
+        .severity-low,
+        .severity-lowest {
+            background-color: #95a5a6 !important; /* 灰色 */
+            color: white !important;
+            font-weight: bold;
+        }
+        
+        /* 优先级颜色样式 */
+        .priority-high-cell {
+            background-color: #e74c3c !important;
+            color: white !important;
+            font-weight: bold;
+        }
+        .priority-medium-cell {
+            background-color: #f39c12 !important;
+            color: white !important;
+            font-weight: bold;
+        }
+        .priority-low-cell {
+            background-color: #27ae60 !important;
+            color: white !important;
+            font-weight: bold;
+        }
+        
+        /* Domain状态颜色样式 */
+        .status-not-started {
+            background-color: #95a5a6 !important; /* 灰色 */
+            color: white !important;
+            font-weight: bold;
+        }
+        .status-in-progress {
+            background-color: #3498db !important; /* 蓝色 */
+            color: white !important;
+            font-weight: bold;
+        }
+        .status-blocked {
+            background-color: #e74c3c !important; /* 红色 */
+            color: white !important;
+            font-weight: bold;
+        }
+        .status-completed {
+            background-color: #27ae60 !important; /* 绿色 */
+            color: white !important;
+            font-weight: bold;
+        }
+        
+        .milestone-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: #ecf0f1;
+            border-radius: 5px;
+        }
+        .milestone-date {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .milestone-status {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .notes-section {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .update-timestamp {
+            text-align: right;
+            color: #7f8c8d;
+            font-style: italic;
+            margin-top: 20px;
+        }
+        .save-message {
+            color: #27ae60;
+            font-style: italic;
+            margin-top: 10px;
+        }
+        
+        /* JIRA链接样式 */
+        .jira-link {
+            color: #3498db;
+            text-decoration: underline;
+        }
+        .jira-link:hover {
+            color: #2980b9;
+        }
+        
+        /* 确保表格内容不换行 */
+        .bug-table td, .tasks-table td, .daily-progress-table td, .bu-exit-criteria-table td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        .bug-description, .task-description, .daily-content, .bu-criteria-content {
+            white-space: normal !important;
+            max-width: 300px !important;
+        }
+        
+        /* Filter section */
+        .filter-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e8f4f8;
+            border-radius: 5px;
+        }
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .filter-input {
+            padding: 6px 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 120px;
+        }
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .filter-btn {
+            background-color: #95a5a6;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .filter-btn:hover {
+            background-color: #7f8c8d;
+        }
+        
+        /* Daily Progress specific styles */
+        .daily-progress-input-section {
+            margin: 15px 0;
+            padding: 15px;
+            background: #e8f4f8;
+            border-radius: 5px;
+        }
+        .daily-progress-input-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .daily-date-input {
+            min-width: 120px;
+        }
+        .daily-domain-select {
+            min-width: 180px;
+        }
+        .daily-content-input {
+            min-width: 300px;
+            flex-grow: 1;
+        }
+        .daily-progress-list {
+            margin-top: 15px;
+        }
+        .daily-progress-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+        .daily-progress-info {
+            flex-grow: 1;
+        }
+        .daily-date-display {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .daily-domain-display {
+            color: #34495e;
+            font-style: italic;
+        }
+        .daily-content-display {
+            margin-top: 5px;
+            color: #7f8c8d;
+        }
+        
+        /* Sync status indicator */
+        .sync-status {
+            padding: 8px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 12px;
+            text-align: center;
+        }
+        .sync-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .sync-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .sync-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .sync-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: #000;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        .modal-footer {
+            text-align: right;
+            margin-top: 20px;
+        }
+        .modal-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+        .modal-save-btn {
+            background-color: #3498db;
+            color: white;
+        }
+        .modal-cancel-btn {
+            background-color: #95a5a6;
+            color: white;
+        }
+        .modal-delete-btn {
+            background-color: #e74c3c;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>国产GPU芯片bring up每日追踪</h1>
+        
+        <div class="project-info">
+            <strong>项目时间线：</strong> 2026年5月25日 - 2026年6月8日<br>
+            <strong>最后更新：</strong> <span id="last-update">2026年3月3日</span>
+        </div>
+        
+        <!-- Sync Status Indicator -->
+        <div id="sync-status" class="sync-status sync-info" style="display: none;">
+            正在从服务器加载数据...
+        </div>
+        
+        <!-- 调试阶段：隐藏管理员模式 -->
+        <!-- <button class="admin-toggle-btn" onclick="toggleAdminMode()">切换到管理员模式</button> -->
+        
+        <div class="add-domain-section">
+            <h3>添加新Domain</h3>
+            <div class="add-domain-form">
+                <input type="text" id="new-domain-name" placeholder="输入Domain名称" class="domain-input">
+                <input type="text" id="new-domain-owner" placeholder="负责人" class="owner-input">
+                <button class="add-btn" onclick="addNewDomain()">添加</button>
+            </div>
+        </div>
+        
+        <h2>域概览 (Domain Overview)</h2>
+        <div class="status-table-wrapper">
+            <table class="status-table">
+                <thead>
+                    <tr>
+                        <th>域 (Domain)</th>
+                        <th>负责人 (Owner)</th>
+                        <th>状态 (Status)</th>
+                        <th>备注 (Notes)</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="domains-body">
+                    <!-- Domains will be dynamically generated here -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="add-bug-section">
+            <h3>添加新Bug</h3>
+            <div class="add-bug-form">
+                <input type="text" id="new-bug-id" placeholder="Bug ID (如: MPW2-77)" class="bug-id-input">
+                <input type="text" id="new-bug-domain" placeholder="Domain" class="bug-domain-input">
+                <input type="text" id="new-bug-description" placeholder="描述" class="bug-description-input">
+                <select id="new-bug-severity" class="bug-severity-select">
+                    <option value="highest">Highest</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                    <option value="lowest">Lowest</option>
+                </select>
+                <select id="new-bug-status" class="bug-status-select">
+                    <option value="open">Open</option>
+                    <option value="triage">Triage</option>
+                    <option value="implement">Implement</option>
+                    <option value="closed">Closed</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+                <input type="text" id="new-bug-owner" placeholder="负责人" class="bug-input">
+                <button class="add-btn" onclick="addNewBug()">添加Bug</button>
+            </div>
+        </div>
+        
+        <h2>Bug跟踪 (Bug Tracking)</h2>
+        
+        <!-- Bug Filter section -->
+        <div class="filter-section">
+            <h3>Bug筛选和排序</h3>
+            <div class="filter-row">
+                <input type="text" id="filter-bug-id" class="filter-input" placeholder="Bug ID">
+                <input type="text" id="filter-bug-domain" class="filter-input" placeholder="Domain">
+                <input type="text" id="filter-bug-description" class="filter-input" placeholder="描述">
+                <select id="filter-bug-severity" class="filter-input">
+                    <option value="">所有严重性</option>
+                    <option value="highest">Highest</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                    <option value="lowest">Lowest</option>
+                </select>
+                <select id="filter-bug-status" class="filter-input">
+                    <option value="">所有状态</option>
+                    <option value="open">Open</option>
+                    <option value="triage">Triage</option>
+                    <option value="implement">Implement</option>
+                    <option value="closed">Closed</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+                <input type="text" id="filter-bug-owner" class="filter-input" placeholder="负责人">
+            </div>
+            <div class="filter-buttons">
+                <button class="filter-btn" onclick="applyBugFilters()">应用筛选</button>
+                <button class="filter-btn" onclick="resetBugFilters()">重置筛选</button>
+            </div>
+        </div>
+        
+        <div class="bug-table-wrapper">
+            <table class="bug-table">
+                <thead>
+                    <tr>
+                        <th data-sort="bugId">Bug ID</th>
+                        <th data-sort="domain">域 (Domain)</th>
+                        <th data-sort="description">描述 (Description)</th>
+                        <th data-sort="severity">严重性 (Severity)</th>
+                        <th data-sort="status">状态 (Status)</th>
+                        <th data-sort="reportDate">报告日期</th>
+                        <th data-sort="owner">负责人</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="bugs-body">
+                    <!-- Bugs will be dynamically generated here -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 新增：每日进度跟踪 -->
+        <h2>每日进度跟踪 (Daily Progress Tracking)</h2>
+        
+        <!-- Daily Progress Input Section -->
+        <div class="daily-progress-input-section">
+            <h3>添加每日进度</h3>
+            <div class="daily-progress-input-form">
+                <input type="date" id="daily-date-input" class="daily-date-input">
+                <select id="daily-domain-select" class="daily-domain-select">
+                    <option value="">选择Domain</option>
+                    <!-- Options will be populated from domains -->
+                </select>
+                <input type="text" id="daily-content-input" placeholder="今日工作内容" class="daily-content-input">
+                <button class="add-btn" onclick="addDailyProgress()">添加进度</button>
+            </div>
+        </div>
+        
+        <!-- Daily Progress Filter Section -->
+        <div class="filter-section">
+            <h3>进度筛选</h3>
+            <div class="filter-row">
+                <input type="date" id="filter-daily-date" class="filter-input">
+                <select id="filter-daily-domain" class="filter-input">
+                    <option value="">所有Domain</option>
+                    <!-- Options will be populated from domains -->
+                </select>
+            </div>
+            <div class="filter-buttons">
+                <button class="filter-btn" onclick="applyDailyProgressFilters()">应用筛选</button>
+                <button class="filter-btn" onclick="resetDailyProgressFilters()">重置筛选</button>
+            </div>
+        </div>
+        
+        <!-- Daily Progress List -->
+        <div class="daily-progress-list" id="daily-progress-list">
+            <!-- Daily progress items will be dynamically generated here -->
+        </div>
+        
+        <!-- Bringup准出标准 (BU Exit Criteria) -->
+        <h2>Bringup准出标准 (BU Exit Criteria)</h2>
+        
+        <!-- BU Exit Criteria Table with inline editing -->
+        <div class="bu-exit-criteria-table-wrapper">
+            <table class="bu-exit-criteria-table">
+                <thead>
+                    <tr>
+                        <th>Index</th>
+                        <th>Domain</th>
+                        <th>Bring up exit criteria</th>
+                        <th>Sign-off owner</th>
+                        <th>Sign-off status</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="bu-exit-criteria-body">
+                    <!-- BU Exit Criteria will be dynamically generated here -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Add new BU Exit Criteria row button -->
+        <div class="bu-exit-criteria-section">
+            <button class="add-btn" onclick="addNewBUExitCriteriaRow()">添加BU准出标准</button>
+        </div>
+        
+        <div class="notes-section">
+            <h3>备注与评论 (Notes & Comments)</h3>
+            <p>• 使用下拉菜单更新各域状态（灰色=未开始，蓝色=进行中，红色=受阻，绿色=已完成）</p>
+            <p>• Bug严重性颜色：红色=Highest，黄色=High/Medium，灰色=Low/Lowest</p>
+            <p>• 每日进度按日期和Domain筛选，支持添加、编辑和删除</p>
+            <p>• Bringup准出标准支持完整的CRUD操作</p>
+            <p>• 点击Bug ID可跳转到JIRA系统</p>
+            <p>• 支持Ctrl+S快捷键保存</p>
+            <p>• <strong>混合架构</strong>：数据优先从服务器加载，API失败时使用本地缓存</p>
+            <p>• <strong>完整编辑功能</strong>：Domain、Bug、每日进度和准出标准都支持完整编辑！</p>
+        </div>
+        
+        <button class="save-btn" onclick="saveData()">保存数据</button>
+        <div class="save-message" id="save-message"></div>
+        
+        <div class="update-timestamp">
+            最后更新: <span id="timestamp">2026年3月3日 22:46</span>
+        </div>
+    </div>
+
+    <!-- Domain Edit Modal -->
+    <div id="editDomainModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">编辑Domain</div>
+                <span class="close" onclick="closeEditDomainModal()">&times;</span>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Domain名称</label>
+                <input type="text" id="edit-domain-name" class="domain-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">负责人</label>
+                <input type="text" id="edit-domain-owner" class="owner-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">状态</label>
+                <select id="edit-domain-status" class="status-select">
+                    <option value="not-started">未开始</option>
+                    <option value="in-progress">进行中</option>
+                    <option value="blocked">受阻</option>
+                    <option value="completed">已完成</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">备注</label>
+                <input type="text" id="edit-domain-notes" class="notes-input">
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-delete-btn" onclick="deleteDomainFromModal()">删除</button>
+                <button class="modal-btn modal-cancel-btn" onclick="closeEditDomainModal()">取消</button>
+                <button class="modal-btn modal-save-btn" onclick="saveEditedDomain()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bug Edit Modal -->
+    <div id="editBugModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">编辑Bug</div>
+                <span class="close" onclick="closeEditBugModal()">&times;</span>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Bug ID</label>
+                <input type="text" id="edit-bug-id" class="bug-id-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Domain</label>
+                <input type="text" id="edit-bug-domain" class="bug-domain-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">描述</label>
+                <input type="text" id="edit-bug-description" class="bug-description-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">严重性</label>
+                <select id="edit-bug-severity" class="bug-severity-select">
+                    <option value="highest">Highest</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                    <option value="lowest">Lowest</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">状态</label>
+                <select id="edit-bug-status" class="bug-status-select">
+                    <option value="open">Open</option>
+                    <option value="triage">Triage</option>
+                    <option value="implement">Implement</option>
+                    <option value="closed">Closed</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">负责人</label>
+                <input type="text" id="edit-bug-owner" class="bug-input">
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-delete-btn" onclick="deleteBugFromModal()">删除</button>
+                <button class="modal-btn modal-cancel-btn" onclick="closeEditBugModal()">取消</button>
+                <button class="modal-btn modal-save-btn" onclick="saveEditedBug()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Progress Edit Modal -->
+    <div id="editDailyProgressModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">编辑每日进度</div>
+                <span class="close" onclick="closeEditDailyProgressModal()">&times;</span>
+            </div>
+            <div class="form-group">
+                <label class="form-label">日期</label>
+                <input type="date" id="edit-daily-date" class="daily-date-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Domain</label>
+                <select id="edit-daily-domain" class="daily-domain-select">
+                    <option value="">选择Domain</option>
+                    <!-- Options will be populated from domains -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">工作内容</label>
+                <input type="text" id="edit-daily-content" class="daily-content-input">
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-delete-btn" onclick="deleteDailyProgressFromModal()">删除</button>
+                <button class="modal-btn modal-cancel-btn" onclick="closeEditDailyProgressModal()">取消</button>
+                <button class="modal-btn modal-save-btn" onclick="saveEditedDailyProgress()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BU Exit Criteria Edit Modal -->
+    <div id="editBUExitCriteriaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">编辑BU准出标准</div>
+                <span class="close" onclick="closeEditBUExitCriteriaModal()">&times;</span>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Domain</label>
+                <input type="text" id="edit-bu-criteria-domain" class="bu-criteria-domain-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Bring up exit criteria</label>
+                <input type="text" id="edit-bu-criteria-content" class="bu-criteria-content-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Sign-off owner</label>
+                <input type="text" id="edit-bu-criteria-owner" class="bu-criteria-owner-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Sign-off status</label>
+                <select id="edit-bu-criteria-status" class="bu-criteria-status-select">
+                    <option value="not-ready">Not ready</option>
+                    <option value="fail">Fail</option>
+                    <option value="pass">Pass</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-delete-btn" onclick="deleteBUExitCriteriaFromModal()">删除</button>
+                <button class="modal-btn modal-cancel-btn" onclick="closeEditBUExitCriteriaModal()">取消</button>
+                <button class="modal-btn modal-save-btn" onclick="saveEditedBUExitCriteria()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global data storage
+        let currentData = {
+            domains: [
+                { id: 'domain-1', name: '硅验证 (Silicon Validation)', owner: 'TBD', status: 'not-started', notes: '' },
+                { id: 'domain-2', name: '电源管理 (Power Management)', owner: 'TBD', status: 'not-started', notes: '' },
+                { id: 'domain-3', name: '热管理 (Thermal Management)', owner: 'TBD', status: 'not-started', notes: '' },
+                { id: 'domain-4', name: '时钟与复位 (Clock & Reset)', owner: 'TBD', status: 'not-started', notes: '' },
+                { id: 'domain-5', name: '内存子系统 (Memory Subsystem)', owner: 'TBD', status: 'not-started', notes: '' },
+                { id: 'domain-6', name: 'PCIe接口 (PCIe Interface)', owner: 'TBD', status: 'not-started', notes: '' },
+                { id: 'domain-7', name: '计算单元 (Compute Units)', owner: 'TBD', status: 'not-started', notes: '' },
+                { id: 'domain-8', name: '互连 (Interconnect)', owner: 'TBD', status: 'not-started', notes: '' },
+                { id: 'domain-9', name: '调试与跟踪 (Debug & Trace)', owner: 'TBD', status: 'not-started', notes: '' },
+                { id: 'domain-10', name: '安全 (Security)', owner: 'TBD', status: 'not-started', notes: '' },
+                { id: 'domain-11', name: '固件/BIOS (Firmware/BIOS)', owner: 'TBD', status: 'not-started', notes: '' },
+                { id: 'domain-12', name: '驱动栈 (Driver Stack)', owner: 'TBD', status: 'not-started', notes: '' },
+                { id: 'domain-13', name: '系统集成 (System Integration)', owner: 'TBD', status: 'not-started', notes: '' }
+            ],
+            tasks: [],
+            bugs: [],
+            dailyProgress: [], // New: daily progress tracking
+            buExitCriteria: [
+                { id: 'bu-1', index: 1, domain: '硅验证 (Silicon Validation)', criteria: '所有基本功能测试通过，无critical bug', owner: '张三', status: 'not-ready' },
+                { id: 'bu-2', index: 2, domain: '电源管理 (Power Management)', criteria: '功耗测试符合规格要求，温度控制正常', owner: '李四', status: 'fail' },
+                { id: 'bu-3', index: 3, domain: 'PCIe接口 (PCIe Interface)', criteria: 'PCIe链路稳定性测试通过，带宽达标', owner: '王五', status: 'pass' },
+                { id: 'bu-4', index: 4, domain: '内存子系统 (Memory Subsystem)', criteria: '内存读写性能测试通过，ECC功能正常', owner: '赵六', status: 'not-ready' },
+                { id: 'bu-5', index: 5, domain: '计算单元 (Compute Units)', criteria: '计算精度和性能基准测试通过', owner: '钱七', status: 'fail' }
+            ], // NEW: BU Exit Criteria with test data
+            lastUpdated: '2026年3月3日 22:46'
+        };
+        
+        // Current edit IDs
+        let currentEditDomainId = null;
+        let currentEditBugId = null;
+        let currentEditDailyProgressId = null;
+        let currentEditBUExitCriteriaId = null; // NEW
+        
+        // Sorting states
+        let currentTaskSort = { field: null, direction: 'asc' };
+        let currentBugSort = { field: null, direction: 'asc' };
+        
+        // Filter states
+        let currentTaskFilters = {};
+        let currentBugFilters = {};
+        let currentDailyProgressFilters = {}; // New: daily progress filters
+        
+        // Status colors mapping
+        const statusColors = {
+            'not-started': '#95a5a6', // 灰色
+            'in-progress': '#3498db', // 蓝色
+            'blocked': '#e74c3c',     // 红色
+            'completed': '#27ae60'    // 绿色
+        };
+        
+        // Status text mapping
+        const statusText = {
+            'not-started': '未开始',
+            'in-progress': '进行中',
+            'blocked': '受阻',
+            'completed': '已完成'
+        };
+        
+        // Severity text mapping
+        const severityText = {
+            'highest': 'Highest',
+            'high': 'High',
+            'medium': 'Medium',
+            'low': 'Low',
+            'lowest': 'Lowest'
+        };
+        
+        // Bug status text mapping
+        const bugStatusText = {
+            'open': 'Open',
+            'triage': 'Triage',
+            'implement': 'Implement',
+            'closed': 'Closed',
+            'rejected': 'Rejected'
+        };
+        
+        // Severity color classes
+        const severityColorClasses = {
+            'highest': 'severity-highest',
+            'high': 'severity-high',
+            'medium': 'severity-medium',
+            'low': 'severity-low',
+            'lowest': 'severity-lowest'
+        };
+        
+        // Priority text mapping
+        const priorityText = {
+            'high': '高优先级',
+            'medium': '中优先级',
+            'low': '低优先级'
+        };
+        
+        // Priority color classes
+        const priorityColorClasses = {
+            'high': 'priority-high-cell',
+            'medium': 'priority-medium-cell',
+            'low': 'priority-low-cell'
+        };
+        
+        // JIRA base URL
+        const jiraBaseUrl = 'https://jira01.birentech.com/browse/';
+        
+        // Create JIRA link if bug ID matches pattern
+        function createJiraLink(bugId) {
+            if (bugId && bugId.match(/^[A-Z0-9]+-\d+$/)) {
+                return `<a href="${jiraBaseUrl}${bugId}" target="_blank" class="jira-link">${bugId}</a>`;
+            }
+            return bugId;
+        }
+        
+        // Show sync status message
+        function showSyncStatus(message, type = 'info') {
+            const statusEl = document.getElementById('sync-status');
+            statusEl.textContent = message;
+            statusEl.className = `sync-status sync-${type}`;
+            statusEl.style.display = 'block';
+            
+            // Auto hide success messages after 3 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 3000);
+            }
+        }
+        
+        // Hide sync status
+        function hideSyncStatus() {
+            document.getElementById('sync-status').style.display = 'none';
+        }
+        
+        // Save to localStorage (immediate feedback)
+        function saveToLocalStorage(data) {
+            try {
+                localStorage.setItem('buTrackerData', JSON.stringify(data));
+                console.log('Data saved to localStorage');
+            } catch (e) {
+                console.error('Failed to save to localStorage:', e);
+            }
+        }
+        
+        // Load from localStorage (fallback)
+        function loadFromLocalStorage() {
+            try {
+                const savedData = localStorage.getItem('buTrackerData');
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    console.log('Data loaded from localStorage');
+                    return data;
+                }
+            } catch (e) {
+                console.error('Failed to load from localStorage:', e);
+            }
+            return null;
+        }
+        
+        // API call with error handling
+        async function apiCall(url, options = {}) {
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                ...options
+            };
+            
+            try {
+                const response = await fetch(url, defaultOptions);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+        
+        // Load data from API (primary source)
+        async function loadDataFromAPI() {
+            try {
+                showSyncStatus('正在从服务器加载最新数据...', 'info');
+                const data = await apiCall('/api/data');
+                
+                // Update global data
+                currentData.domains = data.domains || currentData.domains;
+                currentData.bugs = data.bugs || currentData.bugs;
+                currentData.dailyProgress = data.dailyProgress || currentData.dailyProgress;
+                currentData.buExitCriteria = data.buExitCriteria || currentData.buExitCriteria;
+                currentData.lastUpdated = data.lastUpdated || currentData.lastUpdated;
+                
+                // Save to localStorage as backup
+                saveToLocalStorage(currentData);
+                
+                // Update UI
+                if (data.lastUpdated) {
+                    document.getElementById('last-update').textContent = data.lastUpdated.split(' ')[0];
+                    document.getElementById('timestamp').textContent = data.lastUpdated;
+                }
+                
+                renderDomains(currentData.domains);
+                renderBugs(currentData.bugs);
+                renderDailyProgress(currentData.dailyProgress);
+                renderBUExitCriteria(currentData.buExitCriteria); // NEW
+                
+                showSyncStatus('数据已从服务器成功加载！', 'success');
+                return true;
+            } catch (error) {
+                console.error('Failed to load data from API:', error);
+                showSyncStatus('无法连接服务器，使用本地缓存数据...', 'warning');
+                return false;
+            }
+        }
+        
+        // Save data to API (primary storage)
+        async function saveDataToAPI() {
+            try {
+                showSyncStatus('正在保存数据到服务器...', 'info');
+                const response = await apiCall('/api/data', {
+                    method: 'POST',
+                    body: JSON.stringify(currentData)
+                });
+                
+                if (response.success) {
+                    showSyncStatus('数据已成功保存到服务器！', 'success');
+                    return true;
+                } else {
+                    throw new Error(response.message || 'Save failed');
+                }
+            } catch (error) {
+                console.error('Failed to save data to API:', error);
+                showSyncStatus('服务器保存失败，数据已保存到本地缓存', 'warning');
+                return false;
+            }
+        }
+        
+        // Populate domain dropdowns
+        function populateDomainDropdowns() {
+            const taskDomainSelect = document.getElementById('new-task-domain');
+            const filterTaskDomainSelect = document.getElementById('filter-task-domain');
+            const dailyDomainSelect = document.getElementById('daily-domain-select');
+            const filterDailyDomainSelect = document.getElementById('filter-daily-domain');
+            const editDailyDomainSelect = document.getElementById('edit-daily-domain');
+            
+            // Clear existing options (except first)
+            if (taskDomainSelect) {
+                taskDomainSelect.innerHTML = '<option value="">选择Domain</option>';
+            }
+            if (filterTaskDomainSelect) {
+                filterTaskDomainSelect.innerHTML = '<option value="">所有Domain</option>';
+            }
+            dailyDomainSelect.innerHTML = '<option value="">选择Domain</option>';
+            filterDailyDomainSelect.innerHTML = '<option value="">所有Domain</option>';
+            if (editDailyDomainSelect) {
+                editDailyDomainSelect.innerHTML = '<option value="">选择Domain</option>';
+            }
+            
+            currentData.domains.forEach(domain => {
+                if (taskDomainSelect) {
+                    const option1 = document.createElement('option');
+                    option1.value = domain.name;
+                    option1.textContent = domain.name;
+                    taskDomainSelect.appendChild(option1);
+                }
+                
+                if (filterTaskDomainSelect) {
+                    const option2 = document.createElement('option');
+                    option2.value = domain.name;
+                    option2.textContent = domain.name;
+                    filterTaskDomainSelect.appendChild(option2);
+                }
+                
+                const option3 = document.createElement('option');
+                option3.value = domain.name;
+                option3.textContent = domain.name;
+                dailyDomainSelect.appendChild(option3);
+                
+                const option4 = document.createElement('option');
+                option4.value = domain.name;
+                option4.textContent = domain.name;
+                filterDailyDomainSelect.appendChild(option4);
+                
+                if (editDailyDomainSelect) {
+                    const option5 = document.createElement('option');
+                    option5.value = domain.name;
+                    option5.textContent = domain.name;
+                    editDailyDomainSelect.appendChild(option5);
+                }
+            });
+        }
+        
+        // Render domains table with editable status dropdown and edit button
+        function renderDomains(domains) {
+            const tbody = document.getElementById('domains-body');
+            tbody.innerHTML = '';
+            
+            domains.forEach(domain => {
+                const row = document.createElement('tr');
+                row.setAttribute('data-domain-id', domain.id);
+                
+                const statusDisplay = statusText[domain.status] || domain.status;
+                const statusClass = domain.status === 'not-started' ? 'status-not-started' :
+                                  domain.status === 'in-progress' ? 'status-in-progress' :
+                                  domain.status === 'blocked' ? 'status-blocked' : 'status-completed';
+                
+                row.innerHTML = `
+                    <td>${domain.name}</td>
+                    <td>${domain.owner}</td>
+                    <td>
+                        <select class="status-select" onchange="updateDomainStatus('${domain.id}', this.value)" style="background-color: ${statusColors[domain.status]}; color: white;">
+                            <option value="not-started" ${domain.status === 'not-started' ? 'selected' : ''}>未开始</option>
+                            <option value="in-progress" ${domain.status === 'in-progress' ? 'selected' : ''}>进行中</option>
+                            <option value="blocked" ${domain.status === 'blocked' ? 'selected' : ''}>受阻</option>
+                            <option value="completed" ${domain.status === 'completed' ? 'selected' : ''}>已完成</option>
+                        </select>
+                    </td>
+                    <td>${domain.notes}</td>
+                    <td>
+                        <button class="edit-btn" onclick="editDomain('${domain.id}')">编辑</button>
+                        <button class="delete-btn" onclick="deleteDomain('${domain.id}')">删除</button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+            
+            // Update domain dropdowns
+            populateDomainDropdowns();
+        }
+        
+        // Open edit domain modal
+        function editDomain(domainId) {
+            const domain = currentData.domains.find(d => d.id === domainId);
+            if (!domain) return;
+            
+            currentEditDomainId = domainId;
+            document.getElementById('edit-domain-name').value = domain.name;
+            document.getElementById('edit-domain-owner').value = domain.owner;
+            document.getElementById('edit-domain-status').value = domain.status;
+            document.getElementById('edit-domain-notes').value = domain.notes;
+            
+            document.getElementById('editDomainModal').style.display = 'block';
+        }
+        
+        // Close edit domain modal
+        function closeEditDomainModal() {
+            document.getElementById('editDomainModal').style.display = 'none';
+            currentEditDomainId = null;
+        }
+        
+        // Save edited domain
+        function saveEditedDomain() {
+            if (!currentEditDomainId) return;
+            
+            const domain = currentData.domains.find(d => d.id === currentEditDomainId);
+            if (!domain) return;
+            
+            domain.name = document.getElementById('edit-domain-name').value.trim();
+            domain.owner = document.getElementById('edit-domain-owner').value.trim();
+            domain.status = document.getElementById('edit-domain-status').value;
+            domain.notes = document.getElementById('edit-domain-notes').value.trim();
+            
+            closeEditDomainModal();
+            renderDomains(currentData.domains);
+            saveToLocalStorage(currentData);
+            saveDataToAPI();
+        }
+        
+        // Delete domain from modal
+        function deleteDomainFromModal() {
+            if (confirm('确定要删除这个Domain吗？')) {
+                deleteDomain(currentEditDomainId);
+                closeEditDomainModal();
+            }
+        }
+        
+        // Update domain status
+        function updateDomainStatus(domainId, newStatus) {
+            const domain = currentData.domains.find(d => d.id === domainId);
+            if (domain) {
+                domain.status = newStatus;
+                // Save immediately to localStorage for instant feedback
+                saveToLocalStorage(currentData);
+                // Save to API asynchronously
+                saveDataToAPI();
+                // Re-render to update colors
+                renderDomains(currentData.domains);
+            }
+        }
+        
+        // Delete domain
+        function deleteDomain(domainId) {
+            if (confirm('确定要删除这个Domain吗？')) {
+                currentData.domains = currentData.domains.filter(domain => domain.id !== domainId);
+                renderDomains(currentData.domains);
+                saveToLocalStorage(currentData);
+                saveDataToAPI();
+            }
+        }
+        
+        // Add new domain with owner field
+        function addNewDomain() {
+            const newDomainName = document.getElementById('new-domain-name').value.trim();
+            const newDomainOwner = document.getElementById('new-domain-owner').value.trim();
+            
+            if (!newDomainName) {
+                alert('请输入Domain名称');
+                return;
+            }
+            
+            const newDomain = {
+                id: 'domain-' + Date.now(),
+                name: newDomainName,
+                owner: newDomainOwner || 'TBD',
+                status: 'not-started',
+                notes: ''
+            };
+            
+            currentData.domains.push(newDomain);
+            renderDomains(currentData.domains);
+            document.getElementById('new-domain-name').value = '';
+            document.getElementById('new-domain-owner').value = '';
+            saveToLocalStorage(currentData);
+            saveDataToAPI();
+        }
+        
+        // Apply filters to bugs - FIXED: Added case normalization
+        function applyFiltersToBugs(bugs) {
+            return bugs.filter(bug => {
+                // Normalize severity values to lowercase for consistent comparison
+                const normalizedSeverity = (bug.severity || '').toLowerCase();
+                const filterSeverity = (currentBugFilters.severity || '').toLowerCase();
+                
+                if (currentBugFilters.bugId && !bug.bugId.toLowerCase().includes(currentBugFilters.bugId.toLowerCase())) {
+                    return false;
+                }
+                if (currentBugFilters.domain && !bug.domain.toLowerCase().includes(currentBugFilters.domain.toLowerCase())) {
+                    return false;
+                }
+                if (currentBugFilters.description && !bug.description.toLowerCase().includes(currentBugFilters.description.toLowerCase())) {
+                    return false;
+                }
+                if (currentBugFilters.severity && normalizedSeverity !== filterSeverity) {
+                    return false;
+                }
+                if (currentBugFilters.status && bug.status !== currentBugFilters.status) {
+                    return false;
+                }
+                if (currentBugFilters.owner && !bug.owner.toLowerCase().includes(currentBugFilters.owner.toLowerCase())) {
+                    return false;
+                }
+                return true;
+            });
+        }
+        
+        // Sort bugs based on current sort state - FIXED: Enhanced severity sorting
+        function sortBugs(bugs) {
+            // Define the correct severity order: highest -> high -> medium -> low -> lowest
+            const severityPriority = {
+                'highest': 0,
+                'high': 1,
+                'medium': 2,
+                'low': 3,
+                'lowest': 4
+            };
+            
+            if (!currentBugSort.field) {
+                // Default sort: by severity (highest first), then by report date (newest first)
+                return bugs.sort((a, b) => {
+                    // Normalize severity values to ensure consistent comparison
+                    const severityA = (a.severity || '').toLowerCase();
+                    const severityB = (b.severity || '').toLowerCase();
+                    
+                    const priorityA = severityPriority[severityA] !== undefined ? severityPriority[severityA] : 999;
+                    const priorityB = severityPriority[severityB] !== undefined ? severityPriority[severityB] : 999;
+                    
+                    if (priorityA !== priorityB) {
+                        return priorityA - priorityB; // Ascending order: 0,1,2,3,4
+                    }
+                    
+                    // If same severity, sort by date (newest first)
+                    const dateA = new Date(a.reportDate);
+                    const dateB = new Date(b.reportDate);
+                    return dateB - dateA;
+                });
+            }
+            
+            return bugs.sort((a, b) => {
+                let valA = a[currentBugSort.field];
+                let valB = b[currentBugSort.field];
+                
+                if (currentBugSort.field === 'bugId') {
+                    valA = valA || '';
+                    valB = valB || '';
+                } else if (currentBugSort.field === 'severity') {
+                    // Normalize severity values and apply priority mapping
+                    const normalizedValA = (valA || '').toLowerCase();
+                    const normalizedValB = (valB || '').toLowerCase();
+                    
+                    valA = severityPriority[normalizedValA] !== undefined ? severityPriority[normalizedValA] : 999;
+                    valB = severityPriority[normalizedValB] !== undefined ? severityPriority[normalizedValB] : 999;
+                } else if (currentBugSort.field === 'reportDate') {
+                    valA = new Date(valA);
+                    valB = new Date(valB);
+                } else {
+                    valA = (valA || '').toString().toLowerCase();
+                    valB = (valB || '').toString().toLowerCase();
+                }
+                
+                let comparison = 0;
+                if (valA > valB) {
+                    comparison = 1;
+                } else if (valA < valB) {
+                    comparison = -1;
+                }
+                
+                return currentBugSort.direction === 'asc' ? comparison : -comparison;
+            });
+        }
+        
+        // Update bug table header sort indicators
+        function updateBugSortIndicators() {
+            document.querySelectorAll('.bug-table th').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+            });
+            
+            if (currentBugSort.field) {
+                const th = document.querySelector(`.bug-table th[data-sort="${currentBugSort.field}"]`);
+                if (th) {
+                    th.classList.add(currentBugSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            }
+        }
+        
+        // Render bugs table with filtering, sorting, and edit button
+        function renderBugs(bugs) {
+            const tbody = document.getElementById('bugs-body');
+            tbody.innerHTML = '';
+            
+            if (bugs.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="8" style="text-align: center; font-style: italic;">暂无Bug记录</td>`;
+                tbody.appendChild(row);
+                return;
+            }
+            
+            let filteredBugs = applyFiltersToBugs(bugs);
+            let sortedBugs = sortBugs(filteredBugs);
+            
+            updateBugSortIndicators();
+            
+            sortedBugs.forEach(bug => {
+                const row = document.createElement('tr');
+                row.setAttribute('data-bug-id', bug.id);
+                
+                const bugIdCell = createJiraLink(bug.bugId);
+                const severityDisplay = severityText[bug.severity] || bug.severity;
+                const severityClass = severityColorClasses[bug.severity] || '';
+                const statusDisplay = bugStatusText[bug.status] || bug.status;
+                
+                row.innerHTML = `
+                    <td>${bugIdCell}</td>
+                    <td>${bug.domain}</td>
+                    <td class="bug-description">${bug.description}</td>
+                    <td class="${severityClass}">${severityDisplay}</td>
+                    <td class="bug-status-static">${statusDisplay}</td>
+                    <td>${bug.reportDate}</td>
+                    <td>${bug.owner}</td>
+                    <td>
+                        <button class="edit-btn" onclick="editBug('${bug.id}')">编辑</button>
+                        <button class="delete-btn" onclick="deleteBug('${bug.id}')">删除</button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+        
+        // Open edit bug modal
+        function editBug(bugId) {
+            const bug = currentData.bugs.find(b => b.id === bugId);
+            if (!bug) return;
+            
+            currentEditBugId = bugId;
+            document.getElementById('edit-bug-id').value = bug.bugId;
+            document.getElementById('edit-bug-domain').value = bug.domain;
+            document.getElementById('edit-bug-description').value = bug.description;
+            document.getElementById('edit-bug-severity').value = bug.severity;
+            document.getElementById('edit-bug-status').value = bug.status;
+            document.getElementById('edit-bug-owner').value = bug.owner;
+            
+            document.getElementById('editBugModal').style.display = 'block';
+        }
+        
+        // Close edit bug modal
+        function closeEditBugModal() {
+            document.getElementById('editBugModal').style.display = 'none';
+            currentEditBugId = null;
+        }
+        
+        // Save edited bug
+        function saveEditedBug() {
+            if (!currentEditBugId) return;
+            
+            const bug = currentData.bugs.find(b => b.id === currentEditBugId);
+            if (!bug) return;
+            
+            bug.bugId = document.getElementById('edit-bug-id').value.trim();
+            bug.domain = document.getElementById('edit-bug-domain').value.trim();
+            bug.description = document.getElementById('edit-bug-description').value.trim();
+            bug.severity = document.getElementById('edit-bug-severity').value;
+            bug.status = document.getElementById('edit-bug-status').value;
+            bug.owner = document.getElementById('edit-bug-owner').value.trim();
+            
+            closeEditBugModal();
+            renderBugs(currentData.bugs);
+            saveToLocalStorage(currentData);
+            saveDataToAPI();
+        }
+        
+        // Delete bug from modal
+        function deleteBugFromModal() {
+            if (confirm('确定要删除这个Bug吗？')) {
+                deleteBug(currentEditBugId);
+                closeEditBugModal();
+            }
+        }
+        
+        // Handle bug column sorting
+        function handleBugSort(field) {
+            if (currentBugSort.field === field) {
+                currentBugSort.direction = currentBugSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentBugSort.field = field;
+                currentBugSort.direction = 'asc';
+            }
+            renderBugs(currentData.bugs);
+        }
+        
+        // Apply bug filters from UI
+        function applyBugFilters() {
+            currentBugFilters = {
+                bugId: document.getElementById('filter-bug-id').value.trim(),
+                domain: document.getElementById('filter-bug-domain').value.trim(),
+                description: document.getElementById('filter-bug-description').value.trim(),
+                severity: document.getElementById('filter-bug-severity').value,
+                status: document.getElementById('filter-bug-status').value,
+                owner: document.getElementById('filter-bug-owner').value.trim()
+            };
+            renderBugs(currentData.bugs);
+        }
+        
+        // Reset bug filters
+        function resetBugFilters() {
+            document.getElementById('filter-bug-id').value = '';
+            document.getElementById('filter-bug-domain').value = '';
+            document.getElementById('filter-bug-description').value = '';
+            document.getElementById('filter-bug-severity').value = '';
+            document.getElementById('filter-bug-status').value = '';
+            document.getElementById('filter-bug-owner').value = '';
+            
+            currentBugFilters = {};
+            currentBugSort = { field: null, direction: 'asc' };
+            renderBugs(currentData.bugs);
+        }
+        
+        // NEW: Daily Progress Functions
+        
+        // Add new daily progress entry
+        function addDailyProgress() {
+            const date = document.getElementById('daily-date-input').value;
+            const domain = document.getElementById('daily-domain-select').value;
+            const content = document.getElementById('daily-content-input').value.trim();
+            
+            if (!date || !domain || !content) {
+                alert('请填写日期、Domain和工作内容');
+                return;
+            }
+            
+            const newProgress = {
+                id: 'progress-' + Date.now(),
+                date: date,
+                domain: domain,
+                content: content
+            };
+            
+            currentData.dailyProgress.push(newProgress);
+            renderDailyProgress(currentData.dailyProgress);
+            
+            // Clear inputs
+            document.getElementById('daily-date-input').value = '';
+            document.getElementById('daily-domain-select').value = '';
+            document.getElementById('daily-content-input').value = '';
+            
+            saveToLocalStorage(currentData);
+            saveDataToAPI();
+        }
+        
+        // Delete daily progress entry
+        function deleteDailyProgress(progressId) {
+            if (confirm('确定要删除这个进度记录吗？')) {
+                currentData.dailyProgress = currentData.dailyProgress.filter(progress => progress.id !== progressId);
+                renderDailyProgress(currentData.dailyProgress);
+                saveToLocalStorage(currentData);
+                saveDataToAPI();
+            }
+        }
+        
+        // Apply filters to daily progress
+        function applyFiltersToDailyProgress(progressList) {
+            return progressList.filter(progress => {
+                if (currentDailyProgressFilters.date && progress.date !== currentDailyProgressFilters.date) {
+                    return false;
+                }
+                if (currentDailyProgressFilters.domain && progress.domain !== currentDailyProgressFilters.domain) {
+                    return false;
+                }
+                return true;
+            });
+        }
+        
+        // Group and sort daily progress for merged display
+        function groupAndRenderDailyProgress(progressList) {
+            const container = document.getElementById('daily-progress-list');
+            container.innerHTML = '';
+            
+            if (progressList.length === 0) {
+                container.innerHTML = '<p style="text-align: center; font-style: italic; color: #7f8c8d;">暂无每日进度记录</p>';
+                return;
+            }
+            
+            let filteredProgress = applyFiltersToDailyProgress(progressList);
+            
+            // Group by date and domain
+            const grouped = {};
+            filteredProgress.forEach(progress => {
+                const key = `${progress.date}|${progress.domain}`;
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        date: progress.date,
+                        domain: progress.domain,
+                        contents: []
+                    };
+                }
+                grouped[key].contents.push({
+                    id: progress.id,
+                    content: progress.content
+                });
+            });
+            
+            // Convert to array and sort by date (newest first)
+            const groupedArray = Object.values(grouped).sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // Render grouped progress
+            groupedArray.forEach(group => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'daily-progress-item';
+                
+                let contentsHtml = '';
+                group.contents.forEach(item => {
+                    contentsHtml += `
+                        <div class="daily-content-display">
+                            ${item.content}
+                            <button class="edit-btn" onclick="editDailyProgress('${item.id}')">编辑</button>
+                            <button class="delete-btn" onclick="deleteDailyProgress('${item.id}')">删除</button>
+                        </div>
+                    `;
+                });
+                
+                groupDiv.innerHTML = `
+                    <div class="daily-progress-info">
+                        <div class="daily-date-display">${group.date}</div>
+                        <div class="daily-domain-display">${group.domain}</div>
+                        ${contentsHtml}
+                    </div>
+                `;
+                
+                container.appendChild(groupDiv);
+            });
+        }
+        
+        // Render daily progress list (using merged grouping)
+        function renderDailyProgress(progressList) {
+            groupAndRenderDailyProgress(progressList);
+        }
+        
+        // Open edit daily progress modal
+        function editDailyProgress(progressId) {
+            const progress = currentData.dailyProgress.find(p => p.id === progressId);
+            if (!progress) return;
+            
+            currentEditDailyProgressId = progressId;
+            document.getElementById('edit-daily-date').value = progress.date;
+            document.getElementById('edit-daily-domain').value = progress.domain;
+            document.getElementById('edit-daily-content').value = progress.content;
+            
+            document.getElementById('editDailyProgressModal').style.display = 'block';
+        }
+        
+        // Close edit daily progress modal
+        function closeEditDailyProgressModal() {
+            document.getElementById('editDailyProgressModal').style.display = 'none';
+            currentEditDailyProgressId = null;
+        }
+        
+        // Save edited daily progress
+        function saveEditedDailyProgress() {
+            if (!currentEditDailyProgressId) return;
+            
+            const progress = currentData.dailyProgress.find(p => p.id === currentEditDailyProgressId);
+            if (!progress) return;
+            
+            progress.date = document.getElementById('edit-daily-date').value;
+            progress.domain = document.getElementById('edit-daily-domain').value;
+            progress.content = document.getElementById('edit-daily-content').value.trim();
+            
+            closeEditDailyProgressModal();
+            renderDailyProgress(currentData.dailyProgress);
+            saveToLocalStorage(currentData);
+            saveDataToAPI();
+        }
+        
+        // Delete daily progress from modal
+        function deleteDailyProgressFromModal() {
+            if (confirm('确定要删除这个进度记录吗？')) {
+                deleteDailyProgress(currentEditDailyProgressId);
+                closeEditDailyProgressModal();
+            }
+        }
+        
+        // Apply daily progress filters from UI
+        function applyDailyProgressFilters() {
+            currentDailyProgressFilters = {
+                date: document.getElementById('filter-daily-date').value,
+                domain: document.getElementById('filter-daily-domain').value
+            };
+            renderDailyProgress(currentData.dailyProgress);
+        }
+        
+        // Reset daily progress filters
+        function resetDailyProgressFilters() {
+            document.getElementById('filter-daily-date').value = '';
+            document.getElementById('filter-daily-domain').value = '';
+            
+            currentDailyProgressFilters = {};
+            renderDailyProgress(currentData.dailyProgress);
+        }
+        
+        // NEW: BU Exit Criteria Functions
+        
+        // Add new BU Exit Criteria row (with auto-incremented index)
+        function addNewBUExitCriteriaRow() {
+            const currentIndex = currentData.buExitCriteria.length + 1;
+            const newCriteria = {
+                id: 'criteria-' + Date.now(),
+                index: currentIndex,
+                domain: '',
+                criteria: '',
+                owner: '',
+                status: 'not-ready'
+            };
+            
+            currentData.buExitCriteria.push(newCriteria);
+            renderBUExitCriteria(currentData.buExitCriteria);
+            saveToLocalStorage(currentData);
+            saveDataToAPI();
+        }
+        
+        // Delete BU Exit Criteria entry
+        function deleteBUExitCriteria(criteriaId) {
+            if (confirm('确定要删除这个准出标准吗？')) {
+                currentData.buExitCriteria = currentData.buExitCriteria.filter(criteria => criteria.id !== criteriaId);
+                // Re-index after deletion
+                reindexBUExitCriteria();
+                renderBUExitCriteria(currentData.buExitCriteria);
+                saveToLocalStorage(currentData);
+                saveDataToAPI();
+            }
+        }
+        
+        // Re-index BU Exit Criteria after deletion
+        function reindexBUExitCriteria() {
+            currentData.buExitCriteria.forEach((criteria, index) => {
+                criteria.index = index + 1;
+            });
+        }
+        
+        // Render BU Exit Criteria table
+        function renderBUExitCriteria(criteriaList) {
+            const tbody = document.getElementById('bu-exit-criteria-body');
+            tbody.innerHTML = '';
+            
+            if (criteriaList.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="6" style="text-align: center; font-style: italic;">暂无准出标准记录</td>`;
+                tbody.appendChild(row);
+                return;
+            }
+            
+            criteriaList.forEach(criteria => {
+                const statusDisplay = criteria.status === 'not-ready' ? 'Not ready' : 
+                                   criteria.status === 'fail' ? 'Fail' : 'Pass';
+                const statusClass = criteria.status === 'not-ready' ? '' : 
+                                  criteria.status === 'fail' ? 'severity-highest' : 'status-completed';
+                
+                const row = document.createElement('tr');
+                row.setAttribute('data-criteria-id', criteria.id);
+                row.innerHTML = `
+                    <td>${criteria.index}</td>
+                    <td>${criteria.domain}</td>
+                    <td class="bu-criteria-content">${criteria.criteria}</td>
+                    <td>${criteria.owner}</td>
+                    <td class="${statusClass}">${statusDisplay}</td>
+                    <td>
+                        <button class="edit-btn" onclick="editBUExitCriteria('${criteria.id}')">编辑</button>
+                        <button class="delete-btn" onclick="deleteBUExitCriteria('${criteria.id}')">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // Open edit BU Exit Criteria modal
+        function editBUExitCriteria(criteriaId) {
+            const criteria = currentData.buExitCriteria.find(c => c.id === criteriaId);
+            if (!criteria) return;
+            
+            currentEditBUExitCriteriaId = criteriaId;
+            document.getElementById('edit-bu-criteria-domain').value = criteria.domain;
+            document.getElementById('edit-bu-criteria-content').value = criteria.criteria;
+            document.getElementById('edit-bu-criteria-owner').value = criteria.owner;
+            document.getElementById('edit-bu-criteria-status').value = criteria.status;
+            
+            document.getElementById('editBUExitCriteriaModal').style.display = 'block';
+        }
+        
+        // Close edit BU Exit Criteria modal
+        function closeEditBUExitCriteriaModal() {
+            document.getElementById('editBUExitCriteriaModal').style.display = 'none';
+            currentEditBUExitCriteriaId = null;
+        }
+        
+        // Save edited BU Exit Criteria
+        function saveEditedBUExitCriteria() {
+            if (!currentEditBUExitCriteriaId) return;
+            
+            const criteria = currentData.buExitCriteria.find(c => c.id === currentEditBUExitCriteriaId);
+            if (!criteria) return;
+            
+            criteria.domain = document.getElementById('edit-bu-criteria-domain').value.trim();
+            criteria.criteria = document.getElementById('edit-bu-criteria-content').value.trim();
+            criteria.owner = document.getElementById('edit-bu-criteria-owner').value.trim();
+            criteria.status = document.getElementById('edit-bu-criteria-status').value;
+            
+            closeEditBUExitCriteriaModal();
+            renderBUExitCriteria(currentData.buExitCriteria);
+            saveToLocalStorage(currentData);
+            saveDataToAPI();
+        }
+        
+        // Delete BU Exit Criteria from modal
+        function deleteBUExitCriteriaFromModal() {
+            if (confirm('确定要删除这个准出标准吗？')) {
+                deleteBUExitCriteria(currentEditBUExitCriteriaId);
+                closeEditBUExitCriteriaModal();
+            }
+        }
+        
+        // Save current data (hybrid approach)
+        async function saveData() {
+            // Save to localStorage immediately for instant feedback
+            saveToLocalStorage(currentData);
+            
+            // Save to API asynchronously
+            const apiSuccess = await saveDataToAPI();
+            
+            // Update timestamp
+            currentData.lastUpdated = new Date().toLocaleString('zh-CN');
+            document.getElementById('last-update').textContent = currentData.lastUpdated.split(' ')[0];
+            document.getElementById('timestamp').textContent = currentData.lastUpdated;
+            
+            // Show save message
+            const messageEl = document.getElementById('save-message');
+            messageEl.textContent = apiSuccess ? '数据已保存到服务器！' : '数据已保存到本地缓存！';
+            setTimeout(() => {
+                messageEl.textContent = '';
+            }, 3000);
+        }
+        
+        // Add new bug
+        function addNewBug() {
+            const bugId = document.getElementById('new-bug-id').value.trim();
+            const domain = document.getElementById('new-bug-domain').value.trim();
+            const description = document.getElementById('new-bug-description').value.trim();
+            
+            if (!bugId || !domain || !description) {
+                alert('请填写Bug ID、Domain和描述');
+                return;
+            }
+            
+            const newBug = {
+                id: 'bug-' + Date.now(),
+                bugId: bugId,
+                domain: domain,
+                description: description,
+                severity: document.getElementById('new-bug-severity').value,
+                status: document.getElementById('new-bug-status').value,
+                reportDate: new Date().toISOString().split('T')[0],
+                owner: document.getElementById('new-bug-owner').value || 'TBD'
+            };
+            
+            currentData.bugs.push(newBug);
+            renderBugs(currentData.bugs);
+            
+            // Clear inputs
+            document.getElementById('new-bug-id').value = '';
+            document.getElementById('new-bug-domain').value = '';
+            document.getElementById('new-bug-description').value = '';
+            document.getElementById('new-bug-owner').value = '';
+            
+            saveToLocalStorage(currentData);
+            saveDataToAPI();
+        }
+        
+        // Delete bug
+        function deleteBug(bugId) {
+            if (confirm('确定要删除这个Bug吗？')) {
+                currentData.bugs = currentData.bugs.filter(bug => bug.id !== bugId);
+                renderBugs(currentData.bugs);
+                saveToLocalStorage(currentData);
+                saveDataToAPI();
+            }
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Try to load from API first (primary source)
+            const apiLoaded = await loadDataFromAPI();
+            
+            // If API failed, try localStorage (fallback)
+            if (!apiLoaded) {
+                const localData = loadFromLocalStorage();
+                if (localData) {
+                    currentData = localData;
+                    renderDomains(currentData.domains);
+                    renderBugs(currentData.bugs);
+                    renderDailyProgress(currentData.dailyProgress);
+                    renderBUExitCriteria(currentData.buExitCriteria); // NEW
+                    
+                    if (localData.lastUpdated) {
+                        document.getElementById('last-update').textContent = localData.lastUpdated.split(' ')[0];
+                        document.getElementById('timestamp').textContent = localData.lastUpdated;
+                    }
+                }
+            }
+            
+            // Setup event listeners for sorting
+            document.querySelectorAll('.bug-table th[data-sort]').forEach(th => {
+                th.addEventListener('click', () => {
+                    const field = th.getAttribute('data-sort');
+                    handleBugSort(field);
+                });
+            });
+            
+            // Setup bug filter event listeners
+            document.getElementById('filter-bug-id').addEventListener('input', applyBugFilters);
+            document.getElementById('filter-bug-domain').addEventListener('input', applyBugFilters);
+            document.getElementById('filter-bug-description').addEventListener('input', applyBugFilters);
+            document.getElementById('filter-bug-severity').addEventListener('change', applyBugFilters);
+            document.getElementById('filter-bug-status').addEventListener('change', applyBugFilters);
+            document.getElementById('filter-bug-owner').addEventListener('input', applyBugFilters);
+            
+            // Setup daily progress filter event listeners
+            document.getElementById('filter-daily-date').addEventListener('change', applyDailyProgressFilters);
+            document.getElementById('filter-daily-domain').addEventListener('change', applyDailyProgressFilters);
+            
+            // Setup enter key for daily progress
+            document.getElementById('daily-content-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addDailyProgress();
+                }
+            });
+            
+            // Setup enter key for domain
+            document.getElementById('new-domain-name').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addNewDomain();
+                }
+            });
+            
+            // Setup enter key for bug
+            document.getElementById('new-bug-id').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addNewBug();
+                }
+            });
+            
+            // Setup daily progress date input to today by default
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('daily-date-input').value = today;
+            
+            // Setup modal close events
+            window.onclick = function(event) {
+                const editDomainModal = document.getElementById('editDomainModal');
+                const editBugModal = document.getElementById('editBugModal');
+                const editDailyProgressModal = document.getElementById('editDailyProgressModal');
+                const editBUExitCriteriaModal = document.getElementById('editBUExitCriteriaModal');
+                if (event.target === editDomainModal) {
+                    closeEditDomainModal();
+                }
+                if (event.target === editBugModal) {
+                    closeEditBugModal();
+                }
+                if (event.target === editDailyProgressModal) {
+                    closeEditDailyProgressModal();
+                }
+                if (event.target === editBUExitCriteriaModal) {
+                    closeEditBUExitCriteriaModal();
+                }
+            };
+        });
+        
+        // Keyboard shortcut for saving
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                saveData();
+            }
+        });
+    </script>
+</body>
+</html>
