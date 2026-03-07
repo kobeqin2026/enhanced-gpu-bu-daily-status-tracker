@@ -19,6 +19,8 @@
 - **响应式设计**: 适配桌面、平板和移动设备
 - **数据筛选和排序**: 支持多维度数据筛选和排序功能
 - **JIRA集成**: Bug ID自动链接到JIRA系统
+- **持久化存储**: 数据保存在 `data.json` 文件，重启后不丢失
+- **自动备份**: 支持手动备份数据到GitHub
 
 ### 用户体验
 - **直观的界面**: 清晰的颜色编码和状态指示
@@ -31,13 +33,14 @@
 ### 前置要求
 - Node.js (v14.0.0 或更高版本)
 - npm (通常随Node.js一起安装)
+- Nginx (用于生产环境部署)
 
 ### 安装步骤
 
 1. **克隆仓库**
    ```bash
-   git clone https://github.com/your-username/gpu-bringup-tracker.git
-   cd gpu-bringup-tracker
+   git clone https://github.com/kobeqin2026/gpu-bringup-daily-tracker.git
+   cd gpu-bringup-daily-tracker
    ```
 
 2. **安装依赖**
@@ -51,8 +54,8 @@
    ```
 
 4. **访问应用**
-   - 本地访问: `http://localhost:80`
-   - 网络访问: `http://47.77.221.23` (根据实际部署IP)
+   - 开发环境: `http://localhost:80`
+   - 生产环境: `http://<your-server-ip>:8080`
 
 ### Docker部署（可选）
 
@@ -76,9 +79,13 @@ docker run -d -p 80:80 --name gpu-tracker gpu-bringup-tracker
 ## 📂 项目结构
 
 ```
-gpu-bringup-tracker/
-├── BU-daily-tracker.html          # 主要HTML文件，包含所有前端逻辑
-├── server.js                     # Web服务器，提供静态文件服务
+gpu-bringup-daily-tracker/
+├── public/                        # Web静态文件目录
+│   └── index.html                # 主要HTML文件，包含所有前端逻辑
+├── server.js                     # Web服务器，提供API和静态文件服务
+├── data.json                     # 持久化数据存储文件
+├── nginx.conf                    # Nginx生产环境配置
+├── backup-data.sh                # 数据备份脚本
 ├── README.md                     # 项目文档
 └── package.json                  # 项目依赖配置
 ```
@@ -96,7 +103,7 @@ gpu-bringup-tracker/
     "bugs": [...],
     "dailyProgress": [...],
     "buExitCriteria": [...],
-    "lastUpdated": "2026年3月4日 21:00"
+    "lastUpdated": "2026-03-07T17:40:00+08:00"
   }
   ```
 
@@ -108,7 +115,7 @@ gpu-bringup-tracker/
   { "success": true, "message": "Data saved successfully" }
   ```
 
-> **注意**: 当前API实现为内存存储，重启服务器后数据会丢失。生产环境建议集成数据库。
+> **注意**: 数据持久化存储在 `data.json` 文件中，服务器重启后数据不会丢失。
 
 ## 🎨 界面说明
 
@@ -135,25 +142,42 @@ gpu-bringup-tracker/
 
 应用采用双重数据持久化策略：
 
-1. **服务器存储**: 通过API保存到服务器内存
+1. **服务器存储**: 通过API保存到 `data.json` 文件
 2. **本地存储**: 自动保存到浏览器localStorage作为备份
 
 当服务器不可用时，应用会自动从本地缓存加载数据，确保用户体验不中断。
 
+## 🔄 数据备份
+
+### 手动备份
+执行以下命令将 `data.json` 备份到GitHub：
+```bash
+./backup-data.sh
+```
+
+### 自动部署
+通过GitHub Actions实现自动部署：
+- 推送代码到 `master` 分支
+- 自动拉取最新代码并重载服务
+
 ## 🛠️ 自定义配置
 
 ### 修改域名列表
-在 `BU-daily-tracker.html` 文件中找到 `currentData.domains` 数组，添加或修改Domain条目：
-
-```javascript
-domains: [
-    { id: 'domain-1', name: '硅验证 (Silicon Validation)', owner: 'TBD', status: 'not-started', notes: '' },
-    // 添加更多Domain...
+在 `data.json` 文件中修改 `domains` 数组：
+```json
+"domains": [
+    {
+        "id": "domain-1",
+        "name": "PCIe",
+        "owner": "张三",
+        "status": "in-progress",
+        "notes": "Link training and LTSSM测试"
+    }
 ]
 ```
 
 ### 修改默认测试数据
-BU准出标准的测试数据位于 `currentData.buExitCriteria` 数组中，可以根据实际需求修改。
+所有数据都存储在 `data.json` 中，可以直接编辑该文件进行初始化配置。
 
 ## 📱 移动端适配
 
@@ -164,8 +188,8 @@ BU准出标准的测试数据位于 `currentData.buExitCriteria` 数组中，可
 
 ## 🚨 注意事项
 
-1. **数据安全**: 当前版本的数据存储在服务器内存中，重启后会丢失。生产环境请集成持久化存储。
-2. **网络要求**: 需要公司内网访问权限才能访问 `47.77.221.23`
+1. **Nginx配置**: 生产环境需要正确配置Nginx代理（参考 `nginx.conf`）
+2. **端口冲突**: 确保80端口未被其他服务占用
 3. **浏览器兼容性**: 推荐使用现代浏览器（Chrome, Firefox, Edge最新版本）
 
 ## 🤝 贡献指南
@@ -185,10 +209,10 @@ BU准出标准的测试数据位于 `currentData.buExitCriteria` 数组中，可
 ## 📞 联系方式
 
 - **项目维护者**: Kobe
-- **工作邮箱**: [your-email@company.com](mailto:your-email@company.com)
+- **GitHub**: [kobeqin2026](https://github.com/kobeqin2026)
 - **项目地址**: 国内GPU芯片Bring-up团队
 
 ---
 
-**最后更新**: 2026年3月4日  
-**版本**: 1.0.0
+**最后更新**: 2026年3月7日  
+**版本**: 1.1.0
