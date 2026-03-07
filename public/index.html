@@ -977,7 +977,9 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Domain</label>
-                <input type="text" id="edit-bu-criteria-domain" class="bu-criteria-domain-input">
+                <select id="edit-bu-criteria-domain" class="bu-criteria-domain-input">
+                    <option value="">请选择Domain</option>
+                </select>
             </div>
             <div class="form-group">
                 <label class="form-label">Bring up exit criteria</label>
@@ -985,7 +987,9 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Sign-off owner</label>
-                <input type="text" id="edit-bu-criteria-owner" class="bu-criteria-owner-input">
+                <select id="edit-bu-criteria-owner" class="bu-criteria-owner-input">
+                    <option value="">请选择Owner</option>
+                </select>
             </div>
             <div class="form-group">
                 <label class="form-label">Sign-off status</label>
@@ -1892,6 +1896,46 @@
             });
         }
         
+        // Populate Domain and Owner dropdowns
+        function populateDomainOwnerDropdowns() {
+            const domainSelect = document.getElementById('edit-bu-criteria-domain');
+            const ownerSelect = document.getElementById('edit-bu-criteria-owner');
+            
+            // Clear existing options
+            domainSelect.innerHTML = '';
+            ownerSelect.innerHTML = '';
+            
+            // Add default option
+            const defaultDomainOption = document.createElement('option');
+            defaultDomainOption.value = '';
+            defaultDomainOption.textContent = '请选择Domain';
+            domainSelect.appendChild(defaultDomainOption);
+            
+            const defaultOwnerOption = document.createElement('option');
+            defaultOwnerOption.value = '';
+            defaultOwnerOption.textContent = '请选择Owner';
+            ownerSelect.appendChild(defaultOwnerOption);
+            
+            // Populate Domain dropdown from current domains
+            currentData.domains.forEach(domain => {
+                const domainOption = document.createElement('option');
+                domainOption.value = domain.name;
+                domainOption.textContent = domain.name;
+                domainSelect.appendChild(domainOption);
+            });
+            
+            // Populate Owner dropdown from current domains
+            const uniqueOwners = [...new Set(currentData.domains.map(domain => domain.owner))];
+            uniqueOwners.forEach(owner => {
+                if (owner) {
+                    const ownerOption = document.createElement('option');
+                    ownerOption.value = owner;
+                    ownerOption.textContent = owner;
+                    ownerSelect.appendChild(ownerOption);
+                }
+            });
+        }
+        
         // Render BU Exit Criteria table
         function renderBUExitCriteria(criteriaList) {
             const tbody = document.getElementById('bu-exit-criteria-body');
@@ -1938,8 +1982,45 @@
             document.getElementById('edit-bu-criteria-owner').value = criteria.owner;
             document.getElementById('edit-bu-criteria-status').value = criteria.status;
             
+            // Update owner dropdown when domain changes
+            updateOwnerDropdown();
+            
             document.getElementById('editBUExitCriteriaModal').style.display = 'block';
         }
+        
+        // Update owner dropdown based on selected domain
+        function updateOwnerDropdown() {
+            const domainSelect = document.getElementById('edit-bu-criteria-domain');
+            const ownerSelect = document.getElementById('edit-bu-criteria-owner');
+            const selectedDomain = domainSelect.value;
+            
+            // Clear current options
+            ownerSelect.innerHTML = '';
+            
+            // Find the owner for the selected domain
+            const domainEntry = currentData.domains.find(d => d.name === selectedDomain);
+            if (domainEntry) {
+                const option = document.createElement('option');
+                option.value = domainEntry.owner;
+                option.textContent = domainEntry.owner;
+                ownerSelect.appendChild(option);
+                ownerSelect.value = domainEntry.owner;
+            } else {
+                // Add empty option if no domain found
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = '';
+                ownerSelect.appendChild(option);
+            }
+        }
+        
+        // Add event listener to domain dropdown
+        document.addEventListener('DOMContentLoaded', function() {
+            const domainSelect = document.getElementById('edit-bu-criteria-domain');
+            if (domainSelect) {
+                domainSelect.addEventListener('change', updateOwnerDropdown);
+            }
+        });
         
         // Close edit BU Exit Criteria modal
         function closeEditBUExitCriteriaModal() {
@@ -1954,9 +2035,9 @@
             const criteria = currentData.buExitCriteria.find(c => c.id === currentEditBUExitCriteriaId);
             if (!criteria) return;
             
-            criteria.domain = document.getElementById('edit-bu-criteria-domain').value.trim();
+            criteria.domain = document.getElementById('edit-bu-criteria-domain').value;
             criteria.criteria = document.getElementById('edit-bu-criteria-content').value.trim();
-            criteria.owner = document.getElementById('edit-bu-criteria-owner').value.trim();
+            criteria.owner = document.getElementById('edit-bu-criteria-owner').value;
             criteria.status = document.getElementById('edit-bu-criteria-status').value;
             
             closeEditBUExitCriteriaModal();
