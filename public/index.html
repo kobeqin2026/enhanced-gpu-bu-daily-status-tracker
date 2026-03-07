@@ -1977,12 +1977,16 @@
             if (!criteria) return;
             
             currentEditBUExitCriteriaId = criteriaId;
+            
+            // Populate dropdowns first
+            populateDomainOwnerDropdowns();
+            
+            // Set current values
             document.getElementById('edit-bu-criteria-domain').value = criteria.domain;
             document.getElementById('edit-bu-criteria-content').value = criteria.criteria;
-            document.getElementById('edit-bu-criteria-owner').value = criteria.owner;
             document.getElementById('edit-bu-criteria-status').value = criteria.status;
             
-            // Update owner dropdown when domain changes
+            // Update owner dropdown based on selected domain
             updateOwnerDropdown();
             
             document.getElementById('editBUExitCriteriaModal').style.display = 'block';
