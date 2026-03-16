@@ -1,34 +1,75 @@
-# GPU Bring-up Daily Tracker
+# Enhanced GPU Bring-Up Daily Status Tracker
 
-国产GPU芯片bring up每日追踪系统
+This repository contains an enhanced version of the GPU Bring-Up (BU) daily status tracking web application, featuring **admin mode functionality** that was not present in the previous basic version.
 
-## 功能特性
+## 🚀 Key Features
 
-- **域概览 (Domain Overview)**: 管理各个功能域的状态和负责人
-- **Bug跟踪 (Bug Tracking)**: 跟踪各域的bug状态和严重性
-- **每日进度跟踪 (Daily Progress Tracking)**: 记录每日工作进展
-- **Bringup准出标准 (BU Exit Criteria)**: 定义各域的准出标准和签核状态
+### Core Tracking Capabilities
+- **Domain Overview**: Track different GPU domains (GPU Core, Memory Controller, Power Management, Thermal Management, etc.)
+- **Bug Tracking System**: Comprehensive bug management with severity levels and status tracking
+- **Daily Progress Logging**: Record daily progress updates per domain
+- **Bring-Up Exit Criteria**: Define and track completion criteria for each domain
 
-## 技术特点
+### 🔧 Enhanced Admin Mode (NEW in v0.1)
+- **Toggle Admin Mode**: Switch between view-only and full edit modes with a single button
+- **Full CRUD Operations**: Create, Read, Update, Delete capabilities for all data types:
+  - Domain records
+  - Bug entries  
+  - Daily progress logs
+  - Bring-up exit criteria
+- **Smart Data Association**: Automatic linking between Domain and Sign-off owner fields
+- **Real-time Timestamp Updates**: Last modified time automatically updates on every save operation
 
-- 纯前端实现，使用localStorage存储数据
-- 响应式设计，支持桌面和移动设备
-- 管理员模式支持完整的CRUD操作
-- Domain和Sign-off owner自动关联
-- 自动更新最后修改时间
+### 💡 Smart Features
+- **Automatic Domain-Owner Linking**: When editing Bring-up exit criteria, selecting a Domain automatically populates the corresponding Sign-off owner
+- **Data Persistence**: All data is stored in browser localStorage, surviving page refreshes
+- **Responsive Design**: Works well on different screen sizes
+- **Keyboard Shortcuts**: Support for Ctrl+S to save data quickly
 
-## 部署说明
+## 📋 Version History
 
-1. 将项目文件部署到web服务器
-2. 配置nginx（或其他web服务器）指向index.html
-3. 访问 http://your-server:port/ 即可使用
+### v0.1 (Initial Release)
+- Initial implementation of enhanced admin mode functionality
+- Domain and Sign-off owner automatic association
+- Dynamic last update timestamp
+- Complete CRUD operations for all data types
+- Local storage persistence
 
-## 版本信息
+## 🛠️ Technical Details
 
-- **v0.1**: 初始版本，包含完整的GPU bring-up追踪功能
+- **Frontend**: Pure HTML/CSS/JavaScript (no external dependencies)
+- **Storage**: Browser localStorage
+- **Deployment**: Static file hosting (works with any web server)
+- **Browser Support**: Modern browsers with localStorage support
 
-## 使用说明
+## 🚀 Getting Started
 
-- 普通用户模式：查看数据和状态
-- 管理员模式：点击右上角"切换到管理员模式"按钮，可以编辑、添加、删除所有数据
-- 支持Ctrl+S快捷键保存数据
+1. **Clone or download** this repository
+2. **Open `index.html`** in your web browser
+3. **Click "切换到管理员模式"** (Switch to Admin Mode) to enable editing capabilities
+4. **Start tracking** your GPU bring-up progress!
+
+## 🎯 Use Cases
+
+This enhanced tracker is specifically designed for:
+- GPU hardware validation teams
+- Bring-up engineers managing multiple domains
+- Project managers needing real-time status visibility
+- Teams requiring both view-only and edit-capable interfaces
+
+## 🔮 Future Enhancements
+
+Planned features for upcoming versions:
+- Export/import functionality
+- Multi-user collaboration support
+- Integration with external bug tracking systems (JIRA, etc.)
+- Advanced reporting and analytics
+- Mobile app version
+
+## 📄 License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+---
+
+**Note**: This is an enhanced version that builds upon previous basic implementations, with the key differentiator being the comprehensive admin mode that enables full data management capabilities.
