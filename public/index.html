@@ -157,6 +157,220 @@
             border-radius: 5px;
             margin-bottom: 20px;
         }
+        
+        /* Project Switcher */
+        .project-switcher {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: white;
+        }
+        .project-switcher label {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .project-select {
+            padding: 8px 35px 8px 15px;
+            border: 2px solid white;
+            border-radius: 5px;
+            font-size: 15px;
+            font-weight: 600;
+            background-color: white;
+            color: #333;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 18px;
+            min-width: 200px;
+        }
+        .project-select:focus {
+            outline: none;
+            border-color: #ffd700;
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+        }
+        .add-project-btn {
+            background-color: #27ae60;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .add-project-btn:hover {
+            background-color: #219a52;
+        }
+        .edit-project-btn, .delete-project-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 5px;
+            transition: background-color 0.2s;
+        }
+        .edit-project-btn {
+            background-color: #3498db;
+            color: white;
+        }
+        .edit-project-btn:hover {
+            background-color: #2980b9;
+        }
+        .delete-project-btn {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .delete-project-btn:hover {
+            background-color: #c0392b;
+        }
+        
+        /* User/Login Section */
+        .user-section {
+            float: right;
+            margin-top: -45px;
+            margin-bottom: 15px;
+        }
+        .login-btn, .logout-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .login-btn {
+            background-color: #3498db;
+            color: white;
+        }
+        .login-btn:hover {
+            background-color: #2980b9;
+        }
+        .logout-btn {
+            background-color: #95a5a6;
+            color: white;
+        }
+        .logout-btn:hover {
+            background-color: #7f8c8d;
+        }
+        .user-info {
+            display: inline-block;
+            margin-right: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+        .user-role {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .role-admin {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .role-user {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        /* Hide admin-only elements for non-admin users */
+        .admin-only {
+            display: none;  /* 默认隐藏 */
+        }
+        .admin-only.visible {
+            display: inline-block;  /* 管理员登录时显示 */
+        }
+        
+        /* User-only elements (visible to all logged-in users) */
+        .user-only {
+            display: none;  /* 默认隐藏 */
+        }
+        .user-only.visible {
+            display: inline-block;  /* 登录后显示 */
+        }
+        
+        /* Read-only mode styling */
+        .read-only-notice {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #ffeaa7;
+            display: none;
+        }
+        
+        /* Add Project Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 25px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .modal h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .modal input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .modal-cancel-btn {
+            background-color: #95a5a6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .modal-confirm-btn {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .current-project-label {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
         .status-table, .tasks-table, .bu-exit-criteria-table {
             width: 100%;
             border-collapse: collapse;
@@ -648,6 +862,135 @@
     <div class="container">
         <h1>国产GPU芯片bring up每日追踪</h1>
         
+        <!-- Login/User Section - moved to project switcher area -->
+        
+        <!-- Project Switcher -->
+        <div class="project-switcher">
+            <label>选择项目:</label>
+            <select id="project-select" class="project-select" onchange="switchProject()">
+                <option value="">加载中...</option>
+            </select>
+            <button class="add-project-btn admin-only" onclick="showAddProjectModal()">+ 新建项目</button>
+            <button class="edit-project-btn admin-only" onclick="showEditProjectModal()" title="修改当前项目">✏️</button>
+            <button class="delete-project-btn admin-only" onclick="showDeleteProjectConfirm()" title="删除当前项目">🗑️</button>
+            <span class="current-project-label" id="current-project-label"></span>
+            <button class="add-project-btn user-only" onclick="showUserManagementModal()" style="background-color: #8e44ad; margin-left: 10px;">👥 用户管理</button>
+            
+            <!-- Login/User Section in project switcher -->
+            <span id="login-status" style="margin-left: 20px;"></span>
+            <button id="login-btn" class="login-btn" onclick="showLoginModal()">登录</button>
+            <button id="logout-btn" class="logout-btn" onclick="logout()" style="display:none;">退出</button>
+        </div>
+        
+        <!-- Login Modal -->
+        <div id="login-modal" class="modal">
+            <div class="modal-content">
+                <h3>用户登录</h3>
+                <input type="text" id="login-username" />
+                <input type="password" id="login-password" />
+                <div class="modal-buttons">
+                    <button class="modal-cancel-btn" onclick="closeLoginModal()">取消</button>
+                    <button class="modal-confirm-btn" onclick="doLogin()">登录</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- User Management Modal -->
+        <div id="user-management-modal" class="modal">
+            <div class="modal-content" style="max-width: 600px;">
+                <h3>👥 用户管理</h3>
+                <div id="user-list" style="max-height: 300px; overflow-y: auto; margin: 15px 0;">
+                    <p style="color:#666;">加载中...</p>
+                </div>
+                <hr style="margin: 15px 0; border:none; border-top:1px solid #ddd;">
+                <!-- 添加用户区域 - 仅管理员可见 -->
+                <div id="add-user-section" class="admin-only">
+                    <h4>添加新用户</h4>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <input type="text" id="new-user-username" placeholder="用户名" style="flex:1; min-width:100px;" />
+                        <input type="password" id="new-user-password" placeholder="密码" style="flex:1; min-width:100px;" />
+                        <input type="text" id="new-user-name" placeholder="显示名称" style="flex:1; min-width:100px;" />
+                        <input type="hidden" id="new-user-role" value="user" />
+                        <span style="background:#27ae60; color:white; padding:4px 8px; border-radius:4px; font-size:12px;">普通用户</span>
+                    </div>
+                    <div class="modal-buttons">
+                        <button class="modal-cancel-btn" onclick="closeUserManagementModal()">关闭</button>
+                        <button class="modal-confirm-btn" onclick="addNewUser()">添加用户</button>
+                    </div>
+                </div>
+                <!-- 普通用户只显示关闭按钮 -->
+                <div id="user-view-only" style="display:none;" class="modal-buttons">
+                    <button class="modal-cancel-btn" onclick="closeUserManagementModal()">关闭</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Edit User Modal -->
+        <div id="edit-user-modal" class="modal">
+            <div class="modal-content">
+                <h3>编辑用户</h3>
+                <input type="hidden" id="edit-user-username" />
+                <div style="margin-bottom:10px;">
+                    <label>显示名称:</label>
+                    <input type="text" id="edit-user-name" style="width:100%;" />
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label>角色:</label>
+                    <select id="edit-user-role" style="width:100%;">
+                        <option value="user">普通用户</option>
+                        <option value="admin">管理员</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label>新密码 (留空则不修改):</label>
+                    <input type="password" id="edit-user-password" style="width:100%;" />
+                </div>
+                <div class="modal-buttons">
+                    <button class="modal-cancel-btn" onclick="closeEditUserModal()">取消</button>
+                    <button class="modal-confirm-btn" onclick="saveUserEdit()">保存</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Add Project Modal -->
+        <div id="add-project-modal" class="modal">
+            <div class="modal-content">
+                <h3>创建新项目</h3>
+                <input type="text" id="new-project-name" placeholder="项目名称" />
+                <input type="text" id="new-project-description" placeholder="项目描述（可选）" />
+                <div class="modal-buttons">
+                    <button class="modal-cancel-btn" onclick="closeAddProjectModal()">取消</button>
+                    <button class="modal-confirm-btn" onclick="createNewProject()">创建</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Edit Project Modal -->
+        <div id="edit-project-modal" class="modal">
+            <div class="modal-content">
+                <h3>修改项目</h3>
+                <input type="text" id="edit-project-name" placeholder="项目名称" />
+                <input type="text" id="edit-project-description" placeholder="项目描述（可选）" />
+                <div class="modal-buttons">
+                    <button class="modal-cancel-btn" onclick="closeEditProjectModal()">取消</button>
+                    <button class="modal-confirm-btn" onclick="saveEditedProject()">保存</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Delete Project Confirmation Modal -->
+        <div id="delete-project-modal" class="modal">
+            <div class="modal-content">
+                <h3>删除项目确认</h3>
+                <p id="delete-project-warning" style="color: #e74c3c; font-weight: bold;"></p>
+                <p>此操作将同时删除该项目下的所有数据（Domains、Bugs、每日进度、准出标准），此操作不可撤销！</p>
+                <div class="modal-buttons">
+                    <button class="modal-cancel-btn" onclick="closeDeleteProjectModal()">取消</button>
+                    <button class="modal-delete-btn" onclick="confirmDeleteProject()">确认删除</button>
+                </div>
+            </div>
+        </div>
+        
         <div class="project-info">
             <strong>项目时间线：</strong> 2026年5月25日 - 2026年6月8日<br>
             <strong>最后更新：</strong> <span id="last-update">2026年3月3日</span>
@@ -666,7 +1009,7 @@
             <div class="add-domain-form">
                 <input type="text" id="new-domain-name" placeholder="输入Domain名称" class="domain-input">
                 <input type="text" id="new-domain-owner" placeholder="负责人" class="owner-input">
-                <button class="add-btn" onclick="addNewDomain()">添加</button>
+                <button class="add-btn user-only" onclick="addNewDomain()">添加</button>
             </div>
         </div>
         
@@ -709,7 +1052,7 @@
                     <option value="rejected">Rejected</option>
                 </select>
                 <input type="text" id="new-bug-owner" placeholder="负责人" class="bug-input">
-                <button class="add-btn" onclick="addNewBug()">添加Bug</button>
+                <button class="add-btn user-only" onclick="addNewBug()">添加Bug</button>
             </div>
         </div>
         
@@ -779,7 +1122,7 @@
                     <!-- Options will be populated from domains -->
                 </select>
                 <input type="text" id="daily-content-input" placeholder="今日工作内容" class="daily-content-input">
-                <button class="add-btn" onclick="addDailyProgress()">添加进度</button>
+                <button class="add-btn user-only" onclick="addDailyProgress()">添加进度</button>
             </div>
         </div>
         
@@ -828,7 +1171,7 @@
         
         <!-- Add new BU Exit Criteria row button -->
         <div class="bu-exit-criteria-section">
-            <button class="add-btn" onclick="addNewBUExitCriteriaRow()">添加BU准出标准</button>
+            <button class="add-btn user-only" onclick="addNewBUExitCriteriaRow()">添加BU准出标准</button>
         </div>
         
         <div class="notes-section">
@@ -1038,6 +1381,21 @@
             lastUpdated: '2026年3月3日 22:46'
         };
         
+        // Current project
+        let currentProject = 'gpu-bringup';
+        let projectsList = [];
+        
+        // User authentication
+        let currentUser = null;
+        let userRole = null; // 'admin' or 'user'
+        let authToken = null; // 认证token
+        
+        // User credentials (前端备用，用于离线模式)
+        const USERS = {
+            'admin': { password: 'admin123', role: 'admin', name: '管理员' },
+            'user': { password: 'user123', role: 'user', name: '普通用户' }
+        };
+        
         // Current edit IDs
         let currentEditDomainId = null;
         let currentEditBugId = null;
@@ -1069,13 +1427,18 @@
             'completed': '已完成'
         };
         
-        // Severity text mapping
+        // Severity text mapping (support both lowercase and uppercase)
         const severityText = {
             'highest': 'Highest',
+            'Highest': 'Highest',
             'high': 'High',
+            'High': 'High',
             'medium': 'Medium',
+            'Medium': 'Medium',
             'low': 'Low',
-            'lowest': 'Lowest'
+            'Low': 'Low',
+            'lowest': 'Lowest',
+            'Lowest': 'Lowest'
         };
         
         // Bug status text mapping
@@ -1087,13 +1450,18 @@
             'rejected': 'Rejected'
         };
         
-        // Severity color classes
+        // Severity color classes (support both lowercase and uppercase)
         const severityColorClasses = {
             'highest': 'severity-highest',
+            'Highest': 'severity-highest',
             'high': 'severity-high',
+            'High': 'severity-high',
             'medium': 'severity-medium',
+            'Medium': 'severity-medium',
             'low': 'severity-low',
-            'lowest': 'severity-lowest'
+            'Low': 'severity-low',
+            'lowest': 'severity-lowest',
+            'Lowest': 'severity-lowest'
         };
         
         // Priority text mapping
@@ -1141,23 +1509,68 @@
             document.getElementById('sync-status').style.display = 'none';
         }
         
-        // Save to localStorage (immediate feedback)
-        function saveToLocalStorage(data) {
+        // Storage keys
+        const PROJECTS_STORAGE_KEY = 'buTracker_projects';
+        const PROJECT_DATA_PREFIX = 'buTracker_data_';
+        
+        // ====== 混合数据管理模式 ======
+        // 策略：
+        // 1. 优先从API加载数据
+        // 2. API失败时，从项目特定的localStorage加载
+        // 3. 保存时同时写localStorage（立即）和API（异步）
+        
+        // 保存到localStorage（项目隔离）
+        function saveToLocalStorage(data, projectId) {
+            const key = PROJECT_DATA_PREFIX + (projectId || currentProject);
             try {
+                // 保存项目特定数据
+                localStorage.setItem(key, JSON.stringify(data));
+                console.log(`Data saved to localStorage [${key}]`);
+                
+                // 同时保存备份（最后一个项目）
                 localStorage.setItem('buTrackerData', JSON.stringify(data));
-                console.log('Data saved to localStorage');
             } catch (e) {
                 console.error('Failed to save to localStorage:', e);
             }
         }
         
-        // Load from localStorage (fallback)
-        function loadFromLocalStorage() {
+        // 保存项目列表到localStorage
+        function saveProjectsToLocalStorage(projects) {
             try {
-                const savedData = localStorage.getItem('buTrackerData');
+                localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
+                console.log('Projects saved to localStorage');
+            } catch (e) {
+                console.error('Failed to save projects to localStorage:', e);
+            }
+        }
+        
+        // 从localStorage加载项目列表
+        function loadProjectsFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem(PROJECTS_STORAGE_KEY);
+                if (saved) {
+                    return JSON.parse(saved);
+                }
+            } catch (e) {
+                console.error('Failed to load projects from localStorage:', e);
+            }
+            return null;
+        }
+        
+        // Load from localStorage (项目隔离 fallback)
+        function loadFromLocalStorage(projectId) {
+            const key = PROJECT_DATA_PREFIX + (projectId || currentProject);
+            try {
+                let savedData = localStorage.getItem(key);
+                
+                // 如果没有项目特定的数据，尝试加载备份
+                if (!savedData) {
+                    savedData = localStorage.getItem('buTrackerData');
+                }
+                
                 if (savedData) {
                     const data = JSON.parse(savedData);
-                    console.log('Data loaded from localStorage');
+                    console.log(`Data loaded from localStorage [${key}]`);
                     return data;
                 }
             } catch (e) {
@@ -1166,12 +1579,31 @@
             return null;
         }
         
-        // API call with error handling
+        // 获取同步状态文字描述
+        function getSyncModeText(source) {
+            const modes = {
+                'api': '从服务器加载',
+                'localStorage': '从本地缓存加载',
+                'default': '使用默认数据',
+                'saved': '已保存到本地缓存'
+            };
+            return modes[source] || modes['default'];
+        }
+        
+        // API call with error handling (添加认证token)
         async function apiCall(url, options = {}) {
+            const token = localStorage.getItem('authToken');
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            
+            // 如果有token，添加到请求头
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
             const defaultOptions = {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
                 ...options
             };
             
@@ -1187,11 +1619,13 @@
             }
         }
         
-        // Load data from API (primary source)
+        // Load data from API (primary source) with localStorage fallback
         async function loadDataFromAPI() {
+            const projectKey = currentProject;
+            
             try {
                 showSyncStatus('正在从服务器加载最新数据...', 'info');
-                const data = await apiCall('/api/data');
+                const data = await apiCall(`/api/data?project=${currentProject}`);
                 
                 // Update global data
                 currentData.domains = data.domains || currentData.domains;
@@ -1200,8 +1634,8 @@
                 currentData.buExitCriteria = data.buExitCriteria || currentData.buExitCriteria;
                 currentData.lastUpdated = data.lastUpdated || currentData.lastUpdated;
                 
-                // Save to localStorage as backup
-                saveToLocalStorage(currentData);
+                // Save to localStorage as backup (project-specific)
+                saveToLocalStorage(currentData, projectKey);
                 
                 // Update UI
                 if (data.lastUpdated) {
@@ -1212,13 +1646,32 @@
                 renderDomains(currentData.domains);
                 renderBugs(currentData.bugs);
                 renderDailyProgress(currentData.dailyProgress);
-                renderBUExitCriteria(currentData.buExitCriteria); // NEW
+                renderBUExitCriteria(currentData.buExitCriteria);
                 
-                showSyncStatus('数据已从服务器成功加载！', 'success');
+                showSyncStatus('✓ 数据已从服务器同步', 'success');
                 return true;
             } catch (error) {
                 console.error('Failed to load data from API:', error);
-                showSyncStatus('无法连接服务器，使用本地缓存数据...', 'warning');
+                
+                // Fallback: 尝试从项目特定的localStorage加载
+                const localData = loadFromLocalStorage(projectKey);
+                if (localData) {
+                    currentData = localData;
+                    renderDomains(currentData.domains);
+                    renderBugs(currentData.bugs);
+                    renderDailyProgress(currentData.dailyProgress);
+                    renderBUExitCriteria(currentData.buExitCriteria);
+                    
+                    if (localData.lastUpdated) {
+                        document.getElementById('last-update').textContent = localData.lastUpdated.split(' ')[0];
+                        document.getElementById('timestamp').textContent = localData.lastUpdated;
+                    }
+                    
+                    showSyncStatus('⚠ 无法连接服务器，使用本地缓存数据', 'warning');
+                    return 'localStorage';
+                }
+                
+                showSyncStatus('✗ 无法连接服务器，且无本地缓存', 'error');
                 return false;
             }
         }
@@ -1227,9 +1680,9 @@
         async function saveDataToAPI() {
             try {
                 showSyncStatus('正在保存数据到服务器...', 'info');
-                const response = await apiCall('/api/data', {
+                const response = await apiCall(`/api/data?project=${currentProject}`, {
                     method: 'POST',
-                    body: JSON.stringify(currentData)
+                    body: JSON.stringify({ ...currentData, projectId: currentProject })
                 });
                 
                 if (response.success) {
@@ -1242,6 +1695,732 @@
                 console.error('Failed to save data to API:', error);
                 showSyncStatus('服务器保存失败，数据已保存到本地缓存', 'warning');
                 return false;
+            }
+        }
+        
+        // Load projects list from API (primary) with localStorage fallback
+        async function loadProjects() {
+            try {
+                const projects = await apiCall('/api/projects');
+                projectsList = projects;
+                // 保存项目列表到localStorage作为备份
+                saveProjectsToLocalStorage(projects);
+                renderProjectSelect();
+                return projects;
+            } catch (error) {
+                console.error('Failed to load projects from API:', error);
+                
+                // 尝试从localStorage加载
+                const localProjects = loadProjectsFromLocalStorage();
+                if (localProjects) {
+                    projectsList = localProjects;
+                    showSyncStatus('⚠ 服务器不可用，使用本地项目列表', 'warning');
+                } else {
+                    // 默认项目
+                    projectsList = [
+                        { id: 'gpu-bringup', name: 'GPU Bring Up', description: '国产GPU芯片bring up每日追踪', createdAt: new Date().toISOString() }
+                    ];
+                }
+                renderProjectSelect();
+                return projectsList;
+            }
+        }
+        
+        // Render project select dropdown
+        function renderProjectSelect() {
+            const select = document.getElementById('project-select');
+            select.innerHTML = '';
+            
+            projectsList.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project.id;
+                option.textContent = project.name;
+                if (project.id === currentProject) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+            
+            // Update current project label
+            const currentProjectObj = projectsList.find(p => p.id === currentProject);
+            if (currentProjectObj) {
+                document.getElementById('current-project-label').textContent = `当前: ${currentProjectObj.name}`;
+            }
+        }
+        
+        // Switch project
+        async function switchProject() {
+            const select = document.getElementById('project-select');
+            const newProject = select.value;
+            
+            if (newProject && newProject !== currentProject) {
+                // Save current project data first
+                await saveDataToAPI();
+                
+                // Switch to new project
+                currentProject = newProject;
+                localStorage.setItem('currentProject', currentProject);
+                
+                // Load new project data
+                await loadDataFromAPI();
+                renderProjectSelect();
+                
+                showSyncStatus(`已切换到项目: ${projectsList.find(p => p.id === currentProject)?.name}`, 'success');
+            }
+        }
+        
+        // Show add project modal
+        function showAddProjectModal() {
+            document.getElementById('add-project-modal').style.display = 'block';
+            document.getElementById('new-project-name').value = '';
+            document.getElementById('new-project-description').value = '';
+            document.getElementById('new-project-name').focus();
+        }
+        
+        // Close add project modal
+        function closeAddProjectModal() {
+            document.getElementById('add-project-modal').style.display = 'none';
+        }
+        
+        // Create new project
+        async function createNewProject() {
+            const name = document.getElementById('new-project-name').value.trim();
+            const description = document.getElementById('new-project-description').value.trim();
+            
+            if (!name) {
+                alert('请输入项目名称');
+                return;
+            }
+            
+            try {
+                const response = await apiCall('/api/projects', {
+                    method: 'POST',
+                    body: JSON.stringify({ name, description })
+                });
+                
+                if (response.success) {
+                    // Reload projects list
+                    await loadProjects();
+                    
+                    // Switch to the new project
+                    currentProject = response.project.id;
+                    localStorage.setItem('currentProject', currentProject);
+                    
+                    await loadDataFromAPI();
+                    renderProjectSelect();
+                    
+                    closeAddProjectModal();
+                    showSyncStatus(`已创建并切换到新项目: ${name}`, 'success');
+                } else {
+                    alert(response.message || '创建项目失败');
+                }
+            } catch (error) {
+                console.error('Failed to create project:', error);
+                alert('创建项目失败，请重试');
+            }
+        }
+        
+        // Show edit project modal
+        function showEditProjectModal() {
+            if (!currentProject) {
+                alert('请先选择一个项目');
+                return;
+            }
+            
+            const project = projectsList.find(p => p.id === currentProject);
+            if (!project) {
+                alert('项目不存在');
+                return;
+            }
+            
+            document.getElementById('edit-project-name').value = project.name || '';
+            document.getElementById('edit-project-description').value = project.description || '';
+            document.getElementById('edit-project-modal').style.display = 'block';
+        }
+        
+        // Close edit project modal
+        function closeEditProjectModal() {
+            document.getElementById('edit-project-modal').style.display = 'none';
+        }
+        
+        // Save edited project
+        async function saveEditedProject() {
+            const name = document.getElementById('edit-project-name').value.trim();
+            const description = document.getElementById('edit-project-description').value.trim();
+            
+            if (!name) {
+                alert('请输入项目名称');
+                return;
+            }
+            
+            try {
+                const response = await apiCall(`/api/projects/${currentProject}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ name, description })
+                });
+                
+                if (response.success) {
+                    // Reload projects list
+                    await loadProjects();
+                    
+                    // Update page title with new project name
+                    if (response.project && response.project.name) {
+                        document.querySelector('h1').textContent = response.project.name + ' 每日追踪';
+                    }
+                    
+                    closeEditProjectModal();
+                    showSyncStatus(`项目已更新: ${name}`, 'success');
+                } else {
+                    alert(response.message || '更新项目失败');
+                }
+            } catch (error) {
+                console.error('Failed to update project:', error);
+                alert('更新项目失败，请重试');
+            }
+        }
+        
+        // Show delete project confirmation
+        function showDeleteProjectConfirm() {
+            if (!currentProject) {
+                alert('请先选择一个项目');
+                return;
+            }
+            
+            const project = projectsList.find(p => p.id === currentProject);
+            if (!project) {
+                alert('项目不存在');
+                return;
+            }
+            
+            document.getElementById('delete-project-warning').textContent = `确定要删除项目 "${project.name}" 吗？`;
+            document.getElementById('delete-project-modal').style.display = 'block';
+        }
+        
+        // Close delete project modal
+        function closeDeleteProjectModal() {
+            document.getElementById('delete-project-modal').style.display = 'none';
+        }
+        
+        // Confirm and delete project
+        async function confirmDeleteProject() {
+            if (!currentProject) return;
+            
+            const project = projectsList.find(p => p.id === currentProject);
+            const projectName = project ? project.name : currentProject;
+            
+            try {
+                const response = await apiCall(`/api/projects/${currentProject}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.success) {
+                    // Clear current project
+                    currentProject = null;
+                    localStorage.removeItem('currentProject');
+                    
+                    // Clear localStorage data for this project
+                    localStorage.removeItem(`gpuTrackerData_${currentProject}`);
+                    
+                    // Reload projects
+                    await loadProjects();
+                    
+                    // If there are remaining projects, switch to the first one
+                    if (projectsList.length > 0) {
+                        currentProject = projectsList[0].id;
+                        localStorage.setItem('currentProject', currentProject);
+                        await loadDataFromAPI();
+                    } else {
+                        // Create default project if none exist
+                        currentProject = 'gpu-bringup';
+                        localStorage.setItem('currentProject', currentProject);
+                        currentData = getDefaultData();
+                        renderAll();
+                    }
+                    
+                    renderProjectSelect();
+                    closeDeleteProjectModal();
+                    showSyncStatus(`项目已删除: ${projectName}`, 'success');
+                } else {
+                    alert(response.message || '删除项目失败');
+                }
+            } catch (error) {
+                console.error('Failed to delete project:', error);
+                alert('删除项目失败，请重试');
+            }
+        }
+        
+        // ==================== User Authentication ====================
+        
+        // Check if user is logged in
+        function isLoggedIn() {
+            return currentUser !== null;
+        }
+        
+        // Check if current user is admin
+        function isAdmin() {
+            return userRole === 'admin';
+        }
+        
+        // Require admin permission - returns true if admin, shows alert if not
+        function requireAdmin() {
+            if (!isAdmin()) {
+                alert('您没有权限执行此操作，请使用管理员账号登录');
+                return false;
+            }
+            return true;
+        }
+        
+        // Update UI based on user role
+        function updateUIBasedOnRole() {
+            const loginBtn = document.getElementById('login-btn');
+            const logoutBtn = document.getElementById('logout-btn');
+            const loginStatus = document.getElementById('login-status');
+            const adminButtons = document.querySelectorAll('.admin-only');
+            const userButtons = document.querySelectorAll('.user-only');
+            
+            if (isLoggedIn() && isAdmin()) {
+                // 已登录且是管理员 - 显示所有管理按钮
+                loginBtn.style.display = 'none';
+                logoutBtn.style.display = 'inline-block';
+                
+                loginStatus.innerHTML = `
+                    <span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">👤 ${currentUser}</span>
+                    <span class="user-role role-admin" style="background:#e74c3c;">管理员</span>
+                `;
+                
+                // 显示管理员专用按钮
+                adminButtons.forEach(btn => {
+                    btn.classList.add('visible');
+                });
+                // 显示登录用户专用按钮
+                userButtons.forEach(btn => {
+                    btn.classList.add('visible');
+                });
+            } else if (isLoggedIn()) {
+                // 已登录但不是管理员 - 显示用户管理按钮
+                loginBtn.style.display = 'none';
+                logoutBtn.style.display = 'inline-block';
+                
+                loginStatus.innerHTML = `
+                    <span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">👤 ${currentUser}</span>
+                    <span class="user-role role-user" style="background:#27ae60;">普通用户</span>
+                `;
+                
+                // 隐藏管理员专用按钮
+                adminButtons.forEach(btn => {
+                    btn.classList.remove('visible');
+                });
+                // 显示登录用户专用按钮
+                userButtons.forEach(btn => {
+                    btn.classList.add('visible');
+                });
+            } else {
+                // 未登录 - 隐藏所有管理按钮
+                loginBtn.style.display = 'inline-block';
+                logoutBtn.style.display = 'none';
+                loginStatus.innerHTML = '<span class="user-info" style="color:#999;">未登录（只读模式）</span>';
+                
+                // 隐藏管理员专用按钮
+                adminButtons.forEach(btn => {
+                    btn.classList.remove('visible');
+                });
+                // 隐藏登录用户专用按钮
+                userButtons.forEach(btn => {
+                    btn.classList.remove('visible');
+                });
+            }
+        }
+        
+        // Show login modal
+        function showLoginModal() {
+            document.getElementById('login-username').value = '';
+            document.getElementById('login-password').value = '';
+            document.getElementById('login-modal').style.display = 'block';
+        }
+        
+        // Close login modal
+        function closeLoginModal() {
+            document.getElementById('login-modal').style.display = 'none';
+        }
+        
+// Perform login - 使用后端API
+        async function doLogin() {
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            
+            if (!username || !password) {
+                alert('请输入用户名和密码');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentUser = result.user.name;
+                    userRole = result.user.role;
+                    authToken = result.token;
+                    
+                    // Save to localStorage
+                    localStorage.setItem('currentUser', currentUser);
+                    localStorage.setItem('userRole', userRole);
+                    localStorage.setItem('authToken', authToken);
+                    
+                    closeLoginModal();
+                    updateUIBasedOnRole();
+                    
+                    if (isAdmin()) {
+                        showSyncStatus('登录成功！您是管理员，可以编辑所有内容', 'success');
+                    } else {
+                        showSyncStatus('登录成功！您是普通用户，只能查看', 'info');
+                    }
+                } else {
+                    alert(result.message || '用户名或密码错误');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('登录失败，请稍后重试');
+            }
+        }
+        
+        // Logout - 使用后端API
+        async function logout() {
+            const token = localStorage.getItem('authToken');
+            
+            try {
+                await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+            
+            currentUser = null;
+            userRole = null;
+            authToken = null;
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('authToken');
+            
+            updateUIBasedOnRole();
+            showSyncStatus('已退出登录', 'info');
+        }
+        
+        // Load saved user on page load - 验证token
+        async function loadSavedUser() {
+            const savedUser = localStorage.getItem('currentUser');
+            const savedRole = localStorage.getItem('userRole');
+            const savedToken = localStorage.getItem('authToken');
+            
+            if (savedUser && savedRole && savedToken) {
+                // 验证token是否有效
+                try {
+                    const response = await fetch('/api/auth/verify', {
+                        headers: { 'Authorization': `Bearer ${savedToken}` }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        currentUser = result.user.name;
+                        userRole = result.user.role;
+                        authToken = savedToken;
+                    } else {
+                        // Token无效，清除localStorage
+                        localStorage.removeItem('currentUser');
+                        localStorage.removeItem('userRole');
+                        localStorage.removeItem('authToken');
+                    }
+                } catch (error) {
+                    console.error('Token verification error:', error);
+                    // 网络错误时使用缓存的用户信息
+                    currentUser = savedUser;
+                    userRole = savedRole;
+                    authToken = savedToken;
+                }
+            }
+            updateUIBasedOnRole();
+        }
+        
+        // ============ 用户管理函数 ============
+        
+        // 获取认证头
+        function getAuthHeaders() {
+            const token = localStorage.getItem('authToken');
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+        
+        // 显示用户管理Modal
+        async function showUserManagementModal() {
+            // 需要登录才能访问用户管理
+            if (!isLoggedIn()) {
+                alert('请先登录');
+                showLoginModal();
+                return;
+            }
+            
+            document.getElementById('user-management-modal').style.display = 'block';
+            await loadUserList();
+        }
+        
+        // 关闭用户管理Modal
+        function closeUserManagementModal() {
+            document.getElementById('user-management-modal').style.display = 'none';
+        }
+        
+        // 加载用户列表
+        async function loadUserList() {
+            // 根据角色显示/隐藏添加用户区域
+            const addUserSection = document.getElementById('add-user-section');
+            const userViewOnly = document.getElementById('user-view-only');
+            
+            if (userRole === 'admin') {
+                addUserSection.style.display = 'block';
+                userViewOnly.style.display = 'none';
+            } else {
+                addUserSection.style.display = 'none';
+                userViewOnly.style.display = 'block';
+            }
+            
+            const userListEl = document.getElementById('user-list');
+            userListEl.innerHTML = '<p style="color:#666;">加载中...</p>';
+            
+            try {
+                const response = await fetch('/api/users', {
+                    headers: getAuthHeaders()
+                });
+                
+                const result = await response.json();
+                
+                if (Array.isArray(result)) {
+                    if (result.length === 0) {
+                        userListEl.innerHTML = '<p style="color:#666;">暂无用户</p>';
+                        return;
+                    }
+                    
+                    let html = '<table style="width:100%; border-collapse:collapse; font-size:14px;">';
+                    html += '<tr style="background:#3498db; color:white;"><th style="padding:8px; text-align:left;">用户名</th><th style="padding:8px; text-align:left;">显示名称</th><th style="padding:8px; text-align:left;">角色</th><th style="padding:8px; text-align:left;">操作</th></tr>';
+                    
+                    result.forEach(user => {
+                        const roleText = user.role === 'admin' ? '管理员' : '普通用户';
+                        const roleClass = user.role === 'admin' ? 'role-admin' : 'role-user';
+                        const isCurrentUser = user.username === localStorage.getItem('currentUser');
+                        const isLoggedInUser = userRole !== null; // 已登录用户（包括普通用户和管理员）
+                        
+                        html += `<tr style="border-bottom:1px solid #ddd;">`;
+                        html += `<td style="padding:8px;">${user.username}</td>`;
+                        html += `<td style="padding:8px;">${user.name}</td>`;
+                        html += `<td style="padding:8px;"><span class="user-role ${roleClass}">${roleText}</span></td>`;
+                        html += `<td style="padding:8px;">`;
+                        if (isLoggedInUser) {
+                            // 登录用户都可以编辑（但不能编辑管理员账户）
+                            if (user.role !== 'admin') {
+                                html += `<button class="edit-btn" onclick="showEditUserModal('${user.username}', '${user.name}', '${user.role}')" style="padding:4px 8px; font-size:12px; margin-right:5px;">编辑</button>`;
+                            } else if (isCurrentUser) {
+                                // 管理员可以编辑自己的信息
+                                html += `<button class="edit-btn" onclick="showEditUserModal('${user.username}', '${user.name}', '${user.role}')" style="padding:4px 8px; font-size:12px; margin-right:5px;">编辑</button>`;
+                            } else {
+                                html += `<span style="color:#999; font-size:12px;">-</span>`;
+                            }
+                            // 禁止删除管理员账户
+                            if (userRole === 'admin' && user.role !== 'admin' && !isCurrentUser) {
+                                html += `<button class="delete-btn" onclick="deleteUser('${user.username}')" style="padding:4px 8px; font-size:12px;">删除</button>`;
+                            } else if (userRole === 'admin' && user.role === 'admin' && isCurrentUser) {
+                                html += `<span style="color:#999; font-size:12px;">(当前)</span>`;
+                            } else if (userRole === 'admin' && user.role === 'admin') {
+                                html += `<span style="color:#999; font-size:12px;">-</span>`;
+                            } else if (isCurrentUser) {
+                                html += `<span style="color:#999; font-size:12px;">(当前)</span>`;
+                            } else {
+                                html += `<span style="color:#999; font-size:12px;">-</span>`;
+                            }
+                        } else {
+                            // 未登录
+                            html += `<span style="color:#999; font-size:12px;">只读</span>`;
+                        }
+                        html += `</td></tr>`;
+                    });
+                    
+                    html += '</table>';
+                    userListEl.innerHTML = html;
+                } else {
+                    userListEl.innerHTML = '<p style="color:#e74c3c;">无法加载用户列表</p>';
+                }
+            } catch (error) {
+                console.error('Load users error:', error);
+                userListEl.innerHTML = '<p style="color:#e74c3c;">加载失败，请稍后重试</p>';
+            }
+        }
+        
+        // 添加新用户
+        async function addNewUser() {
+            const username = document.getElementById('new-user-username').value.trim();
+            const password = document.getElementById('new-user-password').value;
+            const name = document.getElementById('new-user-name').value.trim();
+            const role = document.getElementById('new-user-role').value;
+            
+            if (!username || !password || !name) {
+                alert('请填写所有字段');
+                return;
+            }
+            
+            if (password.length < 4) {
+                alert('密码至少4个字符');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ username, password, name, role })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('用户创建成功');
+                    // 清空表单
+                    document.getElementById('new-user-username').value = '';
+                    document.getElementById('new-user-password').value = '';
+                    document.getElementById('new-user-name').value = '';
+                    // 刷新用户列表
+                    await loadUserList();
+                } else {
+                    alert(result.message || '创建失败');
+                }
+            } catch (error) {
+                console.error('Add user error:', error);
+                alert('创建失败，请稍后重试');
+            }
+        }
+        
+        // 显示编辑用户Modal
+        function showEditUserModal(username, name, role) {
+            document.getElementById('edit-user-username').value = username;
+            document.getElementById('edit-user-name').value = name;
+            document.getElementById('edit-user-role').value = role;
+            document.getElementById('edit-user-password').value = '';
+            document.getElementById('edit-user-modal').style.display = 'block';
+        }
+        
+        // 关闭编辑用户Modal
+        function closeEditUserModal() {
+            document.getElementById('edit-user-modal').style.display = 'none';
+        }
+        
+        // 保存用户编辑
+        async function saveUserEdit() {
+            const username = document.getElementById('edit-user-username').value;
+            const name = document.getElementById('edit-user-name').value.trim();
+            const role = document.getElementById('edit-user-role').value;
+            const newPassword = document.getElementById('edit-user-password').value;
+            
+            if (!name) {
+                alert('请填写显示名称');
+                return;
+            }
+            
+            if (newPassword && newPassword.length < 4) {
+                alert('密码至少4个字符');
+                return;
+            }
+            
+            try {
+                // 先更新用户信息
+                const response = await fetch(`/api/users/${username}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ name, role })
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    alert(result.message || '更新失败');
+                    return;
+                }
+                
+                // 如果填写了新密码，更新密码
+                if (newPassword) {
+                    const pwResponse = await fetch(`/api/users/${username}/password`, {
+                        method: 'PUT',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({ newPassword })
+                    });
+                    
+                    const pwResult = await pwResponse.json();
+                    
+                    if (!pwResult.success) {
+                        alert(pwResult.message || '密码更新失败');
+                        return;
+                    }
+                }
+                
+                alert('用户信息已更新');
+                closeEditUserModal();
+                await loadUserList();
+                
+            } catch (error) {
+                console.error('Save user edit error:', error);
+                alert('保存失败，请稍后重试');
+            }
+        }
+        
+        // 删除用户
+        async function deleteUser(username) {
+            if (!confirm(`确定要删除用户 "${username}" 吗？`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/users/${username}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('用户已删除');
+                    await loadUserList();
+                } else {
+                    alert(result.message || '删除失败');
+                }
+            } catch (error) {
+                console.error('Delete user error:', error);
+                alert('删除失败，请稍后重试');
+            }
+        }
+        
+        // Initialize projects on page load
+        async function initProjects() {
+            // Load saved project from localStorage
+            const savedProject = localStorage.getItem('currentProject');
+            if (savedProject) {
+                currentProject = savedProject;
+            }
+            
+            // Load projects list
+            await loadProjects();
+            
+            // Set the select to current project
+            const select = document.getElementById('project-select');
+            if (select) {
+                select.value = currentProject;
             }
         }
         
@@ -1314,21 +2493,25 @@
                                   domain.status === 'in-progress' ? 'status-in-progress' :
                                   domain.status === 'blocked' ? 'status-blocked' : 'status-completed';
                 
+                const isAdminUser = isAdmin();
+                const statusDisabled = isAdminUser ? '' : 'disabled';
+                const statusDisplayOnly = isAdminUser ? 
+                    `<select class="status-select" onchange="updateDomainStatus('${domain.id}', this.value)" style="background-color: ${statusColors[domain.status]}; color: white;">
+                        <option value="not-started" ${domain.status === 'not-started' ? 'selected' : ''}>未开始</option>
+                        <option value="in-progress" ${domain.status === 'in-progress' ? 'selected' : ''}>进行中</option>
+                        <option value="blocked" ${domain.status === 'blocked' ? 'selected' : ''}>受阻</option>
+                        <option value="completed" ${domain.status === 'completed' ? 'selected' : ''}>已完成</option>
+                    </select>` :
+                    `<span class="status-display" style="background-color: ${statusColors[domain.status]}; color: white; padding: 4px 8px; border-radius: 4px;">${statusDisplay}</span>`;
+                
                 row.innerHTML = `
                     <td>${domain.name}</td>
                     <td>${domain.owner}</td>
-                    <td>
-                        <select class="status-select" onchange="updateDomainStatus('${domain.id}', this.value)" style="background-color: ${statusColors[domain.status]}; color: white;">
-                            <option value="not-started" ${domain.status === 'not-started' ? 'selected' : ''}>未开始</option>
-                            <option value="in-progress" ${domain.status === 'in-progress' ? 'selected' : ''}>进行中</option>
-                            <option value="blocked" ${domain.status === 'blocked' ? 'selected' : ''}>受阻</option>
-                            <option value="completed" ${domain.status === 'completed' ? 'selected' : ''}>已完成</option>
-                        </select>
-                    </td>
+                    <td>${statusDisplayOnly}</td>
                     <td>${domain.notes}</td>
                     <td>
-                        <button class="edit-btn" onclick="editDomain('${domain.id}')">编辑</button>
-                        <button class="delete-btn" onclick="deleteDomain('${domain.id}')">删除</button>
+                        <button class="edit-btn admin-only" onclick="editDomain('${domain.id}')">编辑</button>
+                        <button class="delete-btn admin-only" onclick="deleteDomain('${domain.id}')">删除</button>
                     </td>
                 `;
                 
@@ -1578,8 +2761,8 @@
                     <td>${bug.reportDate}</td>
                     <td>${bug.owner}</td>
                     <td>
-                        <button class="edit-btn" onclick="editBug('${bug.id}')">编辑</button>
-                        <button class="delete-btn" onclick="deleteBug('${bug.id}')">删除</button>
+                        <button class="edit-btn user-only" onclick="editBug('${bug.id}')">编辑</button>
+                        <button class="delete-btn user-only" onclick="deleteBug('${bug.id}')">删除</button>
                     </td>
                 `;
                 
@@ -1677,7 +2860,7 @@
         
         // NEW: Daily Progress Functions
         
-        // Add new daily progress entry
+        // Add new daily progress entry (with owner auto-link from domain)
         function addDailyProgress() {
             const date = document.getElementById('daily-date-input').value;
             const domain = document.getElementById('daily-domain-select').value;
@@ -1688,11 +2871,16 @@
                 return;
             }
             
+            // Auto-get owner from domain
+            const domainEntry = currentData.domains.find(d => d.name === domain);
+            const owner = domainEntry ? domainEntry.owner : '';
+            
             const newProgress = {
                 id: 'progress-' + Date.now(),
                 date: date,
                 domain: domain,
-                content: content
+                content: content,
+                owner: owner
             };
             
             currentData.dailyProgress.push(newProgress);
@@ -1747,9 +2935,14 @@
             filteredProgress.forEach(progress => {
                 const key = `${progress.date}|${progress.domain}`;
                 if (!grouped[key]) {
+                    // Get owner from domain
+                    const domainEntry = currentData.domains.find(d => d.name === progress.domain);
+                    const owner = progress.owner || (domainEntry ? domainEntry.owner : '');
+                    
                     grouped[key] = {
                         date: progress.date,
                         domain: progress.domain,
+                        owner: owner,
                         contents: []
                     };
                 }
@@ -1772,8 +2965,8 @@
                     contentsHtml += `
                         <div class="daily-content-display">
                             ${item.content}
-                            <button class="edit-btn" onclick="editDailyProgress('${item.id}')">编辑</button>
-                            <button class="delete-btn" onclick="deleteDailyProgress('${item.id}')">删除</button>
+                            <button class="edit-btn user-only" onclick="editDailyProgress('${item.id}')">编辑</button>
+                            <button class="delete-btn user-only" onclick="deleteDailyProgress('${item.id}')">删除</button>
                         </div>
                     `;
                 });
@@ -1782,6 +2975,7 @@
                     <div class="daily-progress-info">
                         <div class="daily-date-display">${group.date}</div>
                         <div class="daily-domain-display">${group.domain}</div>
+                        <div class="daily-owner-display">👤 ${group.owner || '-'}</div>
                         ${contentsHtml}
                     </div>
                 `;
@@ -1814,16 +3008,21 @@
             currentEditDailyProgressId = null;
         }
         
-        // Save edited daily progress
+        // Save edited daily progress (auto-update owner from domain)
         function saveEditedDailyProgress() {
             if (!currentEditDailyProgressId) return;
             
             const progress = currentData.dailyProgress.find(p => p.id === currentEditDailyProgressId);
             if (!progress) return;
             
+            const newDomain = document.getElementById('edit-daily-domain').value;
             progress.date = document.getElementById('edit-daily-date').value;
-            progress.domain = document.getElementById('edit-daily-domain').value;
+            progress.domain = newDomain;
             progress.content = document.getElementById('edit-daily-content').value.trim();
+            
+            // Auto-update owner from domain
+            const domainEntry = currentData.domains.find(d => d.name === newDomain);
+            progress.owner = domainEntry ? domainEntry.owner : '';
             
             closeEditDailyProgressModal();
             renderDailyProgress(currentData.dailyProgress);
@@ -1853,21 +3052,30 @@
             document.getElementById('filter-daily-date').value = '';
             document.getElementById('filter-daily-domain').value = '';
             
-            currentDailyProgressFilters = {};
+currentDailyProgressFilters = {};
             renderDailyProgress(currentData.dailyProgress);
         }
         
         // NEW: BU Exit Criteria Functions
         
-        // Add new BU Exit Criteria row (with auto-incremented index)
+        // Add new BU Exit Criteria row (with auto-incremented index and default owner from first domain)
         function addNewBUExitCriteriaRow() {
             const currentIndex = currentData.buExitCriteria.length + 1;
+            
+            // Auto-get owner from first domain if available
+            let defaultOwner = '';
+            let defaultDomain = '';
+            if (currentData.domains.length > 0) {
+                defaultDomain = currentData.domains[0].name;
+                defaultOwner = currentData.domains[0].owner || '';
+            }
+            
             const newCriteria = {
                 id: 'criteria-' + Date.now(),
                 index: currentIndex,
-                domain: '',
+                domain: defaultDomain,
                 criteria: '',
-                owner: '',
+                owner: defaultOwner,
                 status: 'not-ready'
             };
             
@@ -1954,17 +3162,21 @@
                 const statusClass = criteria.status === 'not-ready' ? '' : 
                                   criteria.status === 'fail' ? 'severity-highest' : 'status-completed';
                 
+                // Auto-get owner from domain
+                const domainEntry = currentData.domains.find(d => d.name === criteria.domain);
+                const displayOwner = domainEntry ? domainEntry.owner : (criteria.owner || '-');
+                
                 const row = document.createElement('tr');
                 row.setAttribute('data-criteria-id', criteria.id);
                 row.innerHTML = `
                     <td>${criteria.index}</td>
                     <td>${criteria.domain}</td>
                     <td class="bu-criteria-content">${criteria.criteria}</td>
-                    <td>${criteria.owner}</td>
+                    <td>${displayOwner}</td>
                     <td class="${statusClass}">${statusDisplay}</td>
                     <td>
-                        <button class="edit-btn" onclick="editBUExitCriteria('${criteria.id}')">编辑</button>
-                        <button class="delete-btn" onclick="deleteBUExitCriteria('${criteria.id}')">删除</button>
+                        <button class="edit-btn user-only" onclick="editBUExitCriteria('${criteria.id}')">编辑</button>
+                        <button class="delete-btn user-only" onclick="deleteBUExitCriteria('${criteria.id}')">删除</button>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -2126,25 +3338,14 @@
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async function() {
-            // Try to load from API first (primary source)
-            const apiLoaded = await loadDataFromAPI();
+            // Load saved user session first
+            loadSavedUser();
             
-            // If API failed, try localStorage (fallback)
-            if (!apiLoaded) {
-                const localData = loadFromLocalStorage();
-                if (localData) {
-                    currentData = localData;
-                    renderDomains(currentData.domains);
-                    renderBugs(currentData.bugs);
-                    renderDailyProgress(currentData.dailyProgress);
-                    renderBUExitCriteria(currentData.buExitCriteria); // NEW
-                    
-                    if (localData.lastUpdated) {
-                        document.getElementById('last-update').textContent = localData.lastUpdated.split(' ')[0];
-                        document.getElementById('timestamp').textContent = localData.lastUpdated;
-                    }
-                }
-            }
+            // Initialize projects first
+            await initProjects();
+            
+            // Load data (API first, falls back to localStorage internally)
+            await loadDataFromAPI();
             
             // Setup event listeners for sorting
             document.querySelectorAll('.bug-table th[data-sort]').forEach(th => {

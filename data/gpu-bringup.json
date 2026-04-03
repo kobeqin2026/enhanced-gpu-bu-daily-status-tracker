@@ -1,0 +1,108 @@
+{
+  "domains": [
+    {
+      "id": "domain-1",
+      "name": "PCIe",
+      "owner": "张三",
+      "status": "in-progress",
+      "notes": "Link training and LTSSM测试"
+    },
+    {
+      "id": "domain-2",
+      "name": "HBM",
+      "owner": "李四",
+      "status": "blocked",
+      "notes": "等待PHY team提供寄存器配置"
+    },
+    {
+      "id": "domain-3",
+      "name": "Ethernet",
+      "owner": "王五",
+      "status": "completed",
+      "notes": "MAC层功能验证完成"
+    }
+  ],
+  "bugs": [
+    {
+      "id": "bug-1",
+      "bugId": "JIRA-1001",
+      "title": "PCIe链路训练失败",
+      "severity": "High",
+      "status": "Open",
+      "assignee": "张三",
+      "domain": "PCIe",
+      "description": "在Gen4速率下链路训练超时"
+    },
+    {
+      "id": "bug-2",
+      "bugId": "JIRA-1002",
+      "title": "HBM带宽未达标",
+      "severity": "Highest",
+      "status": "In Progress",
+      "assignee": "李四",
+      "domain": "HBM",
+      "description": "实测带宽仅达到理论值的70%"
+    },
+    {
+      "id": "bug-3",
+      "bugId": "JIRA-1003",
+      "title": "Ethernet CRC错误",
+      "severity": "Medium",
+      "status": "Resolved",
+      "assignee": "王五",
+      "domain": "Ethernet",
+      "description": "特定帧长下出现CRC校验错误"
+    }
+  ],
+  "dailyProgress": [
+    {
+      "id": "progress-1",
+      "date": "2026-03-07",
+      "domain": "PCIe",
+      "workDone": "完成LTSSM状态机测试用例编写",
+      "nextSteps": "开始执行Gen4速率测试",
+      "blockers": "需要示波器校准"
+    },
+    {
+      "id": "progress-2",
+      "date": "2026-03-07",
+      "domain": "HBM",
+      "workDone": "分析带宽瓶颈",
+      "nextSteps": "调整PHY时序参数",
+      "blockers": "等待寄存器文档更新"
+    },
+    {
+      "id": "progress-3",
+      "date": "2026-03-07",
+      "domain": "Ethernet",
+      "workDone": "修复CRC错误问题",
+      "nextSteps": "进行压力测试",
+      "blockers": ""
+    }
+  ],
+  "buExitCriteria": [
+    {
+      "id": "criteria-1",
+      "domain": "PCIe",
+      "criteria": "Link Training成功率 >= 99.9%",
+      "signoffOwner": "张三",
+      "status": "",
+      "owner": "张三"
+    },
+    {
+      "id": "criteria-2",
+      "domain": "HBM",
+      "criteria": "带宽达到理论值90%以上",
+      "signoffOwner": "李四",
+      "status": "Fail"
+    },
+    {
+      "id": "criteria-3",
+      "domain": "Ethernet",
+      "criteria": "零丢包率持续24小时",
+      "signoffOwner": "王五",
+      "status": "Pass"
+    }
+  ],
+  "lastUpdated": "2026/4/3 03:22:06"
+}
