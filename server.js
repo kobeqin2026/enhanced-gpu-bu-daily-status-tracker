@@ -2,10 +2,14 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, 'data');
+
+// 安全配置
+const TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24小时
 
 // 确保data目录存在
 if (!fs.existsSync(DATA_DIR)) {
@@ -15,7 +19,17 @@ if (!fs.existsSync(DATA_DIR)) {
 // 用户数据文件
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 
-// 默认用户列表
+// 密码处理函数 - 明文存储
+function hashPassword(password) {
+    return password;
+}
+
+// 验证密码
+function verifyPassword(password, storedPassword) {
+    return password === storedPassword;
+}
+
+// 默认用户列表（明文密码）
 function getDefaultUsers() {
     return [
         { id: 'admin', username: 'admin', password: 'admin123', role: 'admin', name: '管理员', createdAt: new Date().toISOString() },
@@ -23,7 +37,7 @@ function getDefaultUsers() {
     ];
 }
 
-function loadUsers() {
+async function loadUsers() {
     try {
         if (fs.existsSync(USERS_FILE)) {
             return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
@@ -111,7 +125,18 @@ function saveProjects(projects) {
 }
 
 function getProjectDataFile(projectId) {
-    return path.join(DATA_DIR, `${projectId}.json`);
+    // 安全验证：防止路径遍历攻击
+    const sanitizedId = projectId.replace(/[^a-zA-Z0-9\-_]/g, '');
+    if (sanitizedId !== projectId) {
+        console.warn(`Potential path traversal attempt detected: ${projectId}`);
+        return null;
+    }
+    const filePath = path.join(DATA_DIR, `${sanitizedId}.json`);
+    // 确保文件在 DATA_DIR 内
+    if (!filePath.startsWith(DATA_DIR)) {
+        return null;
+    }
+    return filePath;
 }
 
 function loadProjectData(projectId) {
@@ -141,91 +166,13 @@ function saveProjectData(projectId, data) {
 
 // Middleware to parse JSON
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // API: 获取项目列表
 app.get('/api/projects', (req, res) => {
     const projects = loadProjects();
     res.json(projects);
-});
-
-// API: 创建新项目
-app.post('/api/projects', (req, res) => {
-    const { name, description } = req.body;
-    if (!name) {
-        return res.status(400).json({ success: false, message: '项目名称不能为空' });
-    }
-    
-    const projects = loadProjects();
-    const newProject = {
-        id: name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-        name: name,
-        description: description || '',
-        createdAt: new Date().toISOString()
-    };
-    projects.push(newProject);
-    saveProjects(projects);
-    
-    // 创建空的初始数据文件
-    saveProjectData(newProject.id, {
-        domains: [],
-        bugs: [],
-        dailyProgress: [],
-        buExitCriteria: [],
-        lastUpdated: new Date().toLocaleString('zh-CN')
-    });
-    
-    res.json({ success: true, project: newProject });
-});
-
-// API: 修改项目
-app.put('/api/projects/:id', (req, res) => {
-    const projectId = req.params.id;
-    const { name, description } = req.body;
-    
-    if (!name) {
-        return res.status(400).json({ success: false, message: '项目名称不能为空' });
-    }
-    
-    const projects = loadProjects();
-    const projectIndex = projects.findIndex(p => p.id === projectId);
-    
-    if (projectIndex === -1) {
-        return res.status(404).json({ success: false, message: '项目不存在' });
-    }
-    
-    // 更新项目信息
-    projects[projectIndex].name = name;
-    projects[projectIndex].description = description || '';
-    saveProjects(projects);
-    
-    res.json({ success: true, project: projects[projectIndex] });
-});
-
-// API: 删除项目
-app.delete('/api/projects/:id', (req, res) => {
-    const projectId = req.params.id;
-    
-    const projects = loadProjects();
-    const projectIndex = projects.findIndex(p => p.id === projectId);
-    
-    if (projectIndex === -1) {
-        return res.status(404).json({ success: false, message: '项目不存在' });
-    }
-    
-    const deletedProject = projects[projectIndex];
-    
-    // 从列表中移除
-    projects.splice(projectIndex, 1);
-    saveProjects(projects);
-    
-    // 删除项目数据文件
-    const dataFile = getProjectDataFile(projectId);
-    if (fs.existsSync(dataFile)) {
-        fs.unlinkSync(dataFile);
-    }
-    
-    res.json({ success: true, message: '项目已删除', project: deletedProject });
 });
 
 // API: 获取项目数据
@@ -235,8 +182,8 @@ app.get('/api/data', (req, res) => {
     res.json(data);
 });
 
-// API: 保存项目数据
-app.post('/api/data', (req, res) => {
+// API: 保存项目数据（需要认证）
+app.post('/api/data', authenticateToken, (req, res) => {
     const projectId = req.body.projectId || req.query.project || 'gpu-bringup';
     const { domains, bugs, dailyProgress, buExitCriteria } = req.body;
     
@@ -256,21 +203,21 @@ app.post('/api/data', (req, res) => {
 // ============ 用户管理 API ============
 
 // API: 用户登录
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
     
     if (!username || !password) {
         return res.status(400).json({ success: false, message: '用户名和密码不能为空' });
     }
     
-    const users = loadUsers();
-    const user = users.find(u => u.username === username && u.password === password);
+    const users = await loadUsers();
+    const user = users.find(u => u.username === username);
     
-    if (!user) {
+    if (!user || !verifyPassword(password, user.password)) {
         return res.status(401).json({ success: false, message: '用户名或密码错误' });
     }
     
-    // 生成token
+// 生成token
     const token = generateToken(username);
     
     // 存储session
@@ -283,6 +230,13 @@ app.post('/api/auth/login', (req, res) => {
     };
     
     console.log(`User logged in: ${username}, role: ${user.role}`);
+    
+    // 设置 httpOnly cookie（更安全）
+    res.cookie('token', token, {
+        httpOnly: true,
+        maxAge: TOKEN_EXPIRY,
+        sameSite: 'strict'
+    });
     
     res.json({ 
         success: true, 
@@ -324,8 +278,8 @@ app.get('/api/auth/verify', authenticateToken, (req, res) => {
 });
 
 // API: 获取用户列表 (仅管理员)
-app.get('/api/users', authenticateToken, requireAdmin, (req, res) => {
-    const users = loadUsers();
+app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
+    const users = await loadUsers();
     // 不返回密码
     const safeUsers = users.map(u => ({
         id: u.id,
@@ -338,7 +292,7 @@ app.get('/api/users', authenticateToken, requireAdmin, (req, res) => {
 });
 
 // API: 添加用户 (仅管理员)
-app.post('/api/users', authenticateToken, requireAdmin, (req, res) => {
+app.post('/api/users', authenticateToken, requireAdmin, async (req, res) => {
     const { username, password, role, name } = req.body;
     
     if (!username || !password || !role || !name) {
@@ -349,7 +303,7 @@ app.post('/api/users', authenticateToken, requireAdmin, (req, res) => {
         return res.status(400).json({ success: false, message: '无效的角色' });
     }
     
-    const users = loadUsers();
+    const users = await loadUsers();
     
     // 检查用户名是否已存在
     if (users.find(u => u.username === username)) {
@@ -378,7 +332,7 @@ app.post('/api/users', authenticateToken, requireAdmin, (req, res) => {
 });
 
 // API: 修改用户密码 (仅管理员或本人)
-app.put('/api/users/:id/password', authenticateToken, (req, res) => {
+app.put('/api/users/:id/password', authenticateToken, async (req, res) => {
     const userId = req.params.id;
     const { newPassword } = req.body;
     
@@ -391,14 +345,14 @@ app.put('/api/users/:id/password', authenticateToken, (req, res) => {
         return res.status(403).json({ success: false, message: '没有权限修改此用户密码' });
     }
     
-    const users = loadUsers();
+    const users = await loadUsers();
     const userIndex = users.findIndex(u => u.username === userId);
     
     if (userIndex === -1) {
         return res.status(404).json({ success: false, message: '用户不存在' });
     }
     
-    users[userIndex].password = newPassword;
+users[userIndex].password = newPassword;
     saveUsers(users);
     
     console.log(`Password changed for: ${userId} by ${req.user.username}`);
@@ -407,7 +361,7 @@ app.put('/api/users/:id/password', authenticateToken, (req, res) => {
 });
 
 // API: 删除用户 (仅管理员)
-app.delete('/api/users/:id', authenticateToken, requireAdmin, (req, res) => {
+app.delete('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
     const userId = req.params.id;
     
     // 不允许删除自己
@@ -415,7 +369,7 @@ app.delete('/api/users/:id', authenticateToken, requireAdmin, (req, res) => {
         return res.status(400).json({ success: false, message: '不能删除自己的账号' });
     }
     
-    const users = loadUsers();
+    const users = await loadUsers();
     const userIndex = users.findIndex(u => u.username === userId);
     
     if (userIndex === -1) {
@@ -443,7 +397,7 @@ app.delete('/api/users/:id', authenticateToken, requireAdmin, (req, res) => {
 });
 
 // API: 修改用户信息 (管理员或本人)
-app.put('/api/users/:id', authenticateToken, (req, res) => {
+app.put('/api/users/:id', authenticateToken, async (req, res) => {
     const userId = req.params.id;
     const { name, role } = req.body;
     const currentUser = req.user;
@@ -455,7 +409,7 @@ app.put('/api/users/:id', authenticateToken, (req, res) => {
     const isSelf = currentUser.username === userId;
     
     // 获取目标用户信息
-    const users = loadUsers();
+    const users = await loadUsers();
     const targetUser = users.find(u => u.username === userId);
     
     if (!targetUser) {
@@ -585,27 +539,9 @@ app.delete('/api/projects/:id', authenticateToken, requireAdmin, (req, res) => {
     res.json({ success: true, message: '项目已删除', project: deletedProject });
 });
 
-// API: 保存项目数据 (需要登录)
-app.post('/api/data', authenticateToken, (req, res) => {
-    const projectId = req.body.projectId || req.query.project || 'gpu-bringup';
-    const { domains, bugs, dailyProgress, buExitCriteria } = req.body;
-    
-    const data = {
-        domains: domains || [],
-        bugs: bugs || [],
-        dailyProgress: dailyProgress || [],
-        buExitCriteria: buExitCriteria || [],
-        lastUpdated: new Date().toLocaleString('zh-CN')
-    };
-    
-    saveProjectData(projectId, data);
-    console.log(`Saved data for project: ${projectId} by ${req.user.username}`);
-    res.json({ success: true, message: '数据保存成功' });
-});
-
 // Serve the main HTML file
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.listen(PORT, '0.0.0.0', () => {

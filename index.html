@@ -141,7 +141,19 @@
             <div id="lastUpdate">最后更新： 加载中...</div>
         </div>
 
-        <button id="adminModeToggle" class="admin-toggle">切换到管理员模式</button>
+        <button id="adminModeToggle" class="admin-toggle">登录</button>
+        
+        <!-- 登录面板 -->
+        <div id="loginPanel" style="position: fixed; top: 70px; right: 20px; background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 1000;">
+            <h3>登录</h3>
+            <input type="text" id="loginUsername" placeholder="用户名" style="width: 150px; padding: 5px; margin-bottom: 10px;"><br>
+            <input type="password" id="loginPassword" placeholder="密码" style="width: 150px; padding: 5px; margin-bottom: 10px;"><br>
+            <button onclick="handleLogin()" class="action-btn save-btn" style="width: 100%;">登录</button>
+            <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                管理员: admin / admin123<br>
+                普通用户: user / user123
+            </p>
+        </div>
 
         <div class="section">
             <h2>域概览 (Domain Overview)</h2>
@@ -230,12 +242,157 @@
     </div>
 
     <script>
+        // ============ 安全：HTML转义函数防止XSS ============
+        function escapeHTML(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&')
+                .replace(/</g, '<')
+                .replace(/>/g, '>')
+                .replace(/"/g, '"')
+                .replace(/'/g, ''');
+        }
+
         // 简化的数据管理
         let domains = JSON.parse(localStorage.getItem('domains') || '[]');
         let bugs = JSON.parse(localStorage.getItem('bugs') || '[]');
         let dailyProgress = JSON.parse(localStorage.getItem('dailyProgress') || '[]');
         let exitCriteria = JSON.parse(localStorage.getItem('exitCriteria') || '[]');
-        let isAdminMode = false;
+        
+        // 真实的用户状态（从服务器验证）
+        let currentUser = null;
+        let authToken = localStorage.getItem('authToken') || '';
+        
+        // ============ 认证函数 ============
+        
+        // 登录
+        async function login(username, password) {
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    currentUser = data.user;
+                    authToken = data.token;
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    updateAuthUI();
+                    renderAll();
+                    return { success: true };
+                } else {
+                    return { success: false, message: data.message };
+                }
+            } catch (e) {
+                return { success: false, message: '登录失败: ' + e.message };
+            }
+        }
+        
+        // 登出
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+            } catch (e) {}
+            currentUser = null;
+            authToken = '';
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            updateAuthUI();
+            renderAll();
+        }
+        
+        // 验证当前token
+        async function verifyToken() {
+            if (!authToken) return false;
+            try {
+                const response = await fetch('/api/auth/verify', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    currentUser = data.user;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    return true;
+                }
+            } catch (e) {}
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            return false;
+        }
+        
+        // 检查是否是管理员
+        function isAdmin() {
+            return currentUser && currentUser.role === 'admin';
+        }
+        
+        // 更新认证UI
+        function updateAuthUI() {
+            const btn = document.getElementById('adminModeToggle');
+            const loginPanel = document.getElementById('loginPanel');
+            if (currentUser) {
+                btn.textContent = `退出登录 (${currentUser.name})`;
+                btn.classList.add('admin-mode');
+                if (loginPanel) loginPanel.style.display = 'none';
+            } else {
+                btn.textContent = '登录';
+                btn.classList.remove('admin-mode');
+                if (loginPanel) loginPanel.style.display = 'block';
+            }
+        }
+        
+        // 处理登录按钮点击
+        async function handleLogin() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const result = await login(username, password);
+            if (!result.success) {
+                alert(result.message);
+            }
+        }
+        
+        // 登录面板回车键支持
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const loginPanel = document.getElementById('loginPanel');
+                if (loginPanel && loginPanel.style.display !== 'none') {
+                    handleLogin();
+                }
+            }
+        });
+
+        // 从服务器加载数据（如果有认证）
+        async function loadDataFromServer() {
+            if (!authToken) return false;
+            try {
+                const response = await fetch('/api/data?project=gpu-bringup', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.domains) domains = data.domains;
+                    if (data.bugs) bugs = data.bugs;
+                    if (data.dailyProgress) dailyProgress = data.dailyProgress;
+                    if (data.buExitCriteria) exitCriteria = data.buExitCriteria || data.exitCriteria || [];
+                    // 保存到 localStorage
+                    localStorage.setItem('domains', JSON.stringify(domains));
+                    localStorage.setItem('bugs', JSON.stringify(bugs));
+                    localStorage.setItem('dailyProgress', JSON.stringify(dailyProgress));
+                    localStorage.setItem('exitCriteria', JSON.stringify(exitCriteria));
+                    return true;
+                }
+            } catch (e) {
+                console.error('Failed to load from server:', e);
+            }
+            return false;
+        }
 
         // 格式化日期为中文格式
         function formatChineseDate(date) {
@@ -292,14 +449,36 @@
             localStorage.setItem('exitCriteria', JSON.stringify(exitCriteria));
         }
 
-        // 保存数据 - 现在会自动更新时间戳
-        function saveData() {
+        // 保存数据 - 保存到本地并同步到服务器（如果已登录）
+        async function saveData() {
             localStorage.setItem('domains', JSON.stringify(domains));
             localStorage.setItem('bugs', JSON.stringify(bugs));
             localStorage.setItem('dailyProgress', JSON.stringify(dailyProgress));
             localStorage.setItem('exitCriteria', JSON.stringify(exitCriteria));
             // 保存数据时自动更新最后更新时间
             updateLastUpdateTime();
+            
+            // 同步到服务器（需要认证）
+            if (authToken) {
+                try {
+                    await fetch('/api/data', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({
+                            projectId: 'gpu-bringup',
+                            domains,
+                            bugs,
+                            dailyProgress,
+                            buExitCriteria: exitCriteria
+                        })
+                    });
+                } catch (e) {
+                    console.error('Failed to save to server:', e);
+                }
+            }
         }
 
         // 获取domain下拉框HTML
@@ -341,12 +520,12 @@
             const tbody = document.querySelector('#domainsTable tbody');
             tbody.innerHTML = domains.map((domain, index) => `
                 <tr>
-                    <td>${domain.domain || '未设置'}</td>
-                    <td>${domain.owner || ''}</td>
-                    <td>${domain.status || '未开始'}</td>
-                    <td>${domain.notes || ''}</td>
+                    <td>${escapeHTML(domain.domain || '未设置')}</td>
+                    <td>${escapeHTML(domain.owner || '')}</td>
+                    <td>${escapeHTML(domain.status || '未开始')}</td>
+                    <td>${escapeHTML(domain.notes || '')}</td>
                     <td>
-                        ${isAdminMode ? 
+                        ${isAdmin() ? 
                             `<div class="action-buttons">
                                 <button class="action-btn edit-btn" onclick="editDomain(${index})">编辑</button>
                                 <button class="action-btn delete-btn" onclick="deleteDomain(${index})">删除</button>
@@ -378,15 +557,15 @@
             const tbody = document.querySelector('#bugsTable tbody');
             tbody.innerHTML = sortedBugs.map((bug, index) => `
                 <tr>
-                    <td>${bug.bugId || 'NEW-' + index}</td>
-                    <td>${bug.domain || ''}</td>
-                    <td>${bug.description || ''}</td>
-                    <td>${bug.severity || 'Medium'}</td>
-                    <td>${bug.status || 'Open'}</td>
-                    <td>${bug.reportDate || ''}</td>
-                    <td>${bug.owner || ''}</td>
+                    <td>${escapeHTML(bug.bugId || 'NEW-' + index)}</td>
+                    <td>${escapeHTML(bug.domain || '')}</td>
+                    <td>${escapeHTML(bug.description || '')}</td>
+                    <td>${escapeHTML(bug.severity || 'Medium')}</td>
+                    <td>${escapeHTML(bug.status || 'Open')}</td>
+                    <td>${escapeHTML(bug.reportDate || '')}</td>
+                    <td>${escapeHTML(bug.owner || '')}</td>
                     <td>
-                        ${isAdminMode ? 
+                        ${isAdmin() ? 
                             `<div class="action-buttons">
                                 <button class="action-btn edit-btn" onclick="editBug(${bugs.indexOf(bug)})">编辑</button>
                                 <button class="action-btn delete-btn" onclick="deleteBug(${bugs.indexOf(bug)})">删除</button>
@@ -405,10 +584,10 @@
             } else {
                 container.innerHTML = dailyProgress.map((entry, index) => `
                     <div style="margin-bottom: 10px; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
-                        <strong>日期:</strong> ${entry.date || '未设置'}<br>
-                        <strong>Domain:</strong> ${entry.domain || '未设置'}<br>
-                        <strong>进度:</strong> ${entry.progress || '未设置'}<br>
-                        ${isAdminMode ? 
+                        <strong>日期:</strong> ${escapeHTML(entry.date || '未设置')}<br>
+                        <strong>Domain:</strong> ${escapeHTML(entry.domain || '未设置')}<br>
+                        <strong>进度:</strong> ${escapeHTML(entry.progress || '未设置')}<br>
+                        ${isAdmin() ? 
                             `<div class="action-buttons">
                                 <button class="action-btn edit-btn" onclick="editDailyProgress(${index})">编辑</button>
                                 <button class="action-btn delete-btn" onclick="deleteDailyProgress(${index})">删除</button>
@@ -425,12 +604,12 @@
             tbody.innerHTML = exitCriteria.map((item, index) => `
                 <tr>
                     <td>${index + 1}</td>
-                    <td>${item.domain || ''}</td>
-                    <td>${item.criteria || ''}</td>
-                    <td>${item.owner || ''}</td>
-                    <td>${item.status || 'Pending'}</td>
+                    <td>${escapeHTML(item.domain || '')}</td>
+                    <td>${escapeHTML(item.criteria || '')}</td>
+                    <td>${escapeHTML(item.owner || '')}</td>
+                    <td>${escapeHTML(item.status || 'Pending')}</td>
                     <td>
-                        ${isAdminMode ? 
+                        ${isAdmin() ? 
                             `<div class="action-buttons">
                                 <button class="action-btn edit-btn" onclick="editExitCriteria(${index})">编辑</button>
                                 <button class="action-btn delete-btn" onclick="deleteExitCriteria(${index})">删除</button>
@@ -736,7 +915,7 @@
             addButtons.forEach(btnId => {
                 const btn = document.getElementById(btnId);
                 if (btn) {
-                    btn.style.display = isAdminMode ? 'inline-block' : 'none';
+                    btn.style.display = isAdmin() ? 'inline-block' : 'none';
                 }
             });
         }
@@ -744,14 +923,26 @@
         function setupAdminMode() {
             const toggleBtn = document.getElementById('adminModeToggle');
             toggleBtn.addEventListener('click', function() {
-                isAdminMode = !isAdminMode;
-                renderAll();
-                if (isAdminMode) {
-                    this.textContent = '退出管理员模式';
-                    this.classList.add('admin-mode');
+                if (currentUser) {
+                    // 已登录，点击登出
+                    logout();
                 } else {
-                    this.textContent = '切换到管理员模式';
-                    this.classList.remove('admin-mode');
+                    // 未登录，显示登录面板
+                    const loginPanel = document.getElementById('loginPanel');
+                    if (loginPanel) {
+                        loginPanel.style.display = loginPanel.style.display === 'none' ? 'block' : 'none';
+                    }
+                }
+            });
+            
+            // 点击页面其他地方关闭登录面板
+            document.addEventListener('click', function(e) {
+                const loginPanel = document.getElementById('loginPanel');
+                const toggleBtn = document.getElementById('adminModeToggle');
+                if (loginPanel && loginPanel.style.display !== 'none') {
+                    if (!loginPanel.contains(e.target) && e.target !== toggleBtn) {
+                        loginPanel.style.display = 'none';
+                    }
                 }
             });
         }
@@ -764,10 +955,17 @@
         }
 
         // 初始化
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 尝试验证 token
+            await verifyToken();
+            // 如果已验证成功，从服务器加载数据
+            if (currentUser) {
+                await loadDataFromServer();
+            }
             renderAll();
             setupAdminMode();
             setupAddButtons();
+            updateAuthUI();
             // 页面加载时更新时间
             updateLastUpdateTime();
         });
