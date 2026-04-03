@@ -97,6 +97,40 @@ enhanced-gpu-bu-daily-status-tracker/
 
 ## 版本历史
 
+### v1.5 (2026-04-03)
+**GPU Bring-up Daily Tracker 优化版本**
+
+#### 用户权限管理系统
+- 实现完整的登录/登出认证机制（基于JWT Token）
+- 支持管理员(Admin)和普通用户(User)两种角色
+- Token过期时间：24小时
+- 密码明文存储（简化内部使用）
+
+#### 安全增强
+- 添加路径遍历攻击防护（projectId sanitization）
+- XSS防护：添加escapeHTML转义函数
+- Cookie解析中间件
+- 服务器端输入验证
+
+#### 项目管理增强
+- 项目列表API (`GET /api/projects`)
+- 项目创建/编辑/删除功能
+- 项目数据隔离存储（按项目ID分离JSON文件）
+- 新增 `data/projects.json` 存储项目元数据
+
+#### 前端UI优化
+- 登录面板UI（固定在右上角）
+- 用户角色标签显示
+- 管理员/普通用户按钮权限控制
+- 用户管理面板增强（用户列表展示、搜索功能）
+- 响应式CSS样式（分离到 `public/css/styles.css`）
+
+#### 技术依赖更新
+- 添加 `bcrypt` 密码处理库（预留）
+- 添加 `cookie-parser` 中间件
+
+---
+
 ### v1.0
 - 多项目切换支持
 - 用户认证系统（admin/user角色）
@@ -162,4 +196,4 @@ MIT License
 ---
 
 **最后更新**: 2026年4月3日  
-**版本**: 1.0
+**版本**: 1.5
