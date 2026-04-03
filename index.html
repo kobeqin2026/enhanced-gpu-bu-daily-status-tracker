@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>国产GPU芯片bring up每日追踪</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .project-info {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        .section h2 {
+            color: #495057;
+            margin-bottom: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .notes {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .notes ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .notes li {
+            margin-bottom: 5px;
+        }
+        .admin-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .admin-toggle.admin-mode {
+            background-color: #dc3545;
+        }
+        /* 编辑模式下的输入框 */
+        .edit-input {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        .edit-select {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        .action-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .save-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .cancel-btn {
+            background-color: #6c757d;
+            color: white;
+        }
+        .add-btn {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        .edit-btn {
+            background-color: #ffc107;
+            color: black;
+        }
+        /* 自动关联复选框 */
+        .auto-link-checkbox {
+            margin: 5px 0;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>国产GPU芯片bring up每日追踪</h1>
+        
+        <div class="project-info">
+            <div id="projectTimeline">项目时间线： 2026年5月25日 - 2026年6月8日</div>
+            <div id="lastUpdate">最后更新： 加载中...</div>
+        </div>
+
+        <button id="adminModeToggle" class="admin-toggle">切换到管理员模式</button>
+
+        <div class="section">
+            <h2>域概览 (Domain Overview)</h2>
+            <button id="addDomainBtn" class="action-btn add-btn" style="display: none;">+ 添加域</button>
+            <table id="domainsTable">
+                <thead>
+                    <tr>
+                        <th>域 (Domain)</th>
+                        <th>负责人 (Owner)</th>
+                        <th>状态 (Status)</th>
+                        <th>备注 (Notes)</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Domains will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Bug跟踪 (Bug Tracking)</h2>
+            <button id="addBugBtn" class="action-btn add-btn" style="display: none;">+ 添加Bug</button>
+            <table id="bugsTable">
+                <thead>
+                    <tr>
+                        <th>Bug ID</th>
+                        <th>域 (Domain)</th>
+                        <th>描述 (Description)</th>
+                        <th>严重性 (Severity)</th>
+                        <th>状态 (Status)</th>
+                        <th>报告日期</th>
+                        <th>负责人</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Bugs will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>每日进度跟踪 (Daily Progress Tracking)</h2>
+            <button id="addProgressBtn" class="action-btn add-btn" style="display: none;">+ 添加进度</button>
+            <div id="dailyProgressContent">
+                <!-- Daily progress will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Bringup准出标准 (BU Exit Criteria)</h2>
+            <button id="addCriteriaBtn" class="action-btn add-btn" style="display: none;">+ 添加标准</button>
+            <table id="exitCriteriaTable">
+                <thead>
+                    <tr>
+                        <th>Index</th>
+                        <th>Domain</th>
+                        <th>Bring up exit criteria</th>
+                        <th>Sign-off owner</th>
+                        <th>Sign-off status</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Exit criteria will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="notes">
+            <h3>备注与评论 (Notes & Comments)</h3>
+            <ul>
+                <li>使用下拉菜单更新各域状态（灰色=未开始，蓝色=进行中，红色=受阻，绿色=已完成）</li>
+                <li>Bug严重性颜色：红色=Highest，黄色=High/Medium，灰色=Low/Lowest</li>
+                <li>每日进度按日期和Domain筛选，支持添加、编辑和删除</li>
+                <li>Bringup准出标准支持完整的CRUD操作</li>
+                <li>点击Bug ID可跳转到JIRA系统</li>
+                <li>支持Ctrl+S快捷键保存</li>
+                <li>完整编辑功能：Domain、Bug、每日进度和准出标准都支持完整编辑！</li>
+                <li><strong>新增功能：</strong>Bringup准出标准中的Domain和Sign-off owner现在自动关联，确保数据一致性</li>
+                <li><strong>新增功能：</strong>最后更新时间现在会自动更新为当前时间</li>
+            </ul>
+            <div id="pageLastUpdate">最后更新: 加载中...</div>
+        </div>
+    </div>
+
+    <script>
+        // 简化的数据管理
+        let domains = JSON.parse(localStorage.getItem('domains') || '[]');
+        let bugs = JSON.parse(localStorage.getItem('bugs') || '[]');
+        let dailyProgress = JSON.parse(localStorage.getItem('dailyProgress') || '[]');
+        let exitCriteria = JSON.parse(localStorage.getItem('exitCriteria') || '[]');
+        let isAdminMode = false;
+
+        // 格式化日期为中文格式
+        function formatChineseDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}年${month}月${day}日 ${hours}:${minutes}`;
+        }
+
+        // 更新最后更新时间显示
+        function updateLastUpdateTime() {
+            const now = new Date();
+            const formattedTime = formatChineseDate(now);
+            document.getElementById('lastUpdate').textContent = `最后更新： ${formattedTime}`;
+            document.getElementById('pageLastUpdate').textContent = `最后更新: ${formattedTime}`;
+        }
+
+        // 添加测试数据（如果为空）
+        if (domains.length === 0) {
+            domains = [
+                { domain: 'GPU Core', owner: '张三', status: '进行中', notes: '核心功能开发' },
+                { domain: 'Memory Controller', owner: '李四', status: '未开始', notes: '内存控制器验证' },
+                { domain: 'Power Management', owner: '王五', status: '已完成', notes: '功耗管理完成' },
+                { domain: 'Thermal Management', owner: '赵六', status: '受阻', notes: '散热问题待解决' }
+            ];
+            localStorage.setItem('domains', JSON.stringify(domains));
+        }
+        if (bugs.length === 0) {
+            const today = new Date().toISOString().split('T')[0];
+            bugs = [
+                { bugId: 'GPU-001', domain: 'GPU Core', description: '频率调节异常', severity: 'Highest', status: 'Open', reportDate: today, owner: '张三' },
+                { bugId: 'MEM-002', domain: 'Memory Controller', description: '带宽不足', severity: 'High', status: 'In Progress', reportDate: today, owner: '李四' },
+                { bugId: 'PWR-003', domain: 'Power Management', description: '电压不稳定', severity: 'Medium', status: 'Resolved', reportDate: today, owner: '王五' }
+            ];
+            localStorage.setItem('bugs', JSON.stringify(bugs));
+        }
+        if (dailyProgress.length === 0) {
+            const today = new Date().toISOString().split('T')[0];
+            dailyProgress = [
+                { date: today, domain: 'GPU Core', progress: '完成频率测试用例，发现GPU-001问题' },
+                { date: today, domain: 'Memory Controller', progress: '开始带宽基准测试，预计明天完成' },
+                { date: '2026-03-11', domain: 'Power Management', progress: '修复电压调节问题，PWR-003已解决' }
+            ];
+            localStorage.setItem('dailyProgress', JSON.stringify(dailyProgress));
+        }
+        if (exitCriteria.length === 0) {
+            exitCriteria = [
+                { domain: 'GPU Core', criteria: '核心功能验证通过', owner: '张三', status: 'Pending' },
+                { domain: 'Memory Controller', criteria: '内存带宽达标', owner: '李四', status: 'Approved' },
+                { domain: 'Power Management', criteria: '功耗符合规格', owner: '王五', status: 'Pending' }
+            ];
+            localStorage.setItem('exitCriteria', JSON.stringify(exitCriteria));
+        }
+
+        // 保存数据 - 现在会自动更新时间戳
+        function saveData() {
+            localStorage.setItem('domains', JSON.stringify(domains));
+            localStorage.setItem('bugs', JSON.stringify(bugs));
+            localStorage.setItem('dailyProgress', JSON.stringify(dailyProgress));
+            localStorage.setItem('exitCriteria', JSON.stringify(exitCriteria));
+            // 保存数据时自动更新最后更新时间
+            updateLastUpdateTime();
+        }
+
+        // 获取domain下拉框HTML
+        function getDomainSelectHTML(selectedValue) {
+            const domainOptions = domains.map(domain => 
+                `<option value="${domain.domain}" ${domain.domain === selectedValue ? 'selected' : ''}>${domain.domain}</option>`
+            ).join('');
+            
+            if (domainOptions === '') {
+                return '<option value="">请先添加域</option>';
+            }
+            
+            return `<select class="edit-select" data-field="domain">${domainOptions}</select>`;
+        }
+
+        // 根据domain获取对应的owner
+        function getOwnerByDomain(domainName) {
+            const domain = domains.find(d => d.domain === domainName);
+            return domain ? domain.owner : '';
+        }
+
+        // 获取owner下拉框HTML
+        function getOwnerSelectHTML(selectedValue) {
+            // 从domains中提取所有唯一的owner
+            const owners = [...new Set(domains.map(domain => domain.owner).filter(owner => owner))].sort();
+            const ownerOptions = owners.map(owner => 
+                `<option value="${owner}" ${owner === selectedValue ? 'selected' : ''}>${owner}</option>`
+            ).join('');
+            
+            if (ownerOptions === '') {
+                return '<option value="">请先添加域</option>';
+            }
+            
+            return `<select class="edit-select" data-field="owner">${ownerOptions}</select>`;
+        }
+
+        // 渲染函数
+        function renderDomains() {
+            const tbody = document.querySelector('#domainsTable tbody');
+            tbody.innerHTML = domains.map((domain, index) => `
+                <tr>
+                    <td>${domain.domain || '未设置'}</td>
+                    <td>${domain.owner || ''}</td>
+                    <td>${domain.status || '未开始'}</td>
+                    <td>${domain.notes || ''}</td>
+                    <td>
+                        ${isAdminMode ? 
+                            `<div class="action-buttons">
+                                <button class="action-btn edit-btn" onclick="editDomain(${index})">编辑</button>
+                                <button class="action-btn delete-btn" onclick="deleteDomain(${index})">删除</button>
+                            </div>` : 
+                            '<button onclick="viewDomainDetails(' + index + ')">查看</button>'
+                        }
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 严重性排序权重
+        const severityOrder = {
+            'Highest': 0,
+            'High': 1,
+            'Medium': 2,
+            'Low': 3,
+            'Lowest': 4
+        };
+
+        function renderBugs() {
+            // 按严重性排序
+            const sortedBugs = [...bugs].sort((a, b) => {
+                const aSeverity = severityOrder[a.severity] || 999;
+                const bSeverity = severityOrder[b.severity] || 999;
+                return aSeverity - bSeverity;
+            });
+            
+            const tbody = document.querySelector('#bugsTable tbody');
+            tbody.innerHTML = sortedBugs.map((bug, index) => `
+                <tr>
+                    <td>${bug.bugId || 'NEW-' + index}</td>
+                    <td>${bug.domain || ''}</td>
+                    <td>${bug.description || ''}</td>
+                    <td>${bug.severity || 'Medium'}</td>
+                    <td>${bug.status || 'Open'}</td>
+                    <td>${bug.reportDate || ''}</td>
+                    <td>${bug.owner || ''}</td>
+                    <td>
+                        ${isAdminMode ? 
+                            `<div class="action-buttons">
+                                <button class="action-btn edit-btn" onclick="editBug(${bugs.indexOf(bug)})">编辑</button>
+                                <button class="action-btn delete-btn" onclick="deleteBug(${bugs.indexOf(bug)})">删除</button>
+                            </div>` : 
+                            '<button onclick="viewBugDetails(' + index + ')">查看</button>'
+                        }
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderDailyProgress() {
+            const container = document.getElementById('dailyProgressContent');
+            if (dailyProgress.length === 0) {
+                container.innerHTML = '<p>暂无每日进度记录</p>';
+            } else {
+                container.innerHTML = dailyProgress.map((entry, index) => `
+                    <div style="margin-bottom: 10px; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                        <strong>日期:</strong> ${entry.date || '未设置'}<br>
+                        <strong>Domain:</strong> ${entry.domain || '未设置'}<br>
+                        <strong>进度:</strong> ${entry.progress || '未设置'}<br>
+                        ${isAdminMode ? 
+                            `<div class="action-buttons">
+                                <button class="action-btn edit-btn" onclick="editDailyProgress(${index})">编辑</button>
+                                <button class="action-btn delete-btn" onclick="deleteDailyProgress(${index})">删除</button>
+                            </div>` : 
+                            ''
+                        }
+                    </div>
+                `).join('');
+            }
+        }
+
+        function renderExitCriteria() {
+            const tbody = document.querySelector('#exitCriteriaTable tbody');
+            tbody.innerHTML = exitCriteria.map((item, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${item.domain || ''}</td>
+                    <td>${item.criteria || ''}</td>
+                    <td>${item.owner || ''}</td>
+                    <td>${item.status || 'Pending'}</td>
+                    <td>
+                        ${isAdminMode ? 
+                            `<div class="action-buttons">
+                                <button class="action-btn edit-btn" onclick="editExitCriteria(${index})">编辑</button>
+                                <button class="action-btn delete-btn" onclick="deleteExitCriteria(${index})">删除</button>
+                            </div>` : 
+                            '<button onclick="viewCriteriaDetails(' + index + ')">查看</button>'
+                        }
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 编辑函数
+        function editDomain(index) {
+            const domain = domains[index];
+            const formHTML = `
+                <td><input type="text" class="edit-input" value="${domain.domain || ''}" data-field="domain"></td>
+                <td><input type="text" class="edit-input" value="${domain.owner || ''}" data-field="owner"></td>
+                <td>
+                    <select class="edit-select" data-field="status">
+                        <option value="未开始" ${domain.status === '未开始' ? 'selected' : ''}>未开始</option>
+                        <option value="进行中" ${domain.status === '进行中' ? 'selected' : ''}>进行中</option>
+                        <option value="受阻" ${domain.status === '受阻' ? 'selected' : ''}>受阻</option>
+                        <option value="已完成" ${domain.status === '已完成' ? 'selected' : ''}>已完成</option>
+                    </select>
+                </td>
+                <td><input type="text" class="edit-input" value="${domain.notes || ''}" data-field="notes"></td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="action-btn save-btn" onclick="saveDomain(${index})">保存</button>
+                        <button class="action-btn cancel-btn" onclick="cancelEdit()">取消</button>
+                    </div>
+                </td>
+            `;
+            document.querySelector(`#domainsTable tbody tr:nth-child(${index + 1})`).innerHTML = formHTML;
+        }
+
+        function saveDomain(index) {
+            const row = document.querySelector(`#domainsTable tbody tr:nth-child(${index + 1})`);
+            const inputs = row.querySelectorAll('.edit-input, .edit-select');
+            const updatedDomain = {};
+            inputs.forEach(input => {
+                const field = input.dataset.field;
+                updatedDomain[field] = input.value;
+            });
+            domains[index] = updatedDomain;
+            saveData();
+            renderAll();
+        }
+
+        function deleteDomain(index) {
+            if (confirm('确定要删除这个域吗？')) {
+                domains.splice(index, 1);
+                saveData();
+                renderAll();
+            }
+        }
+
+        function editBug(index) {
+            const bug = bugs[index];
+            const formHTML = `
+                <td>${bug.bugId}</td>
+                <td><input type="text" class="edit-input" value="${bug.domain || ''}" data-field="domain"></td>
+                <td><input type="text" class="edit-input" value="${bug.description || ''}" data-field="description"></td>
+                <td>
+                    <select class="edit-select" data-field="severity">
+                        <option value="Highest" ${bug.severity === 'Highest' ? 'selected' : ''}>Highest</option>
+                        <option value="High" ${bug.severity === 'High' ? 'selected' : ''}>High</option>
+                        <option value="Medium" ${bug.severity === 'Medium' ? 'selected' : ''}>Medium</option>
+                        <option value="Low" ${bug.severity === 'Low' ? 'selected' : ''}>Low</option>
+                        <option value="Lowest" ${bug.severity === 'Lowest' ? 'selected' : ''}>Lowest</option>
+                    </select>
+                </td>
+                <td>
+                    <select class="edit-select" data-field="status">
+                        <option value="Open" ${bug.status === 'Open' ? 'selected' : ''}>Open</option>
+                        <option value="In Progress" ${bug.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                        <option value="Resolved" ${bug.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+                        <option value="Closed" ${bug.status === 'Closed' ? 'selected' : ''}>Closed</option>
+                    </select>
+                </td>
+                <td><input type="date" class="edit-input" value="${bug.reportDate || ''}" data-field="reportDate"></td>
+                <td><input type="text" class="edit-input" value="${bug.owner || ''}" data-field="owner"></td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="action-btn save-btn" onclick="saveBug(${index})">保存</button>
+                        <button class="action-btn cancel-btn" onclick="cancelEdit()">取消</button>
+                    </div>
+                </td>
+            `;
+            document.querySelector(`#bugsTable tbody tr:nth-child(${index + 1})`).innerHTML = formHTML;
+        }
+
+        function saveBug(index) {
+            const row = document.querySelector(`#bugsTable tbody tr:nth-child(${index + 1})`);
+            const inputs = row.querySelectorAll('.edit-input, .edit-select');
+            const updatedBug = { ...bugs[index] };
+            inputs.forEach(input => {
+                const field = input.dataset.field;
+                updatedBug[field] = input.value;
+            });
+            bugs[index] = updatedBug;
+            saveData();
+            renderAll();
+        }
+
+        function deleteBug(index) {
+            if (confirm('确定要删除这个Bug吗？')) {
+                bugs.splice(index, 1);
+                saveData();
+                renderAll();
+            }
+        }
+
+        function editDailyProgress(index) {
+            const entry = dailyProgress[index];
+            const domainSelectHTML = getDomainSelectHTML(entry.domain);
+            const formHTML = `
+                <div style="margin-bottom: 10px; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                    <strong>日期:</strong> <input type="date" class="edit-input" value="${entry.date || ''}" data-field="date"><br>
+                    <strong>Domain:</strong> ${domainSelectHTML}<br>
+                    <strong>进度:</strong> <textarea class="edit-input" rows="3" data-field="progress">${entry.progress || ''}</textarea><br>
+                    <div class="action-buttons">
+                        <button class="action-btn save-btn" onclick="saveDailyProgress(${index})">保存</button>
+                        <button class="action-btn cancel-btn" onclick="cancelEdit()">取消</button>
+                    </div>
+                </div>
+            `;
+            const container = document.getElementById('dailyProgressContent');
+            const entries = container.querySelectorAll('div[style*="margin-bottom"]');
+            if (entries[index]) {
+                entries[index].outerHTML = formHTML;
+            }
+        }
+
+        function saveDailyProgress(index) {
+            const container = document.getElementById('dailyProgressContent');
+            const formDiv = container.querySelector('div[style*="margin-bottom"]');
+            if (formDiv) {
+                const inputs = formDiv.querySelectorAll('.edit-input, .edit-select');
+                const updatedEntry = { ...dailyProgress[index] };
+                inputs.forEach(input => {
+                    const field = input.dataset.field;
+                    updatedEntry[field] = input.value;
+                });
+                dailyProgress[index] = updatedEntry;
+                saveData();
+                renderAll();
+            }
+        }
+
+        function deleteDailyProgress(index) {
+            if (confirm('确定要删除这个进度记录吗？')) {
+                dailyProgress.splice(index, 1);
+                saveData();
+                renderAll();
+            }
+        }
+
+        // 新增：Domain变化时自动更新owner的函数
+        function handleDomainChange(selectElement, ownerSelectId) {
+            const selectedDomain = selectElement.value;
+            const owner = getOwnerByDomain(selectedDomain);
+            const ownerSelect = document.getElementById(ownerSelectId);
+            if (ownerSelect) {
+                ownerSelect.value = owner;
+            }
+        }
+
+        function editExitCriteria(index) {
+            const item = exitCriteria[index];
+            const domainSelectHTML = getDomainSelectHTML(item.domain);
+            const ownerSelectHTML = getOwnerSelectHTML(item.owner);
+            
+            // 生成唯一的ID用于关联
+            const domainSelectId = `domain-select-${index}`;
+            const ownerSelectId = `owner-select-${index}`;
+            
+            const formHTML = `
+                <td>${index + 1}</td>
+                <td>
+                    ${domainSelectHTML.replace('<select class="edit-select"', `<select id="${domainSelectId}" class="edit-select"`)}
+                </td>
+                <td><input type="text" class="edit-input" value="${item.criteria || ''}" data-field="criteria"></td>
+                <td>
+                    ${ownerSelectHTML.replace('<select class="edit-select"', `<select id="${ownerSelectId}" class="edit-select"`)}
+                </td>
+                <td>
+                    <select class="edit-select" data-field="status">
+                        <option value="Pending" ${item.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                        <option value="Approved" ${item.status === 'Approved' ? 'selected' : ''}>Approved</option>
+                        <option value="Rejected" ${item.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
+                    </select>
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="action-btn save-btn" onclick="saveExitCriteria(${index})">保存</button>
+                        <button class="action-btn cancel-btn" onclick="cancelEdit()">取消</button>
+                    </div>
+                </td>
+            `;
+            
+            const row = document.querySelector(`#exitCriteriaTable tbody tr:nth-child(${index + 1})`);
+            row.innerHTML = formHTML;
+            
+            // 添加事件监听器实现自动关联
+            const domainSelect = document.getElementById(domainSelectId);
+            const ownerSelect = document.getElementById(ownerSelectId);
+            
+            if (domainSelect && ownerSelect) {
+                // 初始化时确保owner正确
+                const currentDomain = domainSelect.value;
+                const correctOwner = getOwnerByDomain(currentDomain);
+                if (correctOwner && ownerSelect.value !== correctOwner) {
+                    ownerSelect.value = correctOwner;
+                }
+                
+                // 添加change事件监听器
+                domainSelect.addEventListener('change', function() {
+                    const selectedDomain = this.value;
+                    const owner = getOwnerByDomain(selectedDomain);
+                    if (owner) {
+                        ownerSelect.value = owner;
+                    }
+                });
+            }
+        }
+
+        function saveExitCriteria(index) {
+            const row = document.querySelector(`#exitCriteriaTable tbody tr:nth-child(${index + 1})`);
+            const inputs = row.querySelectorAll('.edit-input, .edit-select');
+            const updatedItem = { ...exitCriteria[index] };
+            inputs.forEach(input => {
+                const field = input.dataset.field;
+                updatedItem[field] = input.value;
+            });
+            exitCriteria[index] = updatedItem;
+            saveData();
+            renderAll();
+        }
+
+        function deleteExitCriteria(index) {
+            if (confirm('确定要删除这个准出标准吗？')) {
+                exitCriteria.splice(index, 1);
+                saveData();
+                renderAll();
+            }
+        }
+
+        function cancelEdit() {
+            renderAll();
+        }
+
+        // 添加新记录
+        function addNewDomain() {
+            const newDomain = { domain: '', owner: '', status: '未开始', notes: '' };
+            domains.push(newDomain);
+            saveData();
+            renderDomains();
+            editDomain(domains.length - 1);
+        }
+
+        function addNewBug() {
+            const today = new Date().toISOString().split('T')[0];
+            const newBug = { bugId: `BUG-${Date.now().toString().slice(-6)}`, domain: '', description: '', severity: 'Medium', status: 'Open', reportDate: today, owner: '' };
+            bugs.push(newBug);
+            saveData();
+            renderBugs();
+            editBug(bugs.length - 1);
+        }
+
+        function addNewDailyProgress() {
+            const today = new Date().toISOString().split('T')[0];
+            const newProgress = { date: today, domain: '', progress: '' };
+            dailyProgress.push(newProgress);
+            saveData();
+            renderDailyProgress();
+            editDailyProgress(dailyProgress.length - 1);
+        }
+
+        function addNewExitCriteria() {
+            const newCriteria = { domain: '', criteria: '', owner: '', status: 'Pending' };
+            exitCriteria.push(newCriteria);
+            saveData();
+            renderExitCriteria();
+            editExitCriteria(exitCriteria.length - 1);
+        }
+
+        // 其他函数
+        function viewDomainDetails(index) { console.log('View domain details:', index); }
+        function viewBugDetails(index) { console.log('View bug details:', index); }
+        function viewCriteriaDetails(index) { console.log('View criteria details:', index); }
+
+        function renderAll() {
+            renderDomains();
+            renderBugs();
+            renderDailyProgress();
+            renderExitCriteria();
+            updateAdminModeUI();
+        }
+
+        function updateAdminModeUI() {
+            const addButtons = ['addDomainBtn', 'addBugBtn', 'addProgressBtn', 'addCriteriaBtn'];
+            addButtons.forEach(btnId => {
+                const btn = document.getElementById(btnId);
+                if (btn) {
+                    btn.style.display = isAdminMode ? 'inline-block' : 'none';
+                }
+            });
+        }
+
+        function setupAdminMode() {
+            const toggleBtn = document.getElementById('adminModeToggle');
+            toggleBtn.addEventListener('click', function() {
+                isAdminMode = !isAdminMode;
+                renderAll();
+                if (isAdminMode) {
+                    this.textContent = '退出管理员模式';
+                    this.classList.add('admin-mode');
+                } else {
+                    this.textContent = '切换到管理员模式';
+                    this.classList.remove('admin-mode');
+                }
+            });
+        }
+
+        function setupAddButtons() {
+            document.getElementById('addDomainBtn').addEventListener('click', addNewDomain);
+            document.getElementById('addBugBtn').addEventListener('click', addNewBug);
+            document.getElementById('addProgressBtn').addEventListener('click', addNewDailyProgress);
+            document.getElementById('addCriteriaBtn').addEventListener('click', addNewExitCriteria);
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            renderAll();
+            setupAdminMode();
+            setupAddButtons();
+            // 页面加载时更新时间
+            updateLastUpdateTime();
+        });
+    </script>
+</body>
+</html>
