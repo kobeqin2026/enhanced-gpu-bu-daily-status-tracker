@@ -2136,10 +2136,13 @@
                         userRole = result.user.role;
                         authToken = savedToken;
                     } else {
-                        // Token无效，清除localStorage
+                        // Token无效，清除localStorage和变量
                         localStorage.removeItem('currentUser');
                         localStorage.removeItem('userRole');
                         localStorage.removeItem('authToken');
+                        currentUser = null;
+                        userRole = null;
+                        authToken = null;
                     }
                 } catch (error) {
                     console.error('Token verification error:', error);
@@ -2504,14 +2507,17 @@
                     </select>` :
                     `<span class="status-display" style="background-color: ${statusColors[domain.status]}; color: white; padding: 4px 8px; border-radius: 4px;">${statusDisplay}</span>`;
                 
+                // 根据管理员状态决定是否显示按钮
+                const adminVisible = isAdminUser ? 'visible' : '';
+                
                 row.innerHTML = `
                     <td>${domain.name}</td>
                     <td>${domain.owner}</td>
                     <td>${statusDisplayOnly}</td>
                     <td>${domain.notes}</td>
                     <td>
-                        <button class="edit-btn admin-only" onclick="editDomain('${domain.id}')">编辑</button>
-                        <button class="delete-btn admin-only" onclick="deleteDomain('${domain.id}')">删除</button>
+                        <button class="edit-btn admin-only ${adminVisible}" onclick="editDomain('${domain.id}')">编辑</button>
+                        <button class="delete-btn admin-only ${adminVisible}" onclick="deleteDomain('${domain.id}')">删除</button>
                     </td>
                 `;
                 
@@ -2752,6 +2758,9 @@
                 const severityClass = severityColorClasses[bug.severity] || '';
                 const statusDisplay = bugStatusText[bug.status] || bug.status;
                 
+                // 根据管理员状态决定是否显示按钮
+                const adminVisible = isAdmin() ? 'visible' : '';
+                
                 row.innerHTML = `
                     <td>${bugIdCell}</td>
                     <td>${bug.domain}</td>
@@ -2761,8 +2770,8 @@
                     <td>${bug.reportDate}</td>
                     <td>${bug.owner}</td>
                     <td>
-                        <button class="edit-btn user-only" onclick="editBug('${bug.id}')">编辑</button>
-                        <button class="delete-btn user-only" onclick="deleteBug('${bug.id}')">删除</button>
+                        <button class="edit-btn admin-only ${adminVisible}" onclick="editBug('${bug.id}')">编辑</button>
+                        <button class="delete-btn admin-only ${adminVisible}" onclick="deleteBug('${bug.id}')">删除</button>
                     </td>
                 `;
                 
@@ -2955,6 +2964,9 @@
             // Convert to array and sort by date (newest first)
             const groupedArray = Object.values(grouped).sort((a, b) => new Date(b.date) - new Date(a.date));
             
+            // 根据管理员状态决定是否显示按钮
+            const adminVisible = isAdmin() ? 'visible' : '';
+            
             // Render grouped progress
             groupedArray.forEach(group => {
                 const groupDiv = document.createElement('div');
@@ -2965,8 +2977,8 @@
                     contentsHtml += `
                         <div class="daily-content-display">
                             ${item.content}
-                            <button class="edit-btn user-only" onclick="editDailyProgress('${item.id}')">编辑</button>
-                            <button class="delete-btn user-only" onclick="deleteDailyProgress('${item.id}')">删除</button>
+                            <button class="edit-btn admin-only ${adminVisible}" onclick="editDailyProgress('${item.id}')">编辑</button>
+                            <button class="delete-btn admin-only ${adminVisible}" onclick="deleteDailyProgress('${item.id}')">删除</button>
                         </div>
                     `;
                 });
@@ -3146,6 +3158,7 @@ currentDailyProgressFilters = {};
         
         // Render BU Exit Criteria table
         function renderBUExitCriteria(criteriaList) {
+            const adminCheck = isAdmin();
             const tbody = document.getElementById('bu-exit-criteria-body');
             tbody.innerHTML = '';
             
@@ -3156,7 +3169,7 @@ currentDailyProgressFilters = {};
                 return;
             }
             
-            criteriaList.forEach(criteria => {
+            criteriaList.forEach((criteria, idx) => {
                 const statusDisplay = criteria.status === 'not-ready' ? 'Not ready' : 
                                    criteria.status === 'fail' ? 'Fail' : 'Pass';
                 const statusClass = criteria.status === 'not-ready' ? '' : 
@@ -3166,17 +3179,23 @@ currentDailyProgressFilters = {};
                 const domainEntry = currentData.domains.find(d => d.name === criteria.domain);
                 const displayOwner = domainEntry ? domainEntry.owner : (criteria.owner || '-');
                 
+                // 使用index字段，如果不存在则使用数组索引+1作为后备
+                const displayIndex = criteria.index !== undefined ? criteria.index : (idx + 1);
+                
+                // 根据管理员状态决定是否显示按钮
+                const adminVisible = adminCheck ? 'visible' : '';
+                
                 const row = document.createElement('tr');
                 row.setAttribute('data-criteria-id', criteria.id);
                 row.innerHTML = `
-                    <td>${criteria.index}</td>
+                    <td>${displayIndex}</td>
                     <td>${criteria.domain}</td>
                     <td class="bu-criteria-content">${criteria.criteria}</td>
                     <td>${displayOwner}</td>
                     <td class="${statusClass}">${statusDisplay}</td>
                     <td>
-                        <button class="edit-btn user-only" onclick="editBUExitCriteria('${criteria.id}')">编辑</button>
-                        <button class="delete-btn user-only" onclick="deleteBUExitCriteria('${criteria.id}')">删除</button>
+                        <button class="edit-btn admin-only ${adminVisible}" onclick="editBUExitCriteria('${criteria.id}')">编辑</button>
+                        <button class="delete-btn admin-only ${adminVisible}" onclick="deleteBUExitCriteria('${criteria.id}')">删除</button>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -3338,8 +3357,8 @@ currentDailyProgressFilters = {};
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async function() {
-            // Load saved user session first
-            loadSavedUser();
+            // Load saved user session first (MUST be awaited before rendering data)
+            await loadSavedUser();
             
             // Initialize projects first
             await initProjects();

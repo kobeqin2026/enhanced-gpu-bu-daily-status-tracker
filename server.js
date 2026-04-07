@@ -62,8 +62,42 @@ function generateToken(username) {
     return crypto.createHash('sha256').update(`${username}:${timestamp}:${random}`).digest('hex').substring(0, 32);
 }
 
-// Session存储 (生产环境应该用Redis)
-const sessions = {};
+// Session存储 - 持久化到文件
+const SESSIONS_FILE = path.join(__dirname, 'data', 'sessions.json');
+let sessions = {};
+
+// 加载sessions
+function loadSessions() {
+    try {
+        if (fs.existsSync(SESSIONS_FILE)) {
+            const data = fs.readFileSync(SESSIONS_FILE, 'utf8');
+            sessions = JSON.parse(data);
+            console.log(`Loaded ${Object.keys(sessions).length} sessions from file`);
+        }
+    } catch (error) {
+        console.error('Failed to load sessions:', error);
+        sessions = {};
+    }
+}
+
+// 保存sessions
+function saveSessions() {
+    try {
+        fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2));
+    } catch (error) {
+        console.error('Failed to save sessions:', error);
+    }
+}
+
+// 启动时加载sessions
+loadSessions();
+
+// 定期保存sessions (每30秒)
+setInterval(saveSessions, 30000);
+
+// 进程退出时保存
+process.on('exit', saveSessions);
+process.on('SIGINT', () => { saveSessions(); process.exit(); });
 
 // 中间件：解析token
 function authenticateToken(req, res, next) {
@@ -84,6 +118,7 @@ function authenticateToken(req, res, next) {
     // 检查token过期 (24小时)
     if (Date.now() - session.createdAt > 24 * 60 * 60 * 1000) {
         delete sessions[session.username];
+        saveSessions();
         return res.status(401).json({ success: false, message: '登录已过期，请重新登录' });
     }
     
@@ -230,6 +265,7 @@ app.post('/api/auth/login', async (req, res) => {
     };
     
     console.log(`User logged in: ${username}, role: ${user.role}`);
+    saveSessions();
     
     // 设置 httpOnly cookie（更安全）
     res.cookie('token', token, {
@@ -259,6 +295,7 @@ app.post('/api/auth/logout', (req, res) => {
         if (session) {
             delete sessions[session.username];
             console.log(`User logged out: ${session.username}`);
+            saveSessions();
         }
     }
     

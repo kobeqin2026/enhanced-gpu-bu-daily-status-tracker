@@ -97,6 +97,25 @@ enhanced-gpu-bu-daily-status-tracker/
 
 ## 版本历史
 
+### v1.8 (2026-04-07)
+**Bug修复：管理员编辑按钮消失问题**
+
+#### 问题修复
+- 修复管理员登录后，编辑BU Exit Criteria记录时编辑/删除按钮消失的问题
+- 根本原因：动态创建的按钮在渲染时没有正确添加`visible`类
+- 解决方案：在`renderBUExitCriteria()`等渲染函数中，预先计算`adminVisible`变量并应用到按钮类名
+
+#### 代码改进
+- 统一所有渲染函数（`renderDomains`, `renderBugs`, `renderBUExitCriteria`等）的管理员按钮处理逻辑
+- 确保动态创建的管理员按钮在渲染时即包含正确的可见性类
+- 优化`isAdmin()`函数调用，避免在循环中重复调用
+
+#### 部署说明更新
+- 更新nginx配置说明：API代理端口应为3000（Node.js后端端口）
+- 添加前端文件部署说明：修改前端代码后需复制到nginx静态文件目录
+
+---
+
 ### v1.5 (2026-04-03)
 **GPU Bring-up Daily Tracker 优化版本**
 
@@ -164,7 +183,7 @@ server {
     }
     
     location /api/ {
-        proxy_pass http://localhost:8088;
+        proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -195,5 +214,5 @@ MIT License
 
 ---
 
-**最后更新**: 2026年4月3日  
-**版本**: 1.5
+**最后更新**: 2026年4月7日  
+**版本**: 1.8

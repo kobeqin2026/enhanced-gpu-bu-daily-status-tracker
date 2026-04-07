@@ -1,6 +1,6 @@
 {
   "name": "gpu-bringup-tracker",
-  "version": "1.0.0",
+  "version": "1.8.0",
   "description": "国产GPU芯片Bring-up每日追踪系统 - Web应用",
   "main": "server.js",
   "scripts": {
