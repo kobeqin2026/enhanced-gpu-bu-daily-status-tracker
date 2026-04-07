@@ -2758,8 +2758,8 @@
                 const severityClass = severityColorClasses[bug.severity] || '';
                 const statusDisplay = bugStatusText[bug.status] || bug.status;
                 
-                // 根据管理员状态决定是否显示按钮
-                const adminVisible = isAdmin() ? 'visible' : '';
+                // 根据登录状态决定是否显示按钮（普通用户和管理员都可以编辑Bug）
+                const userVisible = isLoggedIn() ? 'visible' : '';
                 
                 row.innerHTML = `
                     <td>${bugIdCell}</td>
@@ -2770,8 +2770,8 @@
                     <td>${bug.reportDate}</td>
                     <td>${bug.owner}</td>
                     <td>
-                        <button class="edit-btn admin-only ${adminVisible}" onclick="editBug('${bug.id}')">编辑</button>
-                        <button class="delete-btn admin-only ${adminVisible}" onclick="deleteBug('${bug.id}')">删除</button>
+                        <button class="edit-btn user-only ${userVisible}" onclick="editBug('${bug.id}')">编辑</button>
+                        <button class="delete-btn user-only ${userVisible}" onclick="deleteBug('${bug.id}')">删除</button>
                     </td>
                 `;
                 
@@ -2964,8 +2964,8 @@
             // Convert to array and sort by date (newest first)
             const groupedArray = Object.values(grouped).sort((a, b) => new Date(b.date) - new Date(a.date));
             
-            // 根据管理员状态决定是否显示按钮
-            const adminVisible = isAdmin() ? 'visible' : '';
+            // 根据登录状态决定是否显示按钮（普通用户和管理员都可以编辑每日进度）
+            const userVisible = isLoggedIn() ? 'visible' : '';
             
             // Render grouped progress
             groupedArray.forEach(group => {
@@ -2977,8 +2977,8 @@
                     contentsHtml += `
                         <div class="daily-content-display">
                             ${item.content}
-                            <button class="edit-btn admin-only ${adminVisible}" onclick="editDailyProgress('${item.id}')">编辑</button>
-                            <button class="delete-btn admin-only ${adminVisible}" onclick="deleteDailyProgress('${item.id}')">删除</button>
+                            <button class="edit-btn user-only ${userVisible}" onclick="editDailyProgress('${item.id}')">编辑</button>
+                            <button class="delete-btn user-only ${userVisible}" onclick="deleteDailyProgress('${item.id}')">删除</button>
                         </div>
                     `;
                 });
@@ -3158,7 +3158,7 @@ currentDailyProgressFilters = {};
         
         // Render BU Exit Criteria table
         function renderBUExitCriteria(criteriaList) {
-            const adminCheck = isAdmin();
+            const userCheck = isLoggedIn();
             const tbody = document.getElementById('bu-exit-criteria-body');
             tbody.innerHTML = '';
             
@@ -3182,8 +3182,8 @@ currentDailyProgressFilters = {};
                 // 使用index字段，如果不存在则使用数组索引+1作为后备
                 const displayIndex = criteria.index !== undefined ? criteria.index : (idx + 1);
                 
-                // 根据管理员状态决定是否显示按钮
-                const adminVisible = adminCheck ? 'visible' : '';
+                // 根据登录状态决定是否显示按钮（普通用户和管理员都可以编辑BU准出）
+                const userVisible = userCheck ? 'visible' : '';
                 
                 const row = document.createElement('tr');
                 row.setAttribute('data-criteria-id', criteria.id);
@@ -3194,8 +3194,8 @@ currentDailyProgressFilters = {};
                     <td>${displayOwner}</td>
                     <td class="${statusClass}">${statusDisplay}</td>
                     <td>
-                        <button class="edit-btn admin-only ${adminVisible}" onclick="editBUExitCriteria('${criteria.id}')">编辑</button>
-                        <button class="delete-btn admin-only ${adminVisible}" onclick="deleteBUExitCriteria('${criteria.id}')">删除</button>
+                        <button class="edit-btn user-only ${userVisible}" onclick="editBUExitCriteria('${criteria.id}')">编辑</button>
+                        <button class="delete-btn user-only ${userVisible}" onclick="deleteBUExitCriteria('${criteria.id}')">删除</button>
                     </td>
                 `;
                 tbody.appendChild(row);
