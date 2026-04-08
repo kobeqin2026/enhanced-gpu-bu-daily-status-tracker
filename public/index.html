@@ -1893,11 +1893,6 @@
                     // Reload projects list
                     await loadProjects();
                     
-                    // Update page title with new project name
-                    if (response.project && response.project.name) {
-                        document.querySelector('h1').textContent = response.project.name + ' 每日追踪';
-                    }
-                    
                     // Update timeline display
                     updateProjectTimeline();
                     
