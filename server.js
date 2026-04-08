@@ -533,7 +533,7 @@ app.post('/api/projects', authenticateToken, requireAdmin, (req, res) => {
 // API: 修改项目 (需要管理员)
 app.put('/api/projects/:id', authenticateToken, requireAdmin, (req, res) => {
     const projectId = req.params.id;
-    const { name, description } = req.body;
+    const { name, description, startDate, endDate } = req.body;
     
     if (!name) {
         return res.status(400).json({ success: false, message: '项目名称不能为空' });
@@ -548,6 +548,8 @@ app.put('/api/projects/:id', authenticateToken, requireAdmin, (req, res) => {
     
     projects[projectIndex].name = name;
     projects[projectIndex].description = description || '';
+    if (startDate) projects[projectIndex].startDate = startDate;
+    if (endDate) projects[projectIndex].endDate = endDate;
     saveProjects(projects);
     
     res.json({ success: true, project: projects[projectIndex] });

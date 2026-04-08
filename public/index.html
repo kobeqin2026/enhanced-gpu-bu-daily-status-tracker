@@ -971,6 +971,14 @@
                 <h3>修改项目</h3>
                 <input type="text" id="edit-project-name" placeholder="项目名称" />
                 <input type="text" id="edit-project-description" placeholder="项目描述（可选）" />
+                <div style="margin-top: 10px;">
+                    <label style="font-size: 14px; color: #666;">项目时间线：</label>
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                        <input type="date" id="edit-project-start-date" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+                        <span style="line-height: 38px;">至</span>
+                        <input type="date" id="edit-project-end-date" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+                    </div>
+                </div>
                 <div class="modal-buttons">
                     <button class="modal-cancel-btn" onclick="closeEditProjectModal()">取消</button>
                     <button class="modal-confirm-btn" onclick="saveEditedProject()">保存</button>
@@ -992,7 +1000,7 @@
         </div>
         
         <div class="project-info">
-            <strong>项目时间线：</strong> 2026年5月25日 - 2026年6月8日<br>
+            <strong>项目时间线：</strong> <span id="project-timeline">未设置</span><br>
             <strong>最后更新：</strong> <span id="last-update">2026年3月3日</span>
         </div>
         
@@ -1764,8 +1772,26 @@
                 // Load new project data
                 await loadDataFromAPI();
                 renderProjectSelect();
+                updateProjectTimeline();
                 
                 showSyncStatus(`已切换到项目: ${projectsList.find(p => p.id === currentProject)?.name}`, 'success');
+            }
+        }
+        
+        // Update project timeline display
+        function updateProjectTimeline() {
+            const project = projectsList.find(p => p.id === currentProject);
+            const timelineEl = document.getElementById('project-timeline');
+            
+            if (project && project.startDate && project.endDate) {
+                // Format dates to Chinese format
+                const formatDate = (dateStr) => {
+                    const date = new Date(dateStr);
+                    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+                };
+                timelineEl.textContent = `${formatDate(project.startDate)} - ${formatDate(project.endDate)}`;
+            } else {
+                timelineEl.textContent = '未设置';
             }
         }
         
@@ -1835,6 +1861,8 @@
             
             document.getElementById('edit-project-name').value = project.name || '';
             document.getElementById('edit-project-description').value = project.description || '';
+            document.getElementById('edit-project-start-date').value = project.startDate || '';
+            document.getElementById('edit-project-end-date').value = project.endDate || '';
             document.getElementById('edit-project-modal').style.display = 'block';
         }
         
@@ -1847,6 +1875,8 @@
         async function saveEditedProject() {
             const name = document.getElementById('edit-project-name').value.trim();
             const description = document.getElementById('edit-project-description').value.trim();
+            const startDate = document.getElementById('edit-project-start-date').value;
+            const endDate = document.getElementById('edit-project-end-date').value;
             
             if (!name) {
                 alert('请输入项目名称');
@@ -1856,7 +1886,7 @@
             try {
                 const response = await apiCall(`/api/projects/${currentProject}`, {
                     method: 'PUT',
-                    body: JSON.stringify({ name, description })
+                    body: JSON.stringify({ name, description, startDate, endDate })
                 });
                 
                 if (response.success) {
@@ -1867,6 +1897,9 @@
                     if (response.project && response.project.name) {
                         document.querySelector('h1').textContent = response.project.name + ' 每日追踪';
                     }
+                    
+                    // Update timeline display
+                    updateProjectTimeline();
                     
                     closeEditProjectModal();
                     showSyncStatus(`项目已更新: ${name}`, 'success');
@@ -2425,6 +2458,9 @@
             if (select) {
                 select.value = currentProject;
             }
+            
+            // Update timeline display
+            updateProjectTimeline();
         }
         
         // Populate domain dropdowns
