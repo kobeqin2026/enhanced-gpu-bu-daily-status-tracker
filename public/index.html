@@ -968,9 +968,7 @@
         <!-- Edit Project Modal -->
         <div id="edit-project-modal" class="modal">
             <div class="modal-content">
-                <h3>修改项目</h3>
-                <input type="text" id="edit-project-name" placeholder="项目名称" />
-                <input type="text" id="edit-project-description" placeholder="项目描述（可选）" />
+                <h3>修改项目时间线</h3>
                 <div style="margin-top: 10px;">
                     <label style="font-size: 14px; color: #666;">项目时间线：</label>
                     <div style="display: flex; gap: 10px; margin-top: 5px;">
@@ -1859,8 +1857,6 @@
                 return;
             }
             
-            document.getElementById('edit-project-name').value = project.name || '';
-            document.getElementById('edit-project-description').value = project.description || '';
             document.getElementById('edit-project-start-date').value = project.startDate || '';
             document.getElementById('edit-project-end-date').value = project.endDate || '';
             document.getElementById('edit-project-modal').style.display = 'block';
@@ -1873,15 +1869,18 @@
         
         // Save edited project
         async function saveEditedProject() {
-            const name = document.getElementById('edit-project-name').value.trim();
-            const description = document.getElementById('edit-project-description').value.trim();
             const startDate = document.getElementById('edit-project-start-date').value;
             const endDate = document.getElementById('edit-project-end-date').value;
             
-            if (!name) {
-                alert('请输入项目名称');
+            // Get current project name and description to preserve them
+            const project = projectsList.find(p => p.id === currentProject);
+            if (!project) {
+                alert('项目不存在');
                 return;
             }
+            
+            const name = project.name;
+            const description = project.description || '';
             
             try {
                 const response = await apiCall(`/api/projects/${currentProject}`, {
@@ -1897,7 +1896,7 @@
                     updateProjectTimeline();
                     
                     closeEditProjectModal();
-                    showSyncStatus(`项目已更新: ${name}`, 'success');
+                    showSyncStatus(`项目时间线已更新`, 'success');
                 } else {
                     alert(response.message || '更新项目失败');
                 }
