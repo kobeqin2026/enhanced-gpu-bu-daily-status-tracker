@@ -3,3 +3,15 @@ server.log
 *.log
 .DS_Store
 .env
+
+# 数据文件（敏感数据）
+data/*.json
+data/*.bak
+data/*.lock
+
+# 日志文件
+logs/
+
+# 临时文件
+*.tmp
+*.temp
