@@ -28,6 +28,7 @@
 
 ### 技术特性
 - **模块化前端架构**: JS/CSS按功能模块拆分为独立文件，便于维护和协作
+- **并发安全**: 文件锁机制、自动备份、数据校验，支持10-20人并发
 - **混合数据架构**: 优先从服务器加载数据，API失败时自动使用本地缓存
 - **JWT认证**: 基于Token的用户认证
 - **数据持久化**: 服务器JSON文件 + 浏览器localStorage
@@ -51,8 +52,11 @@ cd enhanced-gpu-bu-daily-status-tracker
 # 安装依赖
 npm install
 
+# 配置环境变量
+cp .env.example .env
+
 # 启动服务器
-node server.js
+npm start
 
 # 访问应用
 http://localhost:8088
@@ -96,9 +100,11 @@ enhanced-gpu-bu-daily-status-tracker/
 │   ├── projects.json           # 项目元数据
 │   ├── sessions.json           # 会话数据
 │   └── users.json              # 用户数据
+├── logs/                       # 操作日志目录
 ├── server.js                   # Express服务器
 ├── nginx.conf                  # Nginx配置
 ├── ecosystem.config.js         # PM2配置
+├── .env.example                # 环境变量配置模板
 ├── package.json                # 依赖配置
 └── README.md                   # 项目文档
 ```
@@ -115,12 +121,16 @@ enhanced-gpu-bu-daily-status-tracker/
 - `POST /api/projects` - 创建项目
 - `GET /api/data/:projectId` - 获取项目数据
 - `POST /api/data/:projectId` - 保存项目数据
+- `GET /api/export/:projectId` - 导出项目数据为JSON（需认证）
 
 ### 用户管理 (仅管理员)
 - `GET /api/users` - 获取用户列表
 - `POST /api/users` - 添加用户
 - `PUT /api/users/:id` - 编辑用户
 - `DELETE /api/users/:id` - 删除用户
+
+### 操作日志 (仅管理员)
+- `GET /api/logs/:date` - 查看操作日志
 
 ## 版本历史
 
@@ -182,6 +192,57 @@ enhanced-gpu-bu-daily-status-tracker/
 - 修复动态按钮权限问题：`admin-only`类按钮在数据渲染后正确获取`visible`类
 - 修复`loadSavedUser()`未使用`await`导致的角色判断时序问题
 - 确保`updateUIBasedOnRole()`在数据渲染完成后调用
+
+---
+
+### v1.9 (2026-04-10)
+**10-20 人并发安全增强（方案一）**
+
+#### 核心安全特性
+- **文件锁机制**: 防止并发写入冲突，5 秒超时保护
+- **自动备份**: 每次写入前自动备份（`.bak` + 时间戳版本化备份）
+- **数据校验**: 用户/项目/数据完整性验证
+- **操作日志**: 记录所有关键操作（登录、创建、修改、删除、导出）
+
+#### 新增 API
+- `GET /api/export/:projectId` - 导出项目数据为 JSON（需认证）
+- `GET /api/logs/:date` - 查看操作日志（仅管理员）
+
+#### 新增文件
+- `.env.example` - 环境变量配置模板
+- `SECURITY_IMPROVEMENTS.md` - 安全改进详细文档
+- `IMPLEMENTATION_SUMMARY.md` - 实施总结与维护指南
+- `test.sh` - 功能测试脚本
+
+#### 技术改进
+- 重写 `server.js` 安全层（新增 900+ 行代码）
+- 日志目录：`logs/operations-YYYY-MM-DD.log`
+- 备份目录：`data/*.bak`
+- 更新 `.gitignore` 排除敏感数据
+
+#### 适用场景
+- ✅ 并发用户：10-20 人
+- ✅ 数据量：< 100MB
+- ✅ 写入频率：< 10 次/分钟
+
+#### 部署说明
+```bash
+# 创建必要目录
+mkdir -p logs data
+
+# 配置环境变量
+cp .env.example .env
+
+# 启动服务
+npm start
+# 或生产环境
+pm2 restart gpu-bringup-api
+
+# 验证功能
+./test.sh
+```
+
+⚠️ **注意**: 密码为明文存储，建议配合公司内网使用
 
 ---
 
