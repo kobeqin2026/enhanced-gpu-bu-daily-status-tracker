@@ -1,6 +1,6 @@
 module.exports = {
   apps: [{
-    name: 'gpu-bringup-api',
+    name: 'gpu-tracker',
     script: 'server.js',
     instances: 1,
     autorestart: true,

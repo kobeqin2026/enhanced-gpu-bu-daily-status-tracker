@@ -1,0 +1,86 @@
+/* ==================== Shared Table Styles ==================== */
+.status-table, .tasks-table, .bu-exit-criteria-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+.status-table th, .status-table td,
+.tasks-table th, .tasks-table td,
+.bu-exit-criteria-table th, .bu-exit-criteria-table td {
+    border: 1px solid #bdc3c7;
+    padding: 12px;
+    text-align: left;
+}
+.status-table th, .tasks-table th, .bu-exit-criteria-table th {
+    background-color: #3498db;
+    color: white;
+    font-weight: bold;
+}
+.status-table tr:nth-child(even),
+.tasks-table tr:nth-child(even),
+.bu-exit-criteria-table tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+/* Bug & Data tables */
+.bug-table, .tasks-table, .daily-progress-table, .bu-exit-criteria-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+.bug-table th, .bug-table td,
+.tasks-table th, .tasks-table td,
+.daily-progress-table th, .daily-progress-table td,
+.bu-exit-criteria-table th, .bu-exit-criteria-table td {
+    border: 1px solid #bdc3c7;
+    padding: 10px;
+    text-align: left;
+}
+.bug-table th {
+    background-color: #e74c3c;
+    color: white;
+    cursor: pointer;
+    position: relative;
+}
+.tasks-table th, .daily-progress-table th, .bu-exit-criteria-table th {
+    background-color: #3498db;
+    color: white;
+    cursor: pointer;
+    position: relative;
+}
+.bug-table th:hover, .tasks-table th:hover, .daily-progress-table th:hover, .bu-exit-criteria-table th:hover {
+    background-color: #c0392b;
+}
+
+/* Sort indicators */
+.bug-table th.sort-asc::after, .tasks-table th.sort-asc::after, .daily-progress-table th.sort-asc::after, .bu-exit-criteria-table th.sort-asc::after {
+    content: " ↑";
+    font-size: 12px;
+}
+.bug-table th.sort-desc::after, .tasks-table th.sort-desc::after, .daily-progress-table th.sort-desc::after, .bu-exit-criteria-table th.sort-desc::after {
+    content: " ↓";
+    font-size: 12px;
+}
+
+/* 确保表格内容不换行 */
+.bug-table td, .tasks-table td, .daily-progress-table td, .bu-exit-criteria-table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+.bug-description, .task-description, .daily-content, .bu-criteria-content {
+    white-space: normal !important;
+    max-width: 300px !important;
+}
+
+/* Task items */
+.task-item {
+    margin: 5px 0;
+    padding: 5px;
+    background: white;
+    border-radius: 3px;
+}
+.priority-high { border-left: 3px solid #e74c3c; }
+.priority-medium { border-left: 3px solid #f39c12; }
+.priority-low { border-left: 3px solid #27ae60; }

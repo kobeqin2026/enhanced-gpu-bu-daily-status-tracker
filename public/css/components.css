@@ -1,0 +1,269 @@
+/* ==================== Buttons ==================== */
+.add-btn, .save-btn, .delete-btn, .admin-toggle-btn, .edit-btn {
+    background-color: #3498db;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    margin: 5px 5px 5px 0;
+}
+.add-btn:hover, .save-btn:hover, .admin-toggle-btn:hover, .edit-btn:hover {
+    background-color: #2980b9;
+}
+.delete-btn {
+    background-color: #e74c3c;
+}
+.delete-btn:hover {
+    background-color: #c0392b;
+}
+.edit-btn {
+    background-color: #f39c12;
+}
+.edit-btn:hover {
+    background-color: #d35400;
+}
+
+/* ==================== Forms & Inputs ==================== */
+.domain-input, .owner-input, .notes-input, .bug-input, .task-input,
+.daily-date-input, .daily-domain-input, .daily-content-input,
+.bu-criteria-index-input, .bu-criteria-domain-input, .bu-criteria-content-input, .bu-criteria-owner-input {
+    padding: 6px 10px;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 120px;
+}
+.domain-input, .task-domain-input, .daily-domain-input, .bu-criteria-domain-input {
+    min-width: 180px;
+}
+.bug-id-input {
+    min-width: 150px;
+}
+.bug-domain-input, .task-description-input, .daily-content-input, .bu-criteria-content-input {
+    min-width: 200px;
+}
+.bug-severity-select, .bug-status-select, .task-priority-select, .status-select, .bu-criteria-status-select {
+    min-width: 120px;
+}
+
+/* 下拉菜单样式 */
+.status-select, .bug-severity-select, .bug-status-select, .task-priority-select, .daily-domain-select, .bu-criteria-status-select {
+    padding: 6px 10px;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 120px;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 16px 12px;
+    padding-right: 24px;
+}
+
+/* Section containers */
+.add-domain-section, .add-bug-section, .add-task-section, .daily-progress-section, .bu-exit-criteria-section {
+    margin: 20px 0;
+    padding: 15px;
+    background: #e8f4f8;
+    border-radius: 5px;
+}
+.add-domain-section input, .add-bug-section input, .add-bug-section select,
+.add-task-section input, .add-task-section select,
+.daily-progress-section input, .daily-progress-section select,
+.bu-exit-criteria-section input, .bu-exit-criteria-section select {
+    padding: 8px;
+    margin: 5px;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    min-width: 120px;
+}
+
+/* 确保添加表单在一行内 */
+.add-bug-form, .add-task-form, .daily-progress-form, .add-domain-form, .bu-exit-criteria-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+.add-bug-form input, .add-bug-form select, .add-bug-form button,
+.add-task-form input, .add-task-form select, .add-task-form button,
+.daily-progress-form input, .daily-progress-form select, .daily-progress-form button,
+.add-domain-form input, .add-domain-form select, .add-domain-form button,
+.bu-exit-criteria-form input, .bu-exit-criteria-form select, .bu-exit-criteria-form button {
+    margin: 0;
+}
+
+/* ==================== Filters ==================== */
+.filter-section {
+    margin: 20px 0;
+    padding: 15px;
+    background: #e8f4f8;
+    border-radius: 5px;
+}
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.filter-input {
+    padding: 6px 10px;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 120px;
+}
+.filter-buttons {
+    display: flex;
+    gap: 10px;
+}
+.filter-btn {
+    background-color: #95a5a6;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+}
+.filter-btn:hover {
+    background-color: #7f8c8d;
+}
+
+/* ==================== Modals ==================== */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 600px;
+    border-radius: 8px;
+}
+.modal h3 {
+    margin-top: 0;
+    color: #333;
+}
+.modal input {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+.modal-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 15px;
+}
+.modal-footer {
+    text-align: right;
+    margin-top: 20px;
+}
+.modal-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 10px;
+}
+.modal-cancel-btn {
+    background-color: #95a5a6;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.modal-confirm-btn {
+    background-color: #3498db;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.modal-save-btn {
+    background-color: #3498db;
+    color: white;
+}
+.modal-delete-btn {
+    background-color: #e74c3c;
+    color: white;
+}
+.close {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.close:hover {
+    color: #000;
+}
+.form-group {
+    margin-bottom: 15px;
+}
+.form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #34495e;
+}
+
+/* ==================== Sync Status ==================== */
+.sync-status {
+    padding: 8px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 12px;
+    text-align: center;
+}
+.sync-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+.sync-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+.sync-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+.sync-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}

@@ -37,21 +37,23 @@
       "id": "bug-2",
       "bugId": "JIRA-1002",
       "title": "HBM带宽未达标",
-      "severity": "Highest",
-      "status": "In Progress",
+      "severity": "lowest",
+      "status": "",
       "assignee": "李四",
       "domain": "HBM",
-      "description": "实测带宽仅达到理论值的70%"
+      "description": "实测带宽仅达到理论值的70%",
+      "owner": "undefined"
     },
     {
       "id": "bug-3",
       "bugId": "JIRA-1003",
       "title": "Ethernet CRC错误",
-      "severity": "Medium",
-      "status": "Resolved",
+      "severity": "highest",
+      "status": "",
       "assignee": "王五",
       "domain": "Ethernet",
-      "description": "特定帧长下出现CRC校验错误"
+      "description": "特定帧长下出现CRC校验错误",
+      "owner": "undefined"
     }
   ],
   "dailyProgress": [
@@ -77,7 +79,9 @@
       "domain": "Ethernet",
       "workDone": "修复CRC错误问题",
       "nextSteps": "进行压力测试",
-      "blockers": ""
+      "blockers": "",
+      "content": "test",
+      "owner": "王五"
     }
   ],
   "buExitCriteria": [
@@ -87,22 +91,49 @@
       "criteria": "Link Training成功率 >= 99.9%",
       "signoffOwner": "张三",
       "status": "",
-      "owner": "张三"
+      "owner": "张三",
+      "index": 1
     },
     {
       "id": "criteria-2",
       "domain": "HBM",
       "criteria": "带宽达到理论值90%以上",
       "signoffOwner": "李四",
-      "status": "Fail"
+      "status": "Fail",
+      "index": 2
     },
     {
       "id": "criteria-3",
       "domain": "Ethernet",
       "criteria": "零丢包率持续24小时",
       "signoffOwner": "王五",
-      "status": "Pass"
+      "status": "Pass",
+      "index": 3
+    },
+    {
+      "id": "criteria-1775531813377",
+      "index": 4,
+      "domain": "PCIe",
+      "criteria": "bandwidth 32x",
+      "owner": "张三",
+      "status": "fail"
+    },
+    {
+      "id": "criteria-1775699389715-0",
+      "index": 5,
+      "domain": "PCIe",
+      "criteria": "train to Gen5",
+      "owner": "张三",
+      "status": "not-ready"
+    },
+    {
+      "id": "criteria-1775699389715-1",
+      "index": 6,
+      "domain": "HBM",
+      "criteria": "1bit/2bit ECC",
+      "owner": "李四",
+      "status": "not-ready"
     }
   ],
-  "lastUpdated": "2026/4/3 03:22:06"
+  "lastUpdated": "2026/4/13 01:03:24"
 }

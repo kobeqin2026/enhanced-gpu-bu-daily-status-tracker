@@ -1,0 +1,51 @@
+/* ==================== Daily Progress Styles ==================== */
+.daily-progress-input-section {
+    margin: 15px 0;
+    padding: 15px;
+    background: #e8f4f8;
+    border-radius: 5px;
+}
+.daily-progress-input-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+.daily-date-input {
+    min-width: 120px;
+}
+.daily-domain-select {
+    min-width: 180px;
+}
+.daily-content-input {
+    min-width: 300px;
+    flex-grow: 1;
+}
+.daily-progress-list {
+    margin-top: 15px;
+}
+.daily-progress-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    margin: 5px 0;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+.daily-progress-info {
+    flex-grow: 1;
+}
+.daily-date-display {
+    font-weight: bold;
+    color: #2c3e50;
+}
+.daily-domain-display {
+    color: #34495e;
+    font-style: italic;
+}
+.daily-content-display {
+    margin-top: 5px;
+    color: #7f8c8d;
+}

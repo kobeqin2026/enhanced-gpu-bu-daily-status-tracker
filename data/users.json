@@ -14,5 +14,13 @@
     "role": "user",
     "name": "test",
     "createdAt": "2026-04-03T08:18:49.514Z"
+  },
+  {
+    "id": "user",
+    "username": "user",
+    "password": "user123",
+    "role": "user",
+    "name": "普通用户",
+    "createdAt": "2026-04-07T03:14:14.876Z"
   }
 ]

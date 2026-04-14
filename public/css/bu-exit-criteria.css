@@ -1,0 +1,20 @@
+/* ==================== BU Exit Criteria Styles ==================== */
+/* BU Exit Criteria shares most styles from tables.css and components.css */
+/* Component-specific overrides can be added here */
+
+/* Priority cell colors (used in tasks/BU criteria) */
+.priority-high-cell {
+    background-color: #e74c3c !important;
+    color: white !important;
+    font-weight: bold;
+}
+.priority-medium-cell {
+    background-color: #f39c12 !important;
+    color: white !important;
+    font-weight: bold;
+}
+.priority-low-cell {
+    background-color: #27ae60 !important;
+    color: white !important;
+    font-weight: bold;
+}

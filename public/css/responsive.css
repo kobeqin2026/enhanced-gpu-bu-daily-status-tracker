@@ -1,0 +1,104 @@
+/* ==================== Mobile Responsive (max-width: 768px) ==================== */
+@media (max-width: 768px) {
+    body {
+        margin: 10px;
+        padding: 0;
+    }
+    .container {
+        padding: 10px;
+        border-radius: 0;
+        box-shadow: none;
+        margin: 0;
+    }
+    h1 {
+        font-size: 1.5rem;
+        margin-bottom: 20px;
+    }
+    h2 {
+        font-size: 1.2rem;
+        margin-top: 20px;
+        margin-bottom: 15px;
+    }
+    .status-table, .bug-table, .tasks-table, .daily-progress-section, .bu-exit-criteria-table {
+        font-size: 0.85rem;
+    }
+    .status-table th, .status-table td,
+    .bug-table th, .bug-table td,
+    .tasks-table th, .tasks-table td,
+    .daily-progress-input, .daily-progress-item,
+    .bu-exit-criteria-table th, .bu-exit-criteria-table td {
+        padding: 8px 6px;
+    }
+    .domain-input, .owner-input, .notes-input, 
+    .bug-id-input, .bug-domain-input, .bug-description-input,
+    .task-domain-input, .task-description-input, .task-priority-input,
+    .daily-date-input, .daily-domain-input, .daily-content-input,
+    .bu-criteria-index-input, .bu-criteria-domain-input, .bu-criteria-content-input, .bu-criteria-owner-input {
+        min-width: auto;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    /* 添加水平滚动 */
+    .status-table-wrapper, .bug-table-wrapper, .tasks-table-wrapper, .daily-progress-wrapper, .bu-exit-criteria-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 10px 0;
+    }
+    .add-bug-form, .add-domain-section, .add-task-form, .daily-progress-form, .bu-exit-criteria-input-form {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .add-bug-form input, .add-bug-form select, .add-bug-form button,
+    .add-domain-section input, .add-domain-section button,
+    .add-task-form input, .add-task-form select, .add-task-form button,
+    .daily-progress-form input, .daily-progress-form select, .daily-progress-form button,
+    .bu-exit-criteria-input-form input, .bu-exit-criteria-input-form select, .bu-exit-criteria-input-form button {
+        width: 100%;
+        margin: 0;
+    }
+    .save-btn, .add-btn, .delete-btn, .admin-toggle-btn, .edit-btn {
+        padding: 6px 12px;
+        font-size: 0.9rem;
+    }
+    .bug-description, .task-description, .daily-content, .bu-criteria-content {
+        max-width: 150px !important;
+    }
+    /* 简化表格列宽 */
+    .bug-table td:nth-child(1), .bug-table th:nth-child(1) { min-width: 80px; }
+    .bug-table td:nth-child(2), .bug-table th:nth-child(2) { min-width: 100px; }
+    .bug-table td:nth-child(3), .bug-table th:nth-child(3) { min-width: 120px; }
+    .bug-table td:nth-child(4), .bug-table th:nth-child(4) { min-width: 80px; }
+    .bug-table td:nth-child(5), .bug-table th:nth-child(5) { min-width: 90px; }
+    .bug-table td:nth-child(6), .bug-table th:nth-child(6) { min-width: 90px; }
+    .bug-table td:nth-child(7), .bug-table th:nth-child(7) { min-width: 80px; }
+    .bug-table td:nth-child(8), .bug-table th:nth-child(8) { min-width: 80px; }
+    .tasks-table td:nth-child(1), .tasks-table th:nth-child(1) { min-width: 100px; }
+    .tasks-table td:nth-child(2), .tasks-table th:nth-child(2) { min-width: 150px; }
+    .tasks-table td:nth-child(3), .tasks-table th:nth-child(3) { min-width: 80px; }
+    .tasks-table td:nth-child(4), .tasks-table th:nth-child(4) { min-width: 90px; }
+    .tasks-table td:nth-child(5), .tasks-table th:nth-child(5) { min-width: 80px; }
+    .tasks-table td:nth-child(6), .tasks-table th:nth-child(6) { min-width: 80px; }
+    .bu-exit-criteria-table td:nth-child(1), .bu-exit-criteria-table th:nth-child(1) { min-width: 60px; }
+    .bu-exit-criteria-table td:nth-child(2), .bu-exit-criteria-table th:nth-child(2) { min-width: 150px; }
+    .bu-exit-criteria-table td:nth-child(3), .bu-exit-criteria-table th:nth-child(3) { min-width: 200px; }
+    .bu-exit-criteria-table td:nth-child(4), .bu-exit-criteria-table th:nth-child(4) { min-width: 120px; }
+    .bu-exit-criteria-table td:nth-child(5), .bu-exit-criteria-table th:nth-child(5) { min-width: 100px; }
+    .bu-exit-criteria-table td:nth-child(6), .bu-exit-criteria-table th:nth-child(6) { min-width: 80px; }
+}
+
+/* ==================== Tablet Responsive (769px - 1024px) ==================== */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .container {
+        padding: 15px;
+    }
+    .status-table, .bug-table, .tasks-table, .daily-progress-section, .bu-exit-criteria-table {
+        font-size: 0.9rem;
+    }
+    .status-table th, .status-table td,
+    .bug-table th, .bug-table td,
+    .tasks-table th, .tasks-table td,
+    .daily-progress-input, .daily-progress-item,
+    .bu-exit-criteria-table th, .bu-exit-criteria-table td {
+        padding: 10px 8px;
+    }
+}

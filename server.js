@@ -578,10 +578,7 @@ app.delete('/api/projects/:id', authenticateToken, requireAdmin, (req, res) => {
     res.json({ success: true, message: '项目已删除', project: deletedProject });
 });
 
-// Serve the main HTML file
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+// Static files are served by express.static from public/ directory above
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`国产GPU芯片bring up Web Server running on http://0.0.0.0:${PORT}`);

@@ -1,0 +1,27 @@
+/* ==================== Bug Severity Colors ==================== */
+.severity-highest {
+    background-color: #e74c3c !important;
+    color: white !important;
+    font-weight: bold;
+}
+.severity-high,
+.severity-medium {
+    background-color: #f1c40f !important;
+    color: black !important;
+    font-weight: bold;
+}
+.severity-low,
+.severity-lowest {
+    background-color: #95a5a6 !important;
+    color: white !important;
+    font-weight: bold;
+}
+
+/* JIRA链接样式 */
+.jira-link {
+    color: #3498db;
+    text-decoration: underline;
+}
+.jira-link:hover {
+    color: #2980b9;
+}
