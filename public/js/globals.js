@@ -35,13 +35,7 @@ let projectsList = [];
 // User authentication
 let currentUser = null;
 let userRole = null; // 'admin' or 'user'
-let authToken = null; // 认证token
-
-// User credentials (前端备用，用于离线模式)
-const USERS = {
-    'admin': { password: 'admin123', role: 'admin', name: '管理员' },
-    'user': { password: 'user123', role: 'user', name: '普通用户' }
-};
+let authToken = null; // 认证token（仅存内存，httpOnly cookie由后端管理）
 
 // Current edit IDs
 let currentEditDomainId = null;

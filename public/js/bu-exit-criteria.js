@@ -101,10 +101,10 @@ function renderBUExitCriteria(criteriaList) {
         row.setAttribute('data-criteria-id', criteria.id);
         row.innerHTML = `
             <td>${displayIndex}</td>
-            <td>${criteria.domain}</td>
-            <td class="bu-criteria-content">${criteria.criteria}</td>
-            <td>${displayOwner}</td>
-            <td class="${statusClass}">${statusDisplay}</td>
+            <td>${escapeHtml(criteria.domain)}</td>
+            <td class="bu-criteria-content">${escapeHtml(criteria.criteria)}</td>
+            <td>${escapeHtml(displayOwner)}</td>
+            <td class="${statusClass}">${escapeHtml(statusDisplay)}</td>
             <td>
                 <button class="edit-btn user-only ${userVisibleClass()}" onclick="editBUExitCriteria('${criteria.id}')">编辑</button>
                 <button class="delete-btn user-only ${userVisibleClass()}" onclick="deleteBUExitCriteria('${criteria.id}')">删除</button>

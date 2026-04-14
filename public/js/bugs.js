@@ -86,12 +86,12 @@ function renderBugs(bugs) {
         
         row.innerHTML = `
             <td>${bugIdCell}</td>
-            <td>${bug.domain}</td>
-            <td class="bug-description">${bug.description}</td>
-            <td class="${severityClass}">${severityDisplay}</td>
-            <td class="bug-status-static">${statusDisplay}</td>
-            <td>${bug.reportDate}</td>
-            <td>${bug.owner}</td>
+            <td>${escapeHtml(bug.domain)}</td>
+            <td class="bug-description">${escapeHtml(bug.description)}</td>
+            <td class="${severityClass}">${escapeHtml(severityDisplay)}</td>
+            <td class="bug-status-static">${escapeHtml(statusDisplay)}</td>
+            <td>${escapeHtml(bug.reportDate)}</td>
+            <td>${escapeHtml(bug.owner)}</td>
             <td>
                 <button class="edit-btn user-only ${userVisibleClass()}" onclick="editBug('${bug.id}')">编辑</button>
                 <button class="delete-btn user-only ${userVisibleClass()}" onclick="deleteBug('${bug.id}')">删除</button>

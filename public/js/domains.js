@@ -17,10 +17,10 @@ function renderDomains(domains) {
             `<span class="status-display" style="background-color: ${statusColors[domain.status]}; color: white; padding: 4px 8px; border-radius: 4px;">${statusDisplay}</span>`;
         
         row.innerHTML = `
-            <td>${domain.name}</td>
-            <td>${domain.owner}</td>
+            <td>${escapeHtml(domain.name)}</td>
+            <td>${escapeHtml(domain.owner)}</td>
             <td>${statusDisplayOnly}</td>
-            <td>${domain.notes}</td>
+            <td>${escapeHtml(domain.notes)}</td>
             <td>
                 <button class="edit-btn admin-only ${adminVisibleClass()}" onclick="editDomain('${domain.id}')">编辑</button>
                 <button class="delete-btn admin-only ${adminVisibleClass()}" onclick="deleteDomain('${domain.id}')">删除</button>

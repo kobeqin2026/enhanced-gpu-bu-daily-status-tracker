@@ -79,25 +79,40 @@ function getSyncModeText(source) {
     return modes[source] || modes['default'];
 }
 
-// API call with error handling (添加认证token)
+// API call with error handling (使用httpOnly cookie认证 + 401自动处理)
 async function apiCall(url, options = {}) {
-    const token = localStorage.getItem('authToken');
     const headers = {
         'Content-Type': 'application/json',
     };
     
-    // 如果有token，添加到请求头
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+    // 合并headers：保留options中自定义的headers
+    if (options.headers) {
+        Object.assign(headers, options.headers);
+        delete options.headers;
     }
     
     const defaultOptions = {
+        ...options,
         headers: headers,
-        ...options
+        credentials: 'same-origin',  // 自动发送httpOnly cookie
     };
     
     try {
         const response = await fetch(url, defaultOptions);
+        
+        // 401 未授权：token过期或无效，自动处理
+        if (response.status === 401) {
+            handleTokenExpired();
+            const result = await response.json().catch(() => ({ success: false, message: '登录已过期' }));
+            throw new Error(result.message || '登录已过期，请重新登录');
+        }
+        
+        // 403 禁止访问
+        if (response.status === 403) {
+            const result = await response.json().catch(() => ({ success: false, message: '无权限访问' }));
+            throw new Error(result.message || '无权限执行此操作');
+        }
+        
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -106,6 +121,19 @@ async function apiCall(url, options = {}) {
         console.error('API call failed:', error);
         throw error;
     }
+}
+
+// Token过期处理：清除状态，提示重新登录
+function handleTokenExpired() {
+    currentUser = null;
+    userRole = null;
+    authToken = null;
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('userRole');
+    updateUIBasedOnRole();
+    showSyncStatus('登录已过期，请重新登录', 'error');
+    // 自动弹出登录框
+    showLoginModal();
 }
 
 // Load data from API (primary source) with localStorage fallback

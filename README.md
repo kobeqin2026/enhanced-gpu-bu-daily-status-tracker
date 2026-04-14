@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v2.0-green)
+![Version](https://img.shields.io/badge/version-v2.2-green)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -30,7 +30,7 @@
 - **模块化前端架构**: JS/CSS按功能模块拆分为独立文件，便于维护和协作
 - **并发安全**: 文件锁机制、自动备份、数据校验，支持10-20人并发
 - **混合数据架构**: 优先从服务器加载数据，API失败时自动使用本地缓存
-- **JWT认证**: 基于Token的用户认证
+- **JWT认证**: 基于Token的用户认证，httpOnly Cookie安全传输
 - **数据持久化**: 服务器JSON文件 + 浏览器localStorage
 - **响应式设计**: 适配桌面、平板和移动设备
 - **nginx反向代理**: 生产环境部署配置
@@ -133,6 +133,73 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/logs/:date` - 查看操作日志
 
 ## 版本历史
+
+### v2.2 (2026-04-14)
+**认证安全加固：httpOnly Cookie + 401 自动处理**
+
+本次版本重点加固认证安全性，消除 XSS 窃取 Token 的风险，并完善 Token 过期的自动处理机制。
+
+#### 安全改进：httpOnly Cookie 替代 localStorage Token
+
+| 项目 | 改动前 | 改动后 |
+|---|---|---|
+| Token 存储 | `localStorage.setItem('authToken', token)` | 仅存内存变量 `authToken`，不再写入 localStorage |
+| Token 传输 | 手动在请求头添加 `Authorization: Bearer <token>` | 浏览器自动携带 httpOnly Cookie（`credentials: 'same-origin'`） |
+| XSS 防护 | Token 可被 XSS 脚本读取 `localStorage.getItem('authToken')` | httpOnly Cookie 对 JavaScript 不可见，XSS 无法窃取 |
+| CSRF 防护 | 无 | `SameSite=Strict` Cookie 属性阻止跨站请求 |
+
+#### 后端改动（server.js）
+
+- **登录接口** `/api/auth/login`: 登录成功后通过 `res.cookie()` 设置 httpOnly Cookie
+  ```js
+  res.cookie('token', token, {
+      httpOnly: true,      // JS不可读取
+      maxAge: 86400000,    // 24小时
+      sameSite: 'strict',  // 防CSRF
+      path: '/'            // 全站有效
+  });
+  ```
+- **认证中间件** `authenticateToken`: 优先从 Cookie 取 Token，其次从 Authorization Header 取（兼容旧方式）
+- **登出接口** `/api/auth/logout`: 从 Cookie 获取 Token，登出时 `res.clearCookie('token')` 清除
+- **Token 过期处理**: 返回 401 时同步清除 Cookie（`res.clearCookie`）
+- **修复 Node.js 12 兼容性**: `req.user?.username` → `req.user && req.user.username`
+
+#### 前端改动（data.js）
+
+- **`apiCall()`** 核心改造：
+  - 移除手动 `Authorization` Header，改用 `credentials: 'same-origin'` 自动携带 Cookie
+  - 新增 401 自动处理：检测到 401 时清除内存状态 + 弹出登录框
+  - 新增 403 禁止访问错误处理
+  - 新增 `handleTokenExpired()` 函数：清除 `currentUser`/`userRole`/`authToken` + 弹出登录模态框
+
+#### 前端改动（auth.js）
+
+- **`doLogin()`**: Token 只存内存变量 `authToken`，不再调用 `localStorage.setItem('authToken', ...)`
+- **`loadSavedUser()`**: 通过 httpOnly Cookie 调用 `/api/auth/verify`（`credentials: 'same-origin'`），网络错误时清除缓存（安全优先）
+- **`logout()`**: 改用 `apiCall('/api/auth/logout')` 替代手动 `fetch` + `getAuthHeaders()`
+- **用户管理函数** (`loadUserList`, `addNewUser`, `saveUserEdit`, `deleteUser`): 全部从手动 `fetch` + `getAuthHeaders()` 改为 `apiCall()`
+- **`getAuthHeaders()`**: 只从内存变量读 Token，不再 fallback 到 `localStorage`
+
+#### 前端改动（globals.js）
+
+- `authToken` 变量注释更新：标注"仅存内存，httpOnly Cookie 由后端管理"
+
+#### 其他改动
+
+- **`data.js` `loadDataFromAPI()`**: 在数据渲染后调用 `updateUIBasedOnRole()`，确保动态生成的 admin 按钮正确获取 `visible` 类（修复 BU 准出标准表格编辑/删除按钮消失的 Bug）
+- **`bu-exit-criteria.js`**: 修复编辑/删除按钮消失问题
+- **`bugs.js` / `daily-progress.js`**: 同步修复动态按钮权限显示
+
+#### 安全提升总结
+
+| 攻击类型 | 防护措施 |
+|---|---|
+| XSS Token 窃取 | httpOnly Cookie，JavaScript 无法读取 |
+| CSRF 攻击 | SameSite=Strict Cookie 属性 |
+| Token 过期滥用 | 401 自动清除状态 + 弹出登录框 |
+| 网络错误信任缓存 | 验证失败时清除 localStorage 缓存，安全优先 |
+
+---
 
 ### v2.0 (2026-04-14)
 **前端代码模块化重构**
@@ -392,4 +459,4 @@ MIT License
 ---
 
 **最后更新**: 2026年4月14日  
-**版本**: 2.0
+**版本**: 2.2

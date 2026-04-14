@@ -33,7 +33,7 @@ function updateUIBasedOnRole() {
         logoutBtn.style.display = 'inline-block';
         
         loginStatus.innerHTML = `
-            <span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">👤 ${currentUser}</span>
+            <span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">👤 ${escapeHtml(currentUser)}</span>
             <span class="user-role role-admin" style="background:#e74c3c;">管理员</span>
         `;
         
@@ -51,7 +51,7 @@ function updateUIBasedOnRole() {
         logoutBtn.style.display = 'inline-block';
         
         loginStatus.innerHTML = `
-            <span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">👤 ${currentUser}</span>
+            <span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">👤 ${escapeHtml(currentUser)}</span>
             <span class="user-role role-user" style="background:#27ae60;">普通用户</span>
         `;
         
@@ -103,6 +103,7 @@ async function doLogin() {
     }
     
     try {
+        // 登录接口不需要token，直接用fetch
         const response = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -114,12 +115,12 @@ async function doLogin() {
         if (result.success) {
             currentUser = result.user.name;
             userRole = result.user.role;
+            // token只存内存变量，不再存localStorage（httpOnly cookie由后端设置）
             authToken = result.token;
             
-            // Save to localStorage
+            // 只保存用户名和角色到localStorage用于UI显示，不存token
             localStorage.setItem('currentUser', currentUser);
             localStorage.setItem('userRole', userRole);
-            localStorage.setItem('authToken', authToken);
             
             closeLoginModal();
             updateUIBasedOnRole();
@@ -140,15 +141,9 @@ async function doLogin() {
 
 // Logout - 使用后端API
 async function logout() {
-    const token = localStorage.getItem('authToken');
-    
     try {
-        await fetch('/api/auth/logout', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
+        await apiCall('/api/auth/logout', {
+            method: 'POST'
         });
     } catch (error) {
         console.error('Logout error:', error);
@@ -159,56 +154,67 @@ async function logout() {
     authToken = null;
     localStorage.removeItem('currentUser');
     localStorage.removeItem('userRole');
-    localStorage.removeItem('authToken');
+    // 不需要removeItem('authToken')，因为已经不存localStorage了
     
     updateUIBasedOnRole();
     showSyncStatus('已退出登录', 'info');
 }
 
-// Load saved user on page load - 验证token
+// Load saved user on page load - 通过cookie验证token
 async function loadSavedUser() {
     const savedUser = localStorage.getItem('currentUser');
     const savedRole = localStorage.getItem('userRole');
-    const savedToken = localStorage.getItem('authToken');
     
-    if (savedUser && savedRole && savedToken) {
-        // 验证token是否有效
-        try {
-            const response = await fetch('/api/auth/verify', {
-                headers: { 'Authorization': `Bearer ${savedToken}` }
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                currentUser = result.user.name;
-                userRole = result.user.role;
-                authToken = savedToken;
-            } else {
-                // Token无效，清除localStorage和变量
-                localStorage.removeItem('currentUser');
-                localStorage.removeItem('userRole');
-                localStorage.removeItem('authToken');
-                currentUser = null;
-                userRole = null;
-                authToken = null;
-            }
-        } catch (error) {
-            console.error('Token verification error:', error);
-            // 网络错误时使用缓存的用户信息
-            currentUser = savedUser;
-            userRole = savedRole;
-            authToken = savedToken;
+    // 尝试通过httpOnly cookie验证会话
+    try {
+        const response = await fetch('/api/auth/verify', {
+            credentials: 'same-origin'  // 自动带cookie
+        });
+        
+        if (response.status === 401) {
+            // Cookie中的token无效或过期，清除所有状态
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userRole');
+            currentUser = null;
+            userRole = null;
+            authToken = null;
+            updateUIBasedOnRole();
+            return;
         }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            currentUser = result.user.name;
+            userRole = result.user.role;
+            // 更新localStorage中的显示信息
+            localStorage.setItem('currentUser', currentUser);
+            localStorage.setItem('userRole', userRole);
+        } else {
+            // 验证失败，清除状态
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userRole');
+            currentUser = null;
+            userRole = null;
+            authToken = null;
+        }
+    } catch (error) {
+        console.error('Token verification error:', error);
+        // 网络错误时清除缓存状态（安全优先）
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('userRole');
+        currentUser = null;
+        userRole = null;
+        authToken = null;
     }
     updateUIBasedOnRole();
 }
 
 // ============ 用户管理函数 ============
 
-// 获取认证头
+// 获取认证头（兼容旧接口，新代码统一用apiCall）
 function getAuthHeaders() {
-    const token = localStorage.getItem('authToken');
+    const token = authToken;
     return {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -251,11 +257,7 @@ async function loadUserList() {
     userListEl.innerHTML = '<p style="color:#666;">加载中...</p>';
     
     try {
-        const response = await fetch('/api/users', {
-            headers: getAuthHeaders()
-        });
-        
-        const result = await response.json();
+        const result = await apiCall('/api/users');
         
         if (Array.isArray(result)) {
             if (result.length === 0) {
@@ -273,23 +275,23 @@ async function loadUserList() {
                 const isLoggedInUser = userRole !== null; // 已登录用户（包括普通用户和管理员）
                 
                 html += `<tr style="border-bottom:1px solid #ddd;">`;
-                html += `<td style="padding:8px;">${user.username}</td>`;
-                html += `<td style="padding:8px;">${user.name}</td>`;
+                html += `<td style="padding:8px;">${escapeHtml(user.username)}</td>`;
+                html += `<td style="padding:8px;">${escapeHtml(user.name)}</td>`;
                 html += `<td style="padding:8px;"><span class="user-role ${roleClass}">${roleText}</span></td>`;
                 html += `<td style="padding:8px;">`;
                 if (isLoggedInUser) {
                     // 登录用户都可以编辑（但不能编辑管理员账户）
                     if (user.role !== 'admin') {
-                        html += `<button class="edit-btn" onclick="showEditUserModal('${user.username}', '${user.name}', '${user.role}')" style="padding:4px 8px; font-size:12px; margin-right:5px;">编辑</button>`;
+                        html += `<button class="edit-btn" onclick="showEditUserModal('${escapeHtml(user.username)}', '${escapeHtml(user.name)}', '${escapeHtml(user.role)}')" style="padding:4px 8px; font-size:12px; margin-right:5px;">编辑</button>`;
                     } else if (isCurrentUser) {
                         // 管理员可以编辑自己的信息
-                        html += `<button class="edit-btn" onclick="showEditUserModal('${user.username}', '${user.name}', '${user.role}')" style="padding:4px 8px; font-size:12px; margin-right:5px;">编辑</button>`;
+                        html += `<button class="edit-btn" onclick="showEditUserModal('${escapeHtml(user.username)}', '${escapeHtml(user.name)}', '${escapeHtml(user.role)}')" style="padding:4px 8px; font-size:12px; margin-right:5px;">编辑</button>`;
                     } else {
                         html += `<span style="color:#999; font-size:12px;">-</span>`;
                     }
                     // 禁止删除管理员账户
                     if (userRole === 'admin' && user.role !== 'admin' && !isCurrentUser) {
-                        html += `<button class="delete-btn" onclick="deleteUser('${user.username}')" style="padding:4px 8px; font-size:12px;">删除</button>`;
+                        html += `<button class="delete-btn" onclick="deleteUser('${escapeHtml(user.username)}')" style="padding:4px 8px; font-size:12px;">删除</button>`;
                     } else if (userRole === 'admin' && user.role === 'admin' && isCurrentUser) {
                         html += `<span style="color:#999; font-size:12px;">(当前)</span>`;
                     } else if (userRole === 'admin' && user.role === 'admin') {
@@ -313,7 +315,11 @@ async function loadUserList() {
         }
     } catch (error) {
         console.error('Load users error:', error);
-        userListEl.innerHTML = '<p style="color:#e74c3c;">加载失败，请稍后重试</p>';
+        if (error.message && (error.message.includes('登录已过期') || error.message.includes('无权限'))) {
+            userListEl.innerHTML = `<p style="color:#e74c3c;">${error.message}</p>`;
+        } else {
+            userListEl.innerHTML = '<p style="color:#e74c3c;">加载失败，请稍后重试</p>';
+        }
     }
 }
 
@@ -335,13 +341,10 @@ async function addNewUser() {
     }
     
     try {
-        const response = await fetch('/api/users', {
+        const result = await apiCall('/api/users', {
             method: 'POST',
-            headers: getAuthHeaders(),
             body: JSON.stringify({ username, password, name, role })
         });
-        
-        const result = await response.json();
         
         if (result.success) {
             alert('用户创建成功');
@@ -356,7 +359,7 @@ async function addNewUser() {
         }
     } catch (error) {
         console.error('Add user error:', error);
-        alert('创建失败，请稍后重试');
+        alert(error.message || '创建失败，请稍后重试');
     }
 }
 
@@ -393,13 +396,10 @@ async function saveUserEdit() {
     
     try {
         // 先更新用户信息
-        const response = await fetch(`/api/users/${username}`, {
+        const result = await apiCall(`/api/users/${username}`, {
             method: 'PUT',
-            headers: getAuthHeaders(),
             body: JSON.stringify({ name, role })
         });
-        
-        const result = await response.json();
         
         if (!result.success) {
             alert(result.message || '更新失败');
@@ -408,13 +408,10 @@ async function saveUserEdit() {
         
         // 如果填写了新密码，更新密码
         if (newPassword) {
-            const pwResponse = await fetch(`/api/users/${username}/password`, {
+            const pwResult = await apiCall(`/api/users/${username}/password`, {
                 method: 'PUT',
-                headers: getAuthHeaders(),
                 body: JSON.stringify({ newPassword })
             });
-            
-            const pwResult = await pwResponse.json();
             
             if (!pwResult.success) {
                 alert(pwResult.message || '密码更新失败');
@@ -428,7 +425,7 @@ async function saveUserEdit() {
         
     } catch (error) {
         console.error('Save user edit error:', error);
-        alert('保存失败，请稍后重试');
+        alert(error.message || '保存失败，请稍后重试');
     }
 }
 
@@ -439,12 +436,9 @@ async function deleteUser(username) {
     }
     
     try {
-        const response = await fetch(`/api/users/${username}`, {
-            method: 'DELETE',
-            headers: getAuthHeaders()
+        const result = await apiCall(`/api/users/${username}`, {
+            method: 'DELETE'
         });
-        
-        const result = await response.json();
         
         if (result.success) {
             alert('用户已删除');
@@ -454,6 +448,6 @@ async function deleteUser(username) {
         }
     } catch (error) {
         console.error('Delete user error:', error);
-        alert('删除失败，请稍后重试');
+        alert(error.message || '删除失败，请稍后重试');
     }
 }

@@ -89,7 +89,7 @@ function groupAndRenderDailyProgress(progressList) {
         group.contents.forEach(item => {
             contentsHtml += `
                 <div class="daily-content-display">
-                    ${item.content}
+                    ${escapeHtml(item.content)}
                     <button class="edit-btn user-only ${userVisibleClass()}" onclick="editDailyProgress('${item.id}')">编辑</button>
                     <button class="delete-btn user-only ${userVisibleClass()}" onclick="deleteDailyProgress('${item.id}')">删除</button>
                 </div>
@@ -98,9 +98,9 @@ function groupAndRenderDailyProgress(progressList) {
         
         groupDiv.innerHTML = `
             <div class="daily-progress-info">
-                <div class="daily-date-display">${group.date}</div>
-                <div class="daily-domain-display">${group.domain}</div>
-                <div class="daily-owner-display">👤 ${group.owner || '-'}</div>
+                <div class="daily-date-display">${escapeHtml(group.date)}</div>
+                <div class="daily-domain-display">${escapeHtml(group.domain)}</div>
+                <div class="daily-owner-display">👤 ${escapeHtml(group.owner || '-')}</div>
                 ${contentsHtml}
             </div>
         `;

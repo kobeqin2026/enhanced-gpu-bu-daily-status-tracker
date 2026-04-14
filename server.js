@@ -237,8 +237,13 @@ process.on('SIGTERM', () => {
 
 // ============ 认证中间件 ============
 function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    // 优先从cookie获取token，其次从Authorization header获取
+    let token = req.cookies && req.cookies.token;
+    
+    if (!token) {
+        const authHeader = req.headers['authorization'];
+        token = authHeader && authHeader.split(' ')[1];
+    }
     
     if (!token) {
         return res.status(401).json({ success: false, message: '未登录或登录已过期' });
@@ -253,6 +258,7 @@ function authenticateToken(req, res, next) {
     if (Date.now() - session.createdAt > 24 * 60 * 60 * 1000) {
         delete sessions[session.username];
         saveSessions();
+        res.clearCookie('token');
         return res.status(401).json({ success: false, message: '登录已过期，请重新登录' });
     }
     
@@ -265,7 +271,7 @@ function requireAdmin(req, res, next) {
     if (req.user && req.user.role === 'admin') {
         next();
     } else {
-        logOperation(req.user?.username, 'DENIED', 'admin-access', { reason: 'non-admin' });
+        logOperation(req.user && req.user.username, 'DENIED', 'admin-access', { reason: 'non-admin' });
         res.status(403).json({ success: false, message: '需要管理员权限' });
     }
 }
@@ -446,8 +452,12 @@ app.post('/api/auth/login', async (req, res) => {
 // API: 用户登出
 app.post('/api/auth/logout', async (req, res) => {
     try {
-        const authHeader = req.headers['authorization'];
-        const token = authHeader && authHeader.split(' ')[1];
+        // 从cookie或Authorization header获取token
+        let token = req.cookies && req.cookies.token;
+        if (!token) {
+            const authHeader = req.headers['authorization'];
+            token = authHeader && authHeader.split(' ')[1];
+        }
         
         if (token) {
             const session = Object.values(sessions).find(s => s.token === token);
@@ -459,6 +469,8 @@ app.post('/api/auth/logout', async (req, res) => {
             }
         }
         
+        // 清除cookie
+        res.clearCookie('token');
         res.json({ success: true, message: '登出成功' });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

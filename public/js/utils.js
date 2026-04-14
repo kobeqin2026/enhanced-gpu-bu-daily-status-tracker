@@ -1,11 +1,22 @@
 // ==================== Utility Functions ====================
 
+// Escape HTML special characters to prevent XSS
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // Create JIRA link for bug IDs
 function createJiraLink(bugId) {
     if (bugId && bugId.match(/^[A-Z0-9]+-\d+$/)) {
-        return `<a href="${jiraBaseUrl}${bugId}" target="_blank" class="jira-link">${bugId}</a>`;
+        return `<a href="${jiraBaseUrl}${escapeHtml(bugId)}" target="_blank" class="jira-link">${escapeHtml(bugId)}</a>`;
     }
-    return bugId;
+    return escapeHtml(bugId);
 }
 
 // Show sync status message
