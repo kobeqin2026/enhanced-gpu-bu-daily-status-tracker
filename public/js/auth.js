@@ -1,16 +1,13 @@
 // ==================== User Authentication ====================
 
-// Check if user is logged in
 function isLoggedIn() {
-    return currentUser !== null;
+    return App.currentUser !== null;
 }
 
-// Check if current user is admin
 function isAdmin() {
-    return userRole === 'admin';
+    return App.userRole === 'admin';
 }
 
-// Require admin permission - returns true if admin, shows alert if not
 function requireAdmin() {
     if (!isAdmin()) {
         alert('您没有权限执行此操作，请使用管理员账号登录');
@@ -19,83 +16,52 @@ function requireAdmin() {
     return true;
 }
 
-// Update UI based on user role
 function updateUIBasedOnRole() {
-    const loginBtn = document.getElementById('login-btn');
-    const logoutBtn = document.getElementById('logout-btn');
-    const loginStatus = document.getElementById('login-status');
-    const adminButtons = document.querySelectorAll('.admin-only');
-    const userButtons = document.querySelectorAll('.user-only');
+    var loginBtn = document.getElementById('login-btn');
+    var logoutBtn = document.getElementById('logout-btn');
+    var loginStatus = document.getElementById('login-status');
+    var adminButtons = document.querySelectorAll('.admin-only');
+    var userButtons = document.querySelectorAll('.user-only');
     
     if (isLoggedIn() && isAdmin()) {
-        // 已登录且是管理员 - 显示所有管理按钮
         loginBtn.style.display = 'none';
         logoutBtn.style.display = 'inline-block';
         
-        loginStatus.innerHTML = `
-            <span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">👤 ${escapeHtml(currentUser)}</span>
-            <span class="user-role role-admin" style="background:#e74c3c;">管理员</span>
-        `;
+        loginStatus.innerHTML = '<span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">' + escapeHtml(App.currentUser) + '</span> <span class="user-role role-admin" style="background:#e74c3c;">管理员</span>';
         
-        // 显示管理员专用按钮
-        adminButtons.forEach(btn => {
-            btn.classList.add('visible');
-        });
-        // 显示登录用户专用按钮
-        userButtons.forEach(btn => {
-            btn.classList.add('visible');
-        });
+        adminButtons.forEach(function(btn) { btn.classList.add('visible'); });
+        userButtons.forEach(function(btn) { btn.classList.add('visible'); });
     } else if (isLoggedIn()) {
-        // 已登录但不是管理员 - 显示用户管理按钮
         loginBtn.style.display = 'none';
         logoutBtn.style.display = 'inline-block';
         
-        loginStatus.innerHTML = `
-            <span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">👤 ${escapeHtml(currentUser)}</span>
-            <span class="user-role role-user" style="background:#27ae60;">普通用户</span>
-        `;
+        loginStatus.innerHTML = '<span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">' + escapeHtml(App.currentUser) + '</span> <span class="user-role role-user" style="background:#27ae60;">普通用户</span>';
         
-        // 隐藏管理员专用按钮
-        adminButtons.forEach(btn => {
-            btn.classList.remove('visible');
-        });
-        // 显示登录用户专用按钮
-        userButtons.forEach(btn => {
-            btn.classList.add('visible');
-        });
+        adminButtons.forEach(function(btn) { btn.classList.remove('visible'); });
+        userButtons.forEach(function(btn) { btn.classList.add('visible'); });
     } else {
-        // 未登录 - 隐藏所有管理按钮
         loginBtn.style.display = 'inline-block';
         logoutBtn.style.display = 'none';
         loginStatus.innerHTML = '<span class="user-info" style="color:#999;">未登录（只读模式）</span>';
         
-        // 隐藏管理员专用按钮
-        adminButtons.forEach(btn => {
-            btn.classList.remove('visible');
-        });
-        // 隐藏登录用户专用按钮
-        userButtons.forEach(btn => {
-            btn.classList.remove('visible');
-        });
+        adminButtons.forEach(function(btn) { btn.classList.remove('visible'); });
+        userButtons.forEach(function(btn) { btn.classList.remove('visible'); });
     }
 }
 
-// Show login modal
 function showLoginModal() {
     document.getElementById('login-username').value = '';
     document.getElementById('login-password').value = '';
     document.getElementById('login-modal').style.display = 'block';
 }
 
-// Close login modal
 function closeLoginModal() {
     document.getElementById('login-modal').style.display = 'none';
 }
 
-// Perform login - 使用后端API
 async function doLogin() {
-    const username = document.getElementById('login-username').value.trim();
-    const password = document.getElementById('login-password').value;
+    var username = document.getElementById('login-username').value.trim();
+    var password = document.getElementById('login-password').value;
     
     if (!username || !password) {
         alert('请输入用户名和密码');
@@ -103,24 +69,21 @@ async function doLogin() {
     }
     
     try {
-        // 登录接口不需要token，直接用fetch
-        const response = await fetch('/api/auth/login', {
+        var response = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username: username, password: password })
         });
         
-        const result = await response.json();
+        var result = await response.json();
         
         if (result.success) {
-            currentUser = result.user.name;
-            userRole = result.user.role;
-            // token只存内存变量，不再存localStorage（httpOnly cookie由后端设置）
-            authToken = result.token;
+            App.currentUser = result.user.name;
+            App.userRole = result.user.role;
+            App.authToken = result.token;
             
-            // 只保存用户名和角色到localStorage用于UI显示，不存token
-            localStorage.setItem('currentUser', currentUser);
-            localStorage.setItem('userRole', userRole);
+            localStorage.setItem('currentUser', App.currentUser);
+            localStorage.setItem('userRole', App.userRole);
             
             closeLoginModal();
             updateUIBasedOnRole();
@@ -139,91 +102,67 @@ async function doLogin() {
     }
 }
 
-// Logout - 使用后端API
 async function logout() {
     try {
-        await apiCall('/api/auth/logout', {
-            method: 'POST'
-        });
+        await apiCall('/api/auth/logout', { method: 'POST' });
     } catch (error) {
         console.error('Logout error:', error);
     }
     
-    currentUser = null;
-    userRole = null;
-    authToken = null;
+    App.currentUser = null;
+    App.userRole = null;
+    App.authToken = null;
     localStorage.removeItem('currentUser');
     localStorage.removeItem('userRole');
-    // 不需要removeItem('authToken')，因为已经不存localStorage了
     
     updateUIBasedOnRole();
     showSyncStatus('已退出登录', 'info');
 }
 
-// Load saved user on page load - 通过cookie验证token
 async function loadSavedUser() {
-    const savedUser = localStorage.getItem('currentUser');
-    const savedRole = localStorage.getItem('userRole');
-    
-    // 尝试通过httpOnly cookie验证会话
     try {
-        const response = await fetch('/api/auth/verify', {
-            credentials: 'same-origin'  // 自动带cookie
+        var response = await fetch('/api/auth/verify', {
+            credentials: 'same-origin'
         });
         
         if (response.status === 401) {
-            // Cookie中的token无效或过期，清除所有状态
             localStorage.removeItem('currentUser');
             localStorage.removeItem('userRole');
-            currentUser = null;
-            userRole = null;
-            authToken = null;
+            App.currentUser = null;
+            App.userRole = null;
+            App.authToken = null;
             updateUIBasedOnRole();
             return;
         }
         
-        const result = await response.json();
+        var result = await response.json();
         
         if (result.success) {
-            currentUser = result.user.name;
-            userRole = result.user.role;
-            // 更新localStorage中的显示信息
-            localStorage.setItem('currentUser', currentUser);
-            localStorage.setItem('userRole', userRole);
+            App.currentUser = result.user.name;
+            App.userRole = result.user.role;
+            localStorage.setItem('currentUser', App.currentUser);
+            localStorage.setItem('userRole', App.userRole);
         } else {
-            // 验证失败，清除状态
             localStorage.removeItem('currentUser');
             localStorage.removeItem('userRole');
-            currentUser = null;
-            userRole = null;
-            authToken = null;
+            App.currentUser = null;
+            App.userRole = null;
+            App.authToken = null;
         }
     } catch (error) {
         console.error('Token verification error:', error);
-        // 网络错误时清除缓存状态（安全优先）
         localStorage.removeItem('currentUser');
         localStorage.removeItem('userRole');
-        currentUser = null;
-        userRole = null;
-        authToken = null;
+        App.currentUser = null;
+        App.userRole = null;
+        App.authToken = null;
     }
     updateUIBasedOnRole();
 }
 
-// ============ 用户管理函数 ============
+// ============ User Management ============
 
-// 获取认证头（兼容旧接口，新代码统一用apiCall）
-function getAuthHeaders() {
-    const token = authToken;
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
-}
-
-// 显示用户管理Modal
-async function showUserManagementModal() {
-    // 需要登录才能访问用户管理
+function showUserManagementModal() {
     if (!isLoggedIn()) {
         alert('请先登录');
         showLoginModal();
@@ -231,21 +170,18 @@ async function showUserManagementModal() {
     }
     
     document.getElementById('user-management-modal').style.display = 'block';
-    await loadUserList();
+    loadUserList();
 }
 
-// 关闭用户管理Modal
 function closeUserManagementModal() {
     document.getElementById('user-management-modal').style.display = 'none';
 }
 
-// 加载用户列表
 async function loadUserList() {
-    // 根据角色显示/隐藏添加用户区域
-    const addUserSection = document.getElementById('add-user-section');
-    const userViewOnly = document.getElementById('user-view-only');
+    var addUserSection = document.getElementById('add-user-section');
+    var userViewOnly = document.getElementById('user-view-only');
     
-    if (userRole === 'admin') {
+    if (App.userRole === 'admin') {
         addUserSection.style.display = 'block';
         userViewOnly.style.display = 'none';
     } else {
@@ -253,11 +189,11 @@ async function loadUserList() {
         userViewOnly.style.display = 'block';
     }
     
-    const userListEl = document.getElementById('user-list');
+    var userListEl = document.getElementById('user-list');
     userListEl.innerHTML = '<p style="color:#666;">加载中...</p>';
     
     try {
-        const result = await apiCall('/api/users');
+        var result = await apiCall('/api/users');
         
         if (Array.isArray(result)) {
             if (result.length === 0) {
@@ -265,47 +201,43 @@ async function loadUserList() {
                 return;
             }
             
-            let html = '<table style="width:100%; border-collapse:collapse; font-size:14px;">';
+            var html = '<table style="width:100%; border-collapse:collapse; font-size:14px;">';
             html += '<tr style="background:#3498db; color:white;"><th style="padding:8px; text-align:left;">用户名</th><th style="padding:8px; text-align:left;">显示名称</th><th style="padding:8px; text-align:left;">角色</th><th style="padding:8px; text-align:left;">操作</th></tr>';
             
-            result.forEach(user => {
-                const roleText = user.role === 'admin' ? '管理员' : '普通用户';
-                const roleClass = user.role === 'admin' ? 'role-admin' : 'role-user';
-                const isCurrentUser = user.username === localStorage.getItem('currentUser');
-                const isLoggedInUser = userRole !== null; // 已登录用户（包括普通用户和管理员）
+            result.forEach(function(user) {
+                var roleText = user.role === 'admin' ? '管理员' : '普通用户';
+                var roleClass = user.role === 'admin' ? 'role-admin' : 'role-user';
+                var isCurrentUser = user.username === localStorage.getItem('currentUser');
+                var isLoggedInUser = App.userRole !== null;
                 
-                html += `<tr style="border-bottom:1px solid #ddd;">`;
-                html += `<td style="padding:8px;">${escapeHtml(user.username)}</td>`;
-                html += `<td style="padding:8px;">${escapeHtml(user.name)}</td>`;
-                html += `<td style="padding:8px;"><span class="user-role ${roleClass}">${roleText}</span></td>`;
-                html += `<td style="padding:8px;">`;
+                html += '<tr style="border-bottom:1px solid #ddd;">';
+                html += '<td style="padding:8px;">' + escapeHtml(user.username) + '</td>';
+                html += '<td style="padding:8px;">' + escapeHtml(user.name) + '</td>';
+                html += '<td style="padding:8px;"><span class="user-role ' + roleClass + '">' + roleText + '</span></td>';
+                html += '<td style="padding:8px;">';
                 if (isLoggedInUser) {
-                    // 登录用户都可以编辑（但不能编辑管理员账户）
                     if (user.role !== 'admin') {
-                        html += `<button class="edit-btn" onclick="showEditUserModal('${escapeHtml(user.username)}', '${escapeHtml(user.name)}', '${escapeHtml(user.role)}')" style="padding:4px 8px; font-size:12px; margin-right:5px;">编辑</button>`;
+                        html += '<button class="edit-btn" onclick="showEditUserModal(\'' + escapeHtml(user.username) + '\', \'' + escapeHtml(user.name) + '\', \'' + escapeHtml(user.role) + '\')" style="padding:4px 8px; font-size:12px; margin-right:5px;">编辑</button>';
                     } else if (isCurrentUser) {
-                        // 管理员可以编辑自己的信息
-                        html += `<button class="edit-btn" onclick="showEditUserModal('${escapeHtml(user.username)}', '${escapeHtml(user.name)}', '${escapeHtml(user.role)}')" style="padding:4px 8px; font-size:12px; margin-right:5px;">编辑</button>`;
+                        html += '<button class="edit-btn" onclick="showEditUserModal(\'' + escapeHtml(user.username) + '\', \'' + escapeHtml(user.name) + '\', \'' + escapeHtml(user.role) + '\')" style="padding:4px 8px; font-size:12px; margin-right:5px;">编辑</button>';
                     } else {
-                        html += `<span style="color:#999; font-size:12px;">-</span>`;
+                        html += '<span style="color:#999; font-size:12px;">-</span>';
                     }
-                    // 禁止删除管理员账户
-                    if (userRole === 'admin' && user.role !== 'admin' && !isCurrentUser) {
-                        html += `<button class="delete-btn" onclick="deleteUser('${escapeHtml(user.username)}')" style="padding:4px 8px; font-size:12px;">删除</button>`;
-                    } else if (userRole === 'admin' && user.role === 'admin' && isCurrentUser) {
-                        html += `<span style="color:#999; font-size:12px;">(当前)</span>`;
-                    } else if (userRole === 'admin' && user.role === 'admin') {
-                        html += `<span style="color:#999; font-size:12px;">-</span>`;
+                    if (App.userRole === 'admin' && user.role !== 'admin' && !isCurrentUser) {
+                        html += '<button class="delete-btn" onclick="deleteUser(\'' + escapeHtml(user.username) + '\')" style="padding:4px 8px; font-size:12px;">删除</button>';
+                    } else if (App.userRole === 'admin' && user.role === 'admin' && isCurrentUser) {
+                        html += '<span style="color:#999; font-size:12px;">(当前)</span>';
+                    } else if (App.userRole === 'admin' && user.role === 'admin') {
+                        html += '<span style="color:#999; font-size:12px;">-</span>';
                     } else if (isCurrentUser) {
-                        html += `<span style="color:#999; font-size:12px;">(当前)</span>`;
+                        html += '<span style="color:#999; font-size:12px;">(当前)</span>';
                     } else {
-                        html += `<span style="color:#999; font-size:12px;">-</span>`;
+                        html += '<span style="color:#999; font-size:12px;">-</span>';
                     }
                 } else {
-                    // 未登录
-                    html += `<span style="color:#999; font-size:12px;">只读</span>`;
+                    html += '<span style="color:#999; font-size:12px;">只读</span>';
                 }
-                html += `</td></tr>`;
+                html += '</td></tr>';
             });
             
             html += '</table>';
@@ -315,20 +247,19 @@ async function loadUserList() {
         }
     } catch (error) {
         console.error('Load users error:', error);
-        if (error.message && (error.message.includes('登录已过期') || error.message.includes('无权限'))) {
-            userListEl.innerHTML = `<p style="color:#e74c3c;">${error.message}</p>`;
+        if (error.message && (error.message.indexOf('登录已过期') !== -1 || error.message.indexOf('无权限') !== -1)) {
+            userListEl.innerHTML = '<p style="color:#e74c3c;">' + escapeHtml(error.message) + '</p>';
         } else {
             userListEl.innerHTML = '<p style="color:#e74c3c;">加载失败，请稍后重试</p>';
         }
     }
 }
 
-// 添加新用户
 async function addNewUser() {
-    const username = document.getElementById('new-user-username').value.trim();
-    const password = document.getElementById('new-user-password').value;
-    const name = document.getElementById('new-user-name').value.trim();
-    const role = document.getElementById('new-user-role').value;
+    var username = document.getElementById('new-user-username').value.trim();
+    var password = document.getElementById('new-user-password').value;
+    var name = document.getElementById('new-user-name').value.trim();
+    var role = document.getElementById('new-user-role').value;
     
     if (!username || !password || !name) {
         alert('请填写所有字段');
@@ -341,18 +272,16 @@ async function addNewUser() {
     }
     
     try {
-        const result = await apiCall('/api/users', {
+        var result = await apiCall('/api/users', {
             method: 'POST',
-            body: JSON.stringify({ username, password, name, role })
+            body: JSON.stringify({ username: username, password: password, name: name, role: role })
         });
         
         if (result.success) {
             alert('用户创建成功');
-            // 清空表单
             document.getElementById('new-user-username').value = '';
             document.getElementById('new-user-password').value = '';
             document.getElementById('new-user-name').value = '';
-            // 刷新用户列表
             await loadUserList();
         } else {
             alert(result.message || '创建失败');
@@ -363,7 +292,6 @@ async function addNewUser() {
     }
 }
 
-// 显示编辑用户Modal
 function showEditUserModal(username, name, role) {
     document.getElementById('edit-user-username').value = username;
     document.getElementById('edit-user-name').value = name;
@@ -372,17 +300,15 @@ function showEditUserModal(username, name, role) {
     document.getElementById('edit-user-modal').style.display = 'block';
 }
 
-// 关闭编辑用户Modal
 function closeEditUserModal() {
     document.getElementById('edit-user-modal').style.display = 'none';
 }
 
-// 保存用户编辑
 async function saveUserEdit() {
-    const username = document.getElementById('edit-user-username').value;
-    const name = document.getElementById('edit-user-name').value.trim();
-    const role = document.getElementById('edit-user-role').value;
-    const newPassword = document.getElementById('edit-user-password').value;
+    var username = document.getElementById('edit-user-username').value;
+    var name = document.getElementById('edit-user-name').value.trim();
+    var role = document.getElementById('edit-user-role').value;
+    var newPassword = document.getElementById('edit-user-password').value;
     
     if (!name) {
         alert('请填写显示名称');
@@ -395,10 +321,9 @@ async function saveUserEdit() {
     }
     
     try {
-        // 先更新用户信息
-        const result = await apiCall(`/api/users/${username}`, {
+        var result = await apiCall('/api/users/' + username, {
             method: 'PUT',
-            body: JSON.stringify({ name, role })
+            body: JSON.stringify({ name: name, role: role })
         });
         
         if (!result.success) {
@@ -406,11 +331,10 @@ async function saveUserEdit() {
             return;
         }
         
-        // 如果填写了新密码，更新密码
         if (newPassword) {
-            const pwResult = await apiCall(`/api/users/${username}/password`, {
+            var pwResult = await apiCall('/api/users/' + username + '/password', {
                 method: 'PUT',
-                body: JSON.stringify({ newPassword })
+                body: JSON.stringify({ newPassword: newPassword })
             });
             
             if (!pwResult.success) {
@@ -422,21 +346,19 @@ async function saveUserEdit() {
         alert('用户信息已更新');
         closeEditUserModal();
         await loadUserList();
-        
     } catch (error) {
         console.error('Save user edit error:', error);
         alert(error.message || '保存失败，请稍后重试');
     }
 }
 
-// 删除用户
 async function deleteUser(username) {
-    if (!confirm(`确定要删除用户 "${username}" 吗？`)) {
+    if (!confirm('确定要删除用户 "' + username + '" 吗？')) {
         return;
     }
     
     try {
-        const result = await apiCall(`/api/users/${username}`, {
+        var result = await apiCall('/api/users/' + username, {
             method: 'DELETE'
         });
         

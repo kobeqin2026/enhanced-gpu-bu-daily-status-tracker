@@ -1,45 +1,87 @@
+// Domain rendering and management
+
 function renderDomains(domains) {
-    const tbody = getTableBody('domains-body');
+    var tbody = getTableBody('domains-body');
     
-    domains.forEach(domain => {
-        const row = document.createElement('tr');
+    domains.forEach(function(domain) {
+        var row = document.createElement('tr');
         row.setAttribute('data-domain-id', domain.id);
         
-        const statusDisplay = statusText[domain.status] || domain.status;
-        const isAdminUser = isAdmin();
-        const statusDisplayOnly = isAdminUser ? 
-            `<select class="status-select" onchange="updateDomainStatus('${domain.id}', this.value)" style="background-color: ${statusColors[domain.status]}; color: white;">
-                <option value="not-started" ${domain.status === 'not-started' ? 'selected' : ''}>未开始</option>
-                <option value="in-progress" ${domain.status === 'in-progress' ? 'selected' : ''}>进行中</option>
-                <option value="blocked" ${domain.status === 'blocked' ? 'selected' : ''}>受阻</option>
-                <option value="completed" ${domain.status === 'completed' ? 'selected' : ''}>已完成</option>
-            </select>` :
-            `<span class="status-display" style="background-color: ${statusColors[domain.status]}; color: white; padding: 4px 8px; border-radius: 4px;">${statusDisplay}</span>`;
+        var statusDisplay = App.statusText[domain.status] || domain.status;
+        var statusColor = App.statusColors[domain.status] || '#999';
         
-        row.innerHTML = `
-            <td>${escapeHtml(domain.name)}</td>
-            <td>${escapeHtml(domain.owner)}</td>
-            <td>${statusDisplayOnly}</td>
-            <td>${escapeHtml(domain.notes)}</td>
-            <td>
-                <button class="edit-btn admin-only ${adminVisibleClass()}" onclick="editDomain('${domain.id}')">编辑</button>
-                <button class="delete-btn admin-only ${adminVisibleClass()}" onclick="deleteDomain('${domain.id}')">删除</button>
-            </td>
-        `;
+        // Name cell (safe)
+        var nameCell = document.createElement('td');
+        nameCell.textContent = domain.name || '';
+        row.appendChild(nameCell);
         
+        // Owner cell (safe)
+        var ownerCell = document.createElement('td');
+        ownerCell.textContent = domain.owner || '';
+        row.appendChild(ownerCell);
+        
+        // Status cell
+        var statusCell = document.createElement('td');
+        if (isAdmin()) {
+            var select = document.createElement('select');
+            select.className = 'status-select';
+            select.style.backgroundColor = statusColor;
+            select.style.color = 'white';
+            select.setAttribute('data-domain-id', domain.id);
+            select.addEventListener('change', function() {
+                updateDomainStatus(domain.id, this.value);
+            });
+            ['not-started', 'in-progress', 'blocked', 'completed'].forEach(function(s) {
+                var opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = App.statusText[s];
+                if (domain.status === s) opt.selected = true;
+                select.appendChild(opt);
+            });
+            statusCell.appendChild(select);
+        } else {
+            var span = document.createElement('span');
+            span.className = 'status-display';
+            span.style.backgroundColor = statusColor;
+            span.style.color = 'white';
+            span.style.padding = '4px 8px';
+            span.style.borderRadius = '4px';
+            span.textContent = statusDisplay;
+            statusCell.appendChild(span);
+        }
+        row.appendChild(statusCell);
+        
+        // Notes cell (safe)
+        var notesCell = document.createElement('td');
+        notesCell.textContent = domain.notes || '';
+        row.appendChild(notesCell);
+        
+        // Actions cell
+        var actionsCell = document.createElement('td');
+        var editBtn = document.createElement('button');
+        editBtn.className = 'edit-btn admin-only ' + adminVisibleClass();
+        editBtn.textContent = '编辑';
+        editBtn.addEventListener('click', function() { editDomain(domain.id); });
+        actionsCell.appendChild(editBtn);
+        
+        var deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn admin-only ' + adminVisibleClass();
+        deleteBtn.textContent = '删除';
+        deleteBtn.addEventListener('click', function() { deleteDomain(domain.id); });
+        actionsCell.appendChild(deleteBtn);
+        
+        row.appendChild(actionsCell);
         tbody.appendChild(row);
     });
     
-    // Update domain dropdowns
     populateDomainDropdowns();
 }
 
-// Open edit domain modal
 function editDomain(domainId) {
-    const domain = currentData.domains.find(d => d.id === domainId);
+    var domain = App.data.domains.find(function(d) { return d.id === domainId; });
     if (!domain) return;
     
-    currentEditDomainId = domainId;
+    App.currentEditDomainId = domainId;
     document.getElementById('edit-domain-name').value = domain.name;
     document.getElementById('edit-domain-owner').value = domain.owner;
     document.getElementById('edit-domain-status').value = domain.status;
@@ -48,17 +90,15 @@ function editDomain(domainId) {
     openModal('edit-domain-modal');
 }
 
-// Close edit domain modal
 function closeEditDomainModal() {
     closeModal('edit-domain-modal');
-    currentEditDomainId = null;
+    App.currentEditDomainId = null;
 }
 
-// Save edited domain
 function saveEditedDomain() {
-    if (!currentEditDomainId) return;
+    if (!App.currentEditDomainId) return;
     
-    const domain = currentData.domains.find(d => d.id === currentEditDomainId);
+    var domain = App.data.domains.find(function(d) { return d.id === App.currentEditDomainId; });
     if (!domain) return;
     
     domain.name = document.getElementById('edit-domain-name').value.trim();
@@ -66,47 +106,43 @@ function saveEditedDomain() {
     domain.status = document.getElementById('edit-domain-status').value;
     domain.notes = document.getElementById('edit-domain-notes').value.trim();
     
-    saveAndRefresh('edit-domain-modal', renderDomains, 'domains', () => { currentEditDomainId = null; });
+    saveAndRefresh('edit-domain-modal', renderDomains, 'domains', function() { App.currentEditDomainId = null; });
 }
 
-// Delete domain from modal
 function deleteDomainFromModal() {
     if (confirm('确定要删除这个Domain吗？')) {
-        deleteDomain(currentEditDomainId);
+        deleteDomain(App.currentEditDomainId);
         closeEditDomainModal();
     }
 }
 
-// Update domain status
 function updateDomainStatus(domainId, newStatus) {
-    const domain = currentData.domains.find(d => d.id === domainId);
+    var domain = App.data.domains.find(function(d) { return d.id === domainId; });
     if (domain) {
         domain.status = newStatus;
         persistData();
-        renderDomains(currentData.domains);
+        renderDomains(App.data.domains);
     }
 }
 
-// Delete domain
 function deleteDomain(domainId) {
     if (confirm('确定要删除这个Domain吗？')) {
-        currentData.domains = currentData.domains.filter(domain => domain.id !== domainId);
-        renderDomains(currentData.domains);
+        App.data.domains = App.data.domains.filter(function(domain) { return domain.id !== domainId; });
+        renderDomains(App.data.domains);
         persistData();
     }
 }
 
-// Add new domain with owner field
 function addNewDomain() {
-    const newDomainName = document.getElementById('new-domain-name').value.trim();
-    const newDomainOwner = document.getElementById('new-domain-owner').value.trim();
+    var newDomainName = document.getElementById('new-domain-name').value.trim();
+    var newDomainOwner = document.getElementById('new-domain-owner').value.trim();
     
     if (!newDomainName) {
         alert('请输入Domain名称');
         return;
     }
     
-    const newDomain = {
+    var newDomain = {
         id: 'domain-' + Date.now(),
         name: newDomainName,
         owner: newDomainOwner || 'TBD',
@@ -114,8 +150,8 @@ function addNewDomain() {
         notes: ''
     };
     
-    currentData.domains.push(newDomain);
-    renderDomains(currentData.domains);
+    App.data.domains.push(newDomain);
+    renderDomains(App.data.domains);
     document.getElementById('new-domain-name').value = '';
     document.getElementById('new-domain-owner').value = '';
     persistData();

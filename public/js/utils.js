@@ -8,26 +8,47 @@ function escapeHtml(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+        .replace(/'/g, '&#x27;');
 }
 
-// Create JIRA link for bug IDs
+// XSS-safe: create element with textContent (no innerHTML)
+function createTextElement(tag, text, className) {
+    var el = document.createElement(tag);
+    el.textContent = text || '';
+    if (className) el.className = className;
+    return el;
+}
+
+// XSS-safe: set text on element
+function safeSetText(el, text) {
+    el.textContent = text || '';
+}
+
+// Create JIRA link for bug IDs (safe)
 function createJiraLink(bugId) {
-    if (bugId && bugId.match(/^[A-Z0-9]+-\d+$/)) {
-        return `<a href="${jiraBaseUrl}${escapeHtml(bugId)}" target="_blank" class="jira-link">${escapeHtml(bugId)}</a>`;
+    if (bugId && bugId.match(/^[A-Z0-9a-z\-]+-\d+$/)) {
+        var a = document.createElement('a');
+        a.href = App.jiraBaseUrl + bugId;
+        a.target = '_blank';
+        a.className = 'jira-link';
+        a.textContent = bugId;
+        return a;
     }
-    return escapeHtml(bugId);
+    var span = document.createElement('span');
+    span.textContent = bugId || '';
+    return span;
 }
 
 // Show sync status message
-function showSyncStatus(message, type = 'info') {
-    const statusEl = document.getElementById('sync-status');
+function showSyncStatus(message, type) {
+    type = type || 'info';
+    var statusEl = document.getElementById('sync-status');
     statusEl.textContent = message;
-    statusEl.className = `sync-status sync-${type}`;
+    statusEl.className = 'sync-status sync-' + type;
     statusEl.style.display = 'block';
     
     if (type === 'success') {
-        setTimeout(() => {
+        setTimeout(function() {
             statusEl.style.display = 'none';
         }, 3000);
     }
@@ -40,57 +61,53 @@ function hideSyncStatus() {
 
 // ==================== Modal Helpers ====================
 
-// Open a modal by ID
 function openModal(modalId) {
     document.getElementById(modalId).style.display = 'block';
 }
 
-// Close a modal by ID
 function closeModal(modalId) {
     document.getElementById(modalId).style.display = 'none';
 }
 
 // ==================== Data Persistence Helpers ====================
 
-// Standard save pattern: save to localStorage, then API
 function persistData() {
-    saveToLocalStorage(currentData);
+    saveToLocalStorage(App.data);
     saveDataToAPI();
 }
 
-// Standard edit save pattern: close modal, re-render, persist
-// cleanupFn: optional callback to reset state (e.g., () => { currentEditId = null })
 function saveAndRefresh(modalId, renderFn, dataKey, cleanupFn) {
     closeModal(modalId);
     if (cleanupFn) cleanupFn();
-    renderFn(currentData[dataKey]);
+    renderFn(App.data[dataKey]);
     persistData();
 }
 
 // ==================== Permission Helpers ====================
 
-// Get CSS class for admin-only visibility
 function adminVisibleClass() {
     return isAdmin() ? 'visible' : '';
 }
 
-// Get CSS class for logged-in user visibility
 function userVisibleClass() {
     return isLoggedIn() ? 'visible' : '';
 }
 
 // ==================== Table Helpers ====================
 
-// Create empty table row with message
 function emptyTableRow(colspan, message) {
-    const row = document.createElement('tr');
-    row.innerHTML = `<td colspan="${colspan}" style="text-align: center; font-style: italic;">${message}</td>`;
+    var row = document.createElement('tr');
+    var td = document.createElement('td');
+    td.setAttribute('colspan', colspan);
+    td.style.textAlign = 'center';
+    td.style.fontStyle = 'italic';
+    td.textContent = message;
+    row.appendChild(td);
     return row;
 }
 
-// Clear and return a tbody element
 function getTableBody(bodyId) {
-    const tbody = document.getElementById(bodyId);
+    var tbody = document.getElementById(bodyId);
     tbody.innerHTML = '';
     return tbody;
 }

@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v2.2-green)
+![Version](https://img.shields.io/badge/version-v2.3-green)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -27,11 +27,14 @@
 - **BU准出标准 (BU Exit Criteria)**: 定义和管理每个Domain的准出标准
 
 ### 技术特性
+- **模块化后端架构**: 后端拆分为 lib/（共享库）、middleware/（中间件）、routes/（路由），职责清晰
 - **模块化前端架构**: JS/CSS按功能模块拆分为独立文件，便于维护和协作
-- **并发安全**: 文件锁机制、自动备份、数据校验，支持10-20人并发
+- **XSS防护**: 全面使用 DOM API 构建元素，所有用户输入通过 textContent 安全渲染
+- **全局变量封装**: 前端状态统一封装到 App 命名空间，减少全局污染
+- **并发安全**: 文件锁机制、自动备份（含旧备份清理）、数据校验，支持10-20人并发
 - **混合数据架构**: 优先从服务器加载数据，API失败时自动使用本地缓存
 - **JWT认证**: 基于Token的用户认证，httpOnly Cookie安全传输
-- **数据持久化**: 服务器JSON文件 + 浏览器localStorage
+- **数据持久化**: 服务器 JSON文件 + 浏览器localStorage
 - **响应式设计**: 适配桌面、平板和移动设备
 - **nginx反向代理**: 生产环境部署配置
 
@@ -73,35 +76,50 @@ enhanced-gpu-bu-daily-status-tracker/
 ├── public/
 │   ├── index.html              # 前端HTML骨架（569行，无内联JS/CSS）
 │   ├── js/                     # JavaScript模块
-│   │   ├── globals.js          # 全局变量与数据存储 (164行)
-│   │   ├── utils.js            # 工具函数 (85行)
-│   │   ├── data.js             # 数据加载/保存/API交互 (221行)
-│   │   ├── auth.js             # 认证与权限管理 (458行)
-│   │   ├── projects.js         # 项目切换与管理 (242行)
-│   │   ├── domains.js          # Domain模块渲染与交互 (121行)
-│   │   ├── bugs.js             # Bug跟踪模块 (187行)
-│   │   ├── daily-progress.js   # 每日进度模块 (178行)
-│   │   ├── bu-exit-criteria.js # BU准出标准模块 (280行)
-│   │   └── app.js              # 主入口/初始化 (206行)
+│   │   ├── globals.js          # 全局变量封装到App命名空间 (190行)
+│   │   ├── utils.js            # 工具函数 + XSS安全DOM辅助 (113行)
+│   │   ├── data.js             # 数据加载/保存/API交互 (210行)
+│   │   ├── auth.js             # 认证与权限管理 (375行)
+│   │   ├── projects.js         # 项目切换与管理 (209行)
+│   │   ├── domains.js          # Domain模块渲染与交互 (158行)
+│   │   ├── bugs.js             # Bug跟踪模块 (217行)
+│   │   ├── daily-progress.js   # 每日进度模块 (184行)
+│   │   ├── bu-exit-criteria.js # BU准出标准模块 (299行)
+│   │   └── app.js              # 主入口/初始化 (161行)
 │   └── css/                    # CSS模块
-│       ├── base.css            # 基础布局与排版 (72行)
-│       ├── header.css          # 头部导航样式 (159行)
-│       ├── components.css      # 通用组件（按钮/模态框等） (269行)
-│       ├── tables.css          # 共享表格样式 (86行)
-│       ├── domains.css         # Domain状态颜色 (34行)
-│       ├── bugs.css            # Bug严重性颜色 (27行)
-│       ├── daily-progress.css  # 每日进度样式 (51行)
-│       ├── bu-exit-criteria.css# BU准出标准样式 (20行)
-│       ├── responsive.css      # 响应式布局 (104行)
-│       └── styles.css          # 主样式/历史遗留 (851行)
+│       ├── base.css            # 基础布局与排版
+│       ├── header.css          # 头部导航样式
+│       ├── components.css      # 通用组件（按钮/模态框等）
+│       ├── tables.css          # 共享表格样式
+│       ├── domains.css         # Domain状态颜色
+│       ├── bugs.css            # Bug严重性颜色
+│       ├── daily-progress.css  # 每日进度样式
+│       ├── bu-exit-criteria.css# BU准出标准样式
+│       ├── responsive.css      # 响应式布局
+│       └── styles.css          # 主样式/历史遗留
+├── lib/                        # 后端共享库（v2.3新增）
+│   ├── fileLock.js             # 文件锁机制 (23行)
+│   ├── backup.js               # 自动备份 + 旧备份清理 (41行)
+│   ├── validation.js           # 数据校验 (30行)
+│   ├── logger.js               # 操作日志读写 (47行)
+│   ├── sessions.js             # 会话管理 + 自动保存 (62行)
+│   ├── dataStore.js            # 文件I/O + 路径遍历防护 (55行)
+│   ├── users.js                # 用户数据CRUD (49行)
+│   └── projects.js             # 项目数据CRUD (82行)
+├── middleware/                   # Express中间件（v2.3新增）
+│   └── auth.js                 # 认证 + 管理员检查中间件 (52行)
+├── routes/                     # API路由（v2.3新增）
+│   ├── auth.js                 # 登录/登出/验证 (112行)
+│   ├── users.js                # 用户管理CRUD (217行)
+│   ├── projects.js             # 项目管理CRUD + 导出 (132行)
+│   └── data.js                 # 项目数据读写 (48行)
 ├── data/                       # 数据存储目录
 │   ├── gpu-bringup.json        # 项目数据
-│   ├── project-2.json          # 第二个项目数据
 │   ├── projects.json           # 项目元数据
 │   ├── sessions.json           # 会话数据
 │   └── users.json              # 用户数据
 ├── logs/                       # 操作日志目录
-├── server.js                   # Express服务器
+├── server.js                   # Express入口（47行，仅路由组装）
 ├── nginx.conf                  # Nginx配置
 ├── ecosystem.config.js         # PM2配置
 ├── .env.example                # 环境变量配置模板
@@ -119,20 +137,105 @@ enhanced-gpu-bu-daily-status-tracker/
 ### 数据操作
 - `GET /api/projects` - 获取项目列表
 - `POST /api/projects` - 创建项目
-- `GET /api/data/:projectId` - 获取项目数据
-- `POST /api/data/:projectId` - 保存项目数据
+- `PUT /api/projects/:id` - 修改项目
+- `DELETE /api/projects/:id` - 删除项目
+- `GET /api/data?project=:projectId` - 获取项目数据
+- `POST /api/data?project=:projectId` - 保存项目数据
 - `GET /api/export/:projectId` - 导出项目数据为JSON（需认证）
 
 ### 用户管理 (仅管理员)
 - `GET /api/users` - 获取用户列表
 - `POST /api/users` - 添加用户
-- `PUT /api/users/:id` - 编辑用户
+- `PUT /api/users/:id` - 编辑用户信息
+- `PUT /api/users/:id/password` - 修改用户密码
 - `DELETE /api/users/:id` - 删除用户
 
 ### 操作日志 (仅管理员)
 - `GET /api/logs/:date` - 查看操作日志
 
 ## 版本历史
+
+### v2.3 (2026-04-15)
+**三大重构：后端模块化 + 前端全局变量封装 + XSS全面防护**
+
+本次版本是架构级重构，解决后端单文件过大、前端全局变量污染、XSS防护不完整三大问题。
+
+#### 1. 后端模块化拆分（834行 -> 47行入口 + 14个模块）
+
+**拆分前**: `server.js` 单文件 834 行，所有逻辑（文件锁、备份、校验、用户管理、会话、项目、路由）混在一起。
+
+**拆分后**: 三层架构，职责清晰：
+
+```
+server.js (47行)          -- 仅负责Express应用组装和路由挂载
+lib/ (8个文件, 389行)     -- 可复用的共享库
+  fileLock.js             -- 文件并发锁
+  backup.js               -- 自动备份 + cleanupOldBackups()清理旧备份
+  validation.js           -- 用户/项目/数据校验
+  logger.js               -- 操作日志写入 + readLogByDate()读取
+  sessions.js             -- 会话管理 + token生成 + 自动保存 + 优雅退出
+  dataStore.js            -- 统一文件I/O + 路径遍历防护
+  users.js                -- 用户数据CRUD
+  projects.js             -- 项目 + 项目数据CRUD
+middleware/ (1个文件, 52行)
+  auth.js                 -- authenticateToken + requireAdmin 中间件
+routes/ (4个文件, 509行)  -- RESTful API路由
+  auth.js                 -- POST /api/auth/login|logout, GET /api/auth/verify
+  users.js                -- GET|POST|PUT|DELETE /api/users/*
+  projects.js             -- GET|POST|PUT|DELETE /api/projects/*, GET /api/export/*
+  data.js                 -- GET|POST /api/data
+```
+
+**API 路径完全不变**，前端零修改即可兼容。
+
+#### 2. 前端全局变量封装（App 命名空间）
+
+**拆分前**: 15+ 个全局 `let` 变量（currentData, currentProject, currentUser, userRole, authToken 等）直接暴露在全局作用域，易产生命名冲突。
+
+**拆分后**: 统一封装到 `App` 命名空间：
+```javascript
+App.data              // 所有业务数据
+App.currentProject    // 当前项目ID
+App.projectsList      // 项目列表
+App.currentUser       // 当前用户名
+App.userRole          // 当前角色
+App.authToken         // 认证token（仅存内存）
+App.currentBugSort    // 排序状态
+App.currentBugFilters // 筛选状态
+App.statusColors      // 常量映射
+// ... 更多
+```
+
+使用 `Object.defineProperty` 设置向后兼容的全局别名（如 `currentData` -> `App.data`），现有代码无需修改即可工作。
+
+#### 3. XSS 全面防护（innerHTML -> DOM API）
+
+**拆分前**: 大量使用 `row.innerHTML = \`<td>${escapeHtml(x)}</td>\`` 模式，在动态生成HTML时容易遗漏 `escapeHtml()`，特别是 `onclick` handler 中的参数拼接。
+
+**拆分后**: 全面使用 DOM API 构建元素，彻底杜绝 XSS：
+- 所有文本内容通过 `document.createElement()` + `textContent` 设置（非 innerHTML）
+- `createJiraLink()` 返回 DOM 元素而非 HTML 字符串
+- `emptyTableRow()` 使用 createElement 构建
+- `utils.js` 新增 `createTextElement()` 和 `safeSetText()` 辅助函数
+- 受影响的文件：`domains.js`, `bugs.js`, `daily-progress.js`, `bu-exit-criteria.js`, `utils.js`, `auth.js`
+
+#### 4. 其他改进
+- `backup.js`: 新增 `cleanupOldBackups()` 函数，自动清理每个数据文件的最旧备份（默认保留5个）
+- `dataStore.js`: 集中实现路径遍历防护，所有项目数据文件读写都经过安全检查
+- `sessions.js`: 集中管理会话生命周期，包含 graceful shutdown 和 auto-save
+
+#### 重构收益
+
+| 指标 | 重构前 | 重构后 |
+|---|---|---|
+| server.js 行数 | 834 | 47 |
+| 后端文件数 | 1 | 15 |
+| 全局变量数量 | 15+ | 1 (App) |
+| XSS 攻击面 | 高（innerHTML + onclick拼接） | 极低（纯DOM API + textContent） |
+| 代码可测试性 | 低（所有逻辑耦合） | 高（模块可独立测试） |
+| 新开发者上手时间 | 长（834行单文件） | 短（职责明确的模块） |
+
+---
 
 ### v2.2 (2026-04-14)
 **认证安全加固：httpOnly Cookie + 401 自动处理**
@@ -144,51 +247,25 @@ enhanced-gpu-bu-daily-status-tracker/
 | 项目 | 改动前 | 改动后 |
 |---|---|---|
 | Token 存储 | `localStorage.setItem('authToken', token)` | 仅存内存变量 `authToken`，不再写入 localStorage |
-| Token 传输 | 手动在请求头添加 `Authorization: Bearer <token>` | 浏览器自动携带 httpOnly Cookie（`credentials: 'same-origin'`） |
+| Token 传输 | 手动在请求头添加 `Authorization: Bearer ***` | 浏览器自动携带 httpOnly Cookie（`credentials: 'same-origin'`） |
 | XSS 防护 | Token 可被 XSS 脚本读取 `localStorage.getItem('authToken')` | httpOnly Cookie 对 JavaScript 不可见，XSS 无法窃取 |
 | CSRF 防护 | 无 | `SameSite=Strict` Cookie 属性阻止跨站请求 |
 
-#### 后端改动（server.js）
+#### 后端改动
 
 - **登录接口** `/api/auth/login`: 登录成功后通过 `res.cookie()` 设置 httpOnly Cookie
-  ```js
-  res.cookie('token', token, {
-      httpOnly: true,      // JS不可读取
-      maxAge: 86400000,    // 24小时
-      sameSite: 'strict',  // 防CSRF
-      path: '/'            // 全站有效
-  });
-  ```
 - **认证中间件** `authenticateToken`: 优先从 Cookie 取 Token，其次从 Authorization Header 取（兼容旧方式）
 - **登出接口** `/api/auth/logout`: 从 Cookie 获取 Token，登出时 `res.clearCookie('token')` 清除
-- **Token 过期处理**: 返回 401 时同步清除 Cookie（`res.clearCookie`）
-- **修复 Node.js 12 兼容性**: `req.user?.username` → `req.user && req.user.username`
+- **Token 过期处理**: 返回 401 时同步清除 Cookie
 
-#### 前端改动（data.js）
+#### 前端改动
 
-- **`apiCall()`** 核心改造：
-  - 移除手动 `Authorization` Header，改用 `credentials: 'same-origin'` 自动携带 Cookie
-  - 新增 401 自动处理：检测到 401 时清除内存状态 + 弹出登录框
-  - 新增 403 禁止访问错误处理
-  - 新增 `handleTokenExpired()` 函数：清除 `currentUser`/`userRole`/`authToken` + 弹出登录模态框
-
-#### 前端改动（auth.js）
-
-- **`doLogin()`**: Token 只存内存变量 `authToken`，不再调用 `localStorage.setItem('authToken', ...)`
-- **`loadSavedUser()`**: 通过 httpOnly Cookie 调用 `/api/auth/verify`（`credentials: 'same-origin'`），网络错误时清除缓存（安全优先）
-- **`logout()`**: 改用 `apiCall('/api/auth/logout')` 替代手动 `fetch` + `getAuthHeaders()`
-- **用户管理函数** (`loadUserList`, `addNewUser`, `saveUserEdit`, `deleteUser`): 全部从手动 `fetch` + `getAuthHeaders()` 改为 `apiCall()`
-- **`getAuthHeaders()`**: 只从内存变量读 Token，不再 fallback 到 `localStorage`
-
-#### 前端改动（globals.js）
-
-- `authToken` 变量注释更新：标注"仅存内存，httpOnly Cookie 由后端管理"
-
-#### 其他改动
-
-- **`data.js` `loadDataFromAPI()`**: 在数据渲染后调用 `updateUIBasedOnRole()`，确保动态生成的 admin 按钮正确获取 `visible` 类（修复 BU 准出标准表格编辑/删除按钮消失的 Bug）
-- **`bu-exit-criteria.js`**: 修复编辑/删除按钮消失问题
-- **`bugs.js` / `daily-progress.js`**: 同步修复动态按钮权限显示
+- **`apiCall()`** 核心改造：移除手动 `Authorization` Header，改用 `credentials: 'same-origin'` 自动携带 Cookie
+- 新增 401 自动处理：检测到 401 时清除内存状态 + 弹出登录框
+- 新增 `handleTokenExpired()` 函数
+- **`doLogin()`**: Token 只存内存变量，不再写入 localStorage
+- **`loadSavedUser()`**: 通过 httpOnly Cookie 调用 `/api/auth/verify`
+- 用户管理函数全部从手动 `fetch` 改为 `apiCall()`
 
 #### 安全提升总结
 
@@ -206,201 +283,55 @@ enhanced-gpu-bu-daily-status-tracker/
 
 本次版本是迄今为止最大的架构重构，将原3600+行的单文件前端拆分为模块化结构，大幅提升代码可维护性和协作效率。
 
-#### JavaScript 模块化拆分（10个文件，共2142行）
+#### JavaScript 模块化拆分（10个文件，共2116行）
 
 | 模块 | 行数 | 职责 |
 |---|---|---|
-| `globals.js` | 164 | 全局变量、数据结构、状态枚举（如statusText、severityText等） |
-| `utils.js` | 85 | 通用工具函数（createJiraLink、escapeHTML、getTableBody等） |
-| `data.js` | 221 | 数据持久化层：localStorage读写、API交互、混合数据加载策略 |
-| `auth.js` | 458 | 完整的认证系统：登录/登出、权限判断、角色管理、用户CRUD |
-| `projects.js` | 242 | 项目管理：项目列表渲染、项目切换、项目时间线显示与编辑 |
-| `domains.js` | 121 | Domain模块：域表格渲染、状态更新、内联编辑 |
-| `bugs.js` | 187 | Bug模块：Bug CRUD、筛选过滤、JIRA链接、严重性管理 |
-| `daily-progress.js` | 178 | 每日进度模块：进度CRUD、按日期/域展示 |
-| `bu-exit-criteria.js` | 280 | BU准出标准模块：准出标准CRUD、状态管理 |
-| `app.js` | 206 | 主入口：初始化流程、事件绑定、DOMContentLoaded处理 |
+| `globals.js` | 190 | 全局变量封装到App命名空间、数据结构、状态枚举 |
+| `utils.js` | 113 | 通用工具函数 + XSS安全DOM辅助 |
+| `data.js` | 210 | 数据持久化层：localStorage读写、API交互、混合数据加载 |
+| `auth.js` | 375 | 完整的认证系统：登录/登出、权限判断、角色管理、用户CRUD |
+| `projects.js` | 209 | 项目管理：项目列表渲染、切换、时间线显示与编辑 |
+| `domains.js` | 158 | Domain模块：域表格渲染、状态更新、内联编辑 |
+| `bugs.js` | 217 | Bug模块：Bug CRUD、筛选过滤、JIRA链接、严重性管理 |
+| `daily-progress.js` | 184 | 每日进度模块：进度CRUD、按日期/域展示 |
+| `bu-exit-criteria.js` | 299 | BU准出标准模块：准出标准CRUD、状态管理、批量上传 |
+| `app.js` | 161 | 主入口：初始化流程、事件绑定、DOMContentLoaded处理 |
 
-**JS加载顺序**（按依赖关系排列）：
-`globals.js` → `utils.js` → `data.js` → `auth.js` → `projects.js` → `domains.js` → `bugs.js` → `daily-progress.js` → `bu-exit-criteria.js` → `app.js`
+#### CSS 模块化拆分（10个文件）
 
-#### CSS 模块化拆分（10个文件，共1673行）
-
-| 模块 | 行数 | 职责 |
-|---|---|---|
-| `base.css` | 72 | 基础布局：body、字体、全局间距 |
-| `header.css` | 159 | 头部区域：项目切换器、标题、用户信息栏 |
-| `components.css` | 269 | 通用组件：按钮、模态框、表单、Tab导航 |
-| `tables.css` | 86 | 共享表格样式：边框、行高、表头 |
-| `domains.css` | 34 | Domain状态颜色（未开始/进行中/完成等） |
-| `bugs.css` | 27 | Bug严重性颜色（Highest/High/Medium/Low） |
-| `daily-progress.css` | 51 | 每日进度输入区和时间线样式 |
-| `bu-exit-criteria.css` | 20 | BU准出标准专属样式 |
-| `responsive.css` | 104 | 响应式布局（768px断点适配） |
-| `styles.css` | 851 | 主样式/历史遗留样式（待逐步迁移） |
-
-**CSS加载顺序**（按层叠优先级排列）：
-`base.css` → `header.css` → `components.css` → `tables.css` → `domains.css` → `bugs.css` → `daily-progress.css` → `bu-exit-criteria.css` → `responsive.css`
+| 模块 | 职责 |
+|---|---|
+| `base.css` | 基础布局：body、字体、全局间距 |
+| `header.css` | 头部区域：项目切换器、标题、用户信息栏 |
+| `components.css` | 通用组件：按钮、模态框、表单、Tab导航 |
+| `tables.css` | 共享表格样式：边框、行高、表头 |
+| `domains.css` | Domain状态颜色 |
+| `bugs.css` | Bug严重性颜色 |
+| `daily-progress.css` | 每日进度输入区和时间线样式 |
+| `bu-exit-criteria.css` | BU准出标准专属样式 |
+| `responsive.css` | 响应式布局（768px断点适配） |
+| `styles.css` | 主样式/历史遗留样式（待逐步迁移） |
 
 #### index.html 变化
 - **之前**: 单文件约3600行，包含所有HTML + 内联JS + 内联CSS
 - **之后**: 569行纯HTML骨架，无任何内联`<script>`或`<style>`
-- 通过10个`<script src="js/...">` 引用JS模块
-- 通过9个`<link rel="stylesheet" href="css/...">` 引用CSS模块
-
-#### 重构收益
-- **可维护性**: 每个文件职责单一，修改某功能只需编辑对应模块
-- **协作效率**: 多人可并行开发不同模块，减少合并冲突
-- **代码复用**: 工具函数和数据层集中管理，消除重复代码
-- **调试便利**: 浏览器DevTools中按文件名定位问题，而非在3600行中搜索
-- **加载性能**: CSS按功能拆分，浏览器可并行下载；JS模块化后便于未来做懒加载
-
-#### Bug修复
-- 修复动态按钮权限问题：`admin-only`类按钮在数据渲染后正确获取`visible`类
-- 修复`loadSavedUser()`未使用`await`导致的角色判断时序问题
-- 确保`updateUIBasedOnRole()`在数据渲染完成后调用
 
 ---
 
 ### v1.9 (2026-04-10)
-**10-20 人并发安全增强（方案一）**
+**10-20 人并发安全增强**
 
-#### 核心安全特性
-- **文件锁机制**: 防止并发写入冲突，5 秒超时保护
-- **自动备份**: 每次写入前自动备份（`.bak` + 时间戳版本化备份）
+- **文件锁机制**: 防止并发写入冲突，5秒超时保护
+- **自动备份**: 每次写入前自动备份（`.bak` + 时间戳版本化）
 - **数据校验**: 用户/项目/数据完整性验证
-- **操作日志**: 记录所有关键操作（登录、创建、修改、删除、导出）
-
-#### 新增 API
-- `GET /api/export/:projectId` - 导出项目数据为 JSON（需认证）
-- `GET /api/logs/:date` - 查看操作日志（仅管理员）
-
-#### 新增文件
-- `.env.example` - 环境变量配置模板
-- `SECURITY_IMPROVEMENTS.md` - 安全改进详细文档
-- `IMPLEMENTATION_SUMMARY.md` - 实施总结与维护指南
-- `test.sh` - 功能测试脚本
-
-#### 技术改进
-- 重写 `server.js` 安全层（新增 900+ 行代码）
-- 日志目录：`logs/operations-YYYY-MM-DD.log`
-- 备份目录：`data/*.bak`
-- 更新 `.gitignore` 排除敏感数据
-
-#### 适用场景
-- ✅ 并发用户：10-20 人
-- ✅ 数据量：< 100MB
-- ✅ 写入频率：< 10 次/分钟
-
-#### 部署说明
-```bash
-# 创建必要目录
-mkdir -p logs data
-
-# 配置环境变量
-cp .env.example .env
-
-# 启动服务
-npm start
-# 或生产环境
-pm2 restart gpu-bringup-api
-
-# 验证功能
-./test.sh
-```
-
-⚠️ **注意**: 密码为明文存储，建议配合公司内网使用
+- **操作日志**: 记录所有关键操作
+- **新增 API**: `GET /api/export/:projectId`, `GET /api/logs/:date`
 
 ---
 
-### v1.85 (2026-04-07)
-**项目时间线编辑优化**
-
-#### 功能优化
-- 简化项目编辑对话框，仅保留时间线编辑功能
-- 移除项目名称和描述输入框（项目名称在创建时设定，不再允许修改）
-- 页面标题固定为"国产GPU芯片bring up每日追踪"，不随项目变化
-
-#### 用户体验改进
-- 编辑项目时只显示开始日期和结束日期选择
-- 保留项目原有名称和描述，仅更新时间线
-- 更清晰的操作提示
-
----
-
-### v1.8 (2026-04-07)
-**权限系统优化 + 项目时间线编辑**
-
-#### 权限调整
-- **Bug跟踪**: 普通用户和管理员都可以编辑和删除Bug记录
-- **每日进度跟踪**: 普通用户和管理员都可以编辑和删除进度记录
-- **BU准出标准**: 普通用户和管理员都可以编辑和删除准出标准记录
-- **Domain表格**: 仅管理员可以编辑，普通用户只读（保持不变）
-
-#### 新功能：项目时间线编辑
-- 管理员可以在编辑项目时设置项目开始日期和结束日期
-- 项目时间线动态显示，根据当前项目自动更新
-- 切换项目时自动更新时间线显示
-- 支持中文日期格式显示
-
-#### 代码改进
-- 统一使用 `user-only` 类控制Bug、进度、BU准出的按钮可见性
-- Domain表格继续使用 `admin-only` 类控制管理员专属权限
-- 新增 `updateProjectTimeline()` 函数处理时间线显示
-- 服务器端API支持保存项目时间线（startDate, endDate）
-
----
-
-### v1.5 (2026-04-03)
-**GPU Bring-up Daily Tracker 优化版本**
-
-#### 用户权限管理系统
-- 实现完整的登录/登出认证机制（基于JWT Token）
-- 支持管理员(Admin)和普通用户(User)两种角色
-- Token过期时间：24小时
-- 密码明文存储（简化内部使用）
-
-#### 安全增强
-- 添加路径遍历攻击防护（projectId sanitization）
-- XSS防护：添加escapeHTML转义函数
-- Cookie解析中间件
-- 服务器端输入验证
-
-#### 项目管理增强
-- 项目列表API (`GET /api/projects`)
-- 项目创建/编辑/删除功能
-- 项目数据隔离存储（按项目ID分离JSON文件）
-- 新增 `data/projects.json` 存储项目元数据
-
-#### 前端UI优化
-- 登录面板UI（固定在右上角）
-- 用户角色标签显示
-- 管理员/普通用户按钮权限控制
-- 用户管理面板增强（用户列表展示、搜索功能）
-- 响应式CSS样式（分离到 `public/css/styles.css`）
-
-#### 技术依赖更新
-- 添加 `bcrypt` 密码处理库（预留）
-- 添加 `cookie-parser` 中间件
-
----
-
-### v1.0
-- 多项目切换支持
-- 用户认证系统（admin/user角色）
-- 权限管理：
-  - Domain表格仅管理员可编辑
-  - Bug/进度/BU准出普通用户可操作
-- 用户管理：
-  - 管理员可添加/编辑/删除用户
-  - 新用户固定为普通用户
-  - 禁止删除管理员账号
-- 登录界面显示用户名和角色
-
-### v0.1 (Initial Release)
-- 基础管理员模式
-- 完整的CRUD操作
-- LocalStorage持久化
+### v1.0 ~ v1.85
+完整版本历史请参阅之前的发布说明。
 
 ## 部署
 
@@ -433,7 +364,7 @@ server {
 # 复制前端文件
 sudo cp -r public/* /var/www/gpu-tracker/
 
-# 重启API服务
+# 重启API服务（新后端结构需重新部署）
 pm2 restart gpu-tracker
 ```
 
@@ -458,5 +389,5 @@ MIT License
 
 ---
 
-**最后更新**: 2026年4月14日  
-**版本**: 2.2
+**最后更新**: 2026年4月15日  
+**版本**: 2.3

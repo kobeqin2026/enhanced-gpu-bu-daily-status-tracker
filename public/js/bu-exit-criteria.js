@@ -1,15 +1,16 @@
+// BU Exit Criteria management
+
 function addNewBUExitCriteriaRow() {
-    const currentIndex = currentData.buExitCriteria.length + 1;
+    var currentIndex = App.data.buExitCriteria.length + 1;
     
-    // Auto-get owner from first domain if available
-    let defaultOwner = '';
-    let defaultDomain = '';
-    if (currentData.domains.length > 0) {
-        defaultDomain = currentData.domains[0].name;
-        defaultOwner = currentData.domains[0].owner || '';
+    var defaultOwner = '';
+    var defaultDomain = '';
+    if (App.data.domains.length > 0) {
+        defaultDomain = App.data.domains[0].name;
+        defaultOwner = App.data.domains[0].owner || '';
     }
     
-    const newCriteria = {
+    var newCriteria = {
         id: 'criteria-' + Date.now(),
         index: currentIndex,
         domain: defaultDomain,
@@ -18,108 +19,134 @@ function addNewBUExitCriteriaRow() {
         status: 'not-ready'
     };
     
-    currentData.buExitCriteria.push(newCriteria);
-    renderBUExitCriteria(currentData.buExitCriteria);
+    App.data.buExitCriteria.push(newCriteria);
+    renderBUExitCriteria(App.data.buExitCriteria);
     persistData();
 }
 
-// Delete BU Exit Criteria entry
 function deleteBUExitCriteria(criteriaId) {
     if (confirm('确定要删除这个准出标准吗？')) {
-        currentData.buExitCriteria = currentData.buExitCriteria.filter(criteria => criteria.id !== criteriaId);
+        App.data.buExitCriteria = App.data.buExitCriteria.filter(function(criteria) { return criteria.id !== criteriaId; });
         reindexBUExitCriteria();
-        renderBUExitCriteria(currentData.buExitCriteria);
+        renderBUExitCriteria(App.data.buExitCriteria);
         persistData();
     }
 }
 
-// Re-index BU Exit Criteria after deletion
 function reindexBUExitCriteria() {
-    currentData.buExitCriteria.forEach((criteria, index) => {
+    App.data.buExitCriteria.forEach(function(criteria, index) {
         criteria.index = index + 1;
     });
 }
 
-// Populate Domain and Owner dropdowns
 function populateDomainOwnerDropdowns() {
-    const domainSelect = document.getElementById('edit-bu-criteria-domain');
-    const ownerSelect = document.getElementById('edit-bu-criteria-owner');
+    var domainSelect = document.getElementById('edit-bu-criteria-domain');
+    var ownerSelect = document.getElementById('edit-bu-criteria-owner');
     
     domainSelect.innerHTML = '';
     ownerSelect.innerHTML = '';
     
-    const defaultDomainOption = document.createElement('option');
+    var defaultDomainOption = document.createElement('option');
     defaultDomainOption.value = '';
     defaultDomainOption.textContent = '请选择Domain';
     domainSelect.appendChild(defaultDomainOption);
     
-    const defaultOwnerOption = document.createElement('option');
+    var defaultOwnerOption = document.createElement('option');
     defaultOwnerOption.value = '';
     defaultOwnerOption.textContent = '请选择Owner';
     ownerSelect.appendChild(defaultOwnerOption);
     
-    currentData.domains.forEach(domain => {
-        const domainOption = document.createElement('option');
-        domainOption.value = domain.name;
-        domainOption.textContent = domain.name;
-        domainSelect.appendChild(domainOption);
+    App.data.domains.forEach(function(domain) {
+        var option = document.createElement('option');
+        option.value = domain.name;
+        option.textContent = domain.name;
+        domainSelect.appendChild(option);
     });
     
-    const uniqueOwners = [...new Set(currentData.domains.map(domain => domain.owner))];
-    uniqueOwners.forEach(owner => {
+    var uniqueOwners = Array.from(new Set(App.data.domains.map(function(d) { return d.owner; })));
+    uniqueOwners.forEach(function(owner) {
         if (owner) {
-            const ownerOption = document.createElement('option');
-            ownerOption.value = owner;
-            ownerOption.textContent = owner;
-            ownerSelect.appendChild(ownerOption);
+            var option = document.createElement('option');
+            option.value = owner;
+            option.textContent = owner;
+            ownerSelect.appendChild(option);
         }
     });
 }
 
-// Render BU Exit Criteria table
 function renderBUExitCriteria(criteriaList) {
-    const tbody = getTableBody('bu-exit-criteria-body');
+    var tbody = getTableBody('bu-exit-criteria-body');
     
     if (criteriaList.length === 0) {
         tbody.appendChild(emptyTableRow(6, '暂无准出标准记录'));
         return;
     }
     
-    criteriaList.forEach((criteria, idx) => {
-        const statusDisplay = criteria.status === 'not-ready' ? 'Not ready' : 
+    criteriaList.forEach(function(criteria, idx) {
+        var statusDisplay = criteria.status === 'not-ready' ? 'Not ready' :
                            criteria.status === 'fail' ? 'Fail' : 'Pass';
-        const statusClass = criteria.status === 'not-ready' ? '' : 
-                          criteria.status === 'fail' ? 'severity-highest' : 'status-completed';
+        var statusClass = criteria.status === 'not-ready' ? '' :
+                         criteria.status === 'fail' ? 'severity-highest' : 'status-completed';
         
-        // Auto-get owner from domain
-        const domainEntry = currentData.domains.find(d => d.name === criteria.domain);
-        const displayOwner = domainEntry ? domainEntry.owner : (criteria.owner || '-');
+        var domainEntry = App.data.domains.find(function(d) { return d.name === criteria.domain; });
+        var displayOwner = domainEntry ? domainEntry.owner : (criteria.owner || '-');
         
-        const displayIndex = criteria.index !== undefined ? criteria.index : (idx + 1);
+        var displayIndex = criteria.index !== undefined ? criteria.index : (idx + 1);
         
-        const row = document.createElement('tr');
+        var row = document.createElement('tr');
         row.setAttribute('data-criteria-id', criteria.id);
-        row.innerHTML = `
-            <td>${displayIndex}</td>
-            <td>${escapeHtml(criteria.domain)}</td>
-            <td class="bu-criteria-content">${escapeHtml(criteria.criteria)}</td>
-            <td>${escapeHtml(displayOwner)}</td>
-            <td class="${statusClass}">${escapeHtml(statusDisplay)}</td>
-            <td>
-                <button class="edit-btn user-only ${userVisibleClass()}" onclick="editBUExitCriteria('${criteria.id}')">编辑</button>
-                <button class="delete-btn user-only ${userVisibleClass()}" onclick="deleteBUExitCriteria('${criteria.id}')">删除</button>
-            </td>
-        `;
+        
+        // Index (safe)
+        var indexCell = document.createElement('td');
+        indexCell.textContent = String(displayIndex);
+        row.appendChild(indexCell);
+        
+        // Domain (safe)
+        var domainCell = document.createElement('td');
+        domainCell.textContent = criteria.domain || '';
+        row.appendChild(domainCell);
+        
+        // Criteria content (safe)
+        var criteriaCell = document.createElement('td');
+        criteriaCell.className = 'bu-criteria-content';
+        criteriaCell.textContent = criteria.criteria || '';
+        row.appendChild(criteriaCell);
+        
+        // Owner (safe)
+        var ownerCell = document.createElement('td');
+        ownerCell.textContent = displayOwner || '';
+        row.appendChild(ownerCell);
+        
+        // Status (safe)
+        var statusCell = document.createElement('td');
+        statusCell.className = statusClass;
+        statusCell.textContent = statusDisplay;
+        row.appendChild(statusCell);
+        
+        // Actions
+        var actionsCell = document.createElement('td');
+        var editBtn = document.createElement('button');
+        editBtn.className = 'edit-btn user-only ' + userVisibleClass();
+        editBtn.textContent = '编辑';
+        editBtn.addEventListener('click', function() { editBUExitCriteria(criteria.id); });
+        actionsCell.appendChild(editBtn);
+        
+        var deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn user-only ' + userVisibleClass();
+        deleteBtn.textContent = '删除';
+        deleteBtn.addEventListener('click', function() { deleteBUExitCriteria(criteria.id); });
+        actionsCell.appendChild(deleteBtn);
+        
+        row.appendChild(actionsCell);
         tbody.appendChild(row);
     });
 }
 
-// Open edit BU Exit Criteria modal
 function editBUExitCriteria(criteriaId) {
-    const criteria = currentData.buExitCriteria.find(c => c.id === criteriaId);
+    var criteria = App.data.buExitCriteria.find(function(c) { return c.id === criteriaId; });
     if (!criteria) return;
     
-    currentEditBUExitCriteriaId = criteriaId;
+    App.currentEditBUExitCriteriaId = criteriaId;
     populateDomainOwnerDropdowns();
     
     document.getElementById('edit-bu-criteria-domain').value = criteria.domain;
@@ -130,48 +157,44 @@ function editBUExitCriteria(criteriaId) {
     openModal('edit-bu-exit-criteria-modal');
 }
 
-// Update owner dropdown based on selected domain
 function updateOwnerDropdown() {
-    const domainSelect = document.getElementById('edit-bu-criteria-domain');
-    const ownerSelect = document.getElementById('edit-bu-criteria-owner');
-    const selectedDomain = domainSelect.value;
+    var domainSelect = document.getElementById('edit-bu-criteria-domain');
+    var ownerSelect = document.getElementById('edit-bu-criteria-owner');
+    var selectedDomain = domainSelect.value;
     
     ownerSelect.innerHTML = '';
     
-    const domainEntry = currentData.domains.find(d => d.name === selectedDomain);
+    var domainEntry = App.data.domains.find(function(d) { return d.name === selectedDomain; });
     if (domainEntry) {
-        const option = document.createElement('option');
+        var option = document.createElement('option');
         option.value = domainEntry.owner;
         option.textContent = domainEntry.owner;
         ownerSelect.appendChild(option);
         ownerSelect.value = domainEntry.owner;
     } else {
-        const option = document.createElement('option');
+        var option = document.createElement('option');
         option.value = '';
         option.textContent = '';
         ownerSelect.appendChild(option);
     }
 }
 
-// Add event listener to domain dropdown
 document.addEventListener('DOMContentLoaded', function() {
-    const domainSelect = document.getElementById('edit-bu-criteria-domain');
+    var domainSelect = document.getElementById('edit-bu-criteria-domain');
     if (domainSelect) {
         domainSelect.addEventListener('change', updateOwnerDropdown);
     }
 });
 
-// Close edit BU Exit Criteria modal
 function closeEditBUExitCriteriaModal() {
     closeModal('edit-bu-exit-criteria-modal');
-    currentEditBUExitCriteriaId = null;
+    App.currentEditBUExitCriteriaId = null;
 }
 
-// Save edited BU Exit Criteria
 function saveEditedBUExitCriteria() {
-    if (!currentEditBUExitCriteriaId) return;
+    if (!App.currentEditBUExitCriteriaId) return;
     
-    const criteria = currentData.buExitCriteria.find(c => c.id === currentEditBUExitCriteriaId);
+    var criteria = App.data.buExitCriteria.find(function(c) { return c.id === App.currentEditBUExitCriteriaId; });
     if (!criteria) return;
     
     criteria.domain = document.getElementById('edit-bu-criteria-domain').value;
@@ -179,18 +202,16 @@ function saveEditedBUExitCriteria() {
     criteria.owner = document.getElementById('edit-bu-criteria-owner').value;
     criteria.status = document.getElementById('edit-bu-criteria-status').value;
     
-    saveAndRefresh('edit-bu-exit-criteria-modal', renderBUExitCriteria, 'buExitCriteria', () => { currentEditBUExitCriteriaId = null; });
+    saveAndRefresh('edit-bu-exit-criteria-modal', renderBUExitCriteria, 'buExitCriteria', function() { App.currentEditBUExitCriteriaId = null; });
 }
 
-// Delete BU Exit Criteria from modal
 function deleteBUExitCriteriaFromModal() {
     if (confirm('确定要删除这个准出标准吗？')) {
-        deleteBUExitCriteria(currentEditBUExitCriteriaId);
+        deleteBUExitCriteria(App.currentEditBUExitCriteriaId);
         closeEditBUExitCriteriaModal();
     }
 }
 
-// Bulk Upload BU Exit Criteria Functions
 function showBulkUploadBUModal() {
     document.getElementById('bulk-upload-text').value = '';
     document.getElementById('bulk-separator').value = 'tab';
@@ -203,17 +224,17 @@ function closeBulkUploadBUModal() {
 }
 
 function processBulkUploadBU() {
-    const text = document.getElementById('bulk-upload-text').value.trim();
-    const separatorType = document.getElementById('bulk-separator').value;
-    const clearExisting = document.getElementById('bulk-clear-existing').checked;
+    var text = document.getElementById('bulk-upload-text').value.trim();
+    var separatorType = document.getElementById('bulk-separator').value;
+    var clearExisting = document.getElementById('bulk-clear-existing').checked;
     
     if (!text) {
         alert('请输入要导入的数据');
         return;
     }
     
-    const separator = separatorType === 'tab' ? '\t' : ',';
-    const lines = text.split('\n').filter(line => line.trim());
+    var separator = separatorType === 'tab' ? '\t' : ',';
+    var lines = text.split('\n').filter(function(line) { return line.trim(); });
     
     if (lines.length === 0) {
         alert('没有检测到有效数据');
@@ -221,61 +242,58 @@ function processBulkUploadBU() {
     }
     
     if (clearExisting) {
-        currentData.buExitCriteria = [];
+        App.data.buExitCriteria = [];
     }
     
-    let successCount = 0;
-    let errorLines = [];
+    var successCount = 0;
+    var errorLines = [];
     
-    lines.forEach((line, index) => {
-        const parts = line.split(separator).map(p => p.trim());
+    lines.forEach(function(line, index) {
+        var parts = line.split(separator).map(function(p) { return p.trim(); });
         
         if (parts.length < 2) {
             errorLines.push(index + 1);
             return;
         }
         
-        const domainName = parts[0] || '';
-        const criteria = parts[1] || '';
+        var domainName = parts[0] || '';
+        var criteriaText = parts[1] || '';
         
-        if (!domainName || !criteria) {
+        if (!domainName || !criteriaText) {
             errorLines.push(index + 1);
             return;
         }
         
-        // Auto-find owner from domains table
-        let owner = '';
-        const matchedDomain = currentData.domains.find(d => 
-            d.name === domainName || 
-            d.name.includes(domainName) || 
-            domainName.includes(d.name)
-        );
+        var owner = '';
+        var matchedDomain = App.data.domains.find(function(d) {
+            return d.name === domainName || d.name.indexOf(domainName) !== -1 || domainName.indexOf(d.name) !== -1;
+        });
         if (matchedDomain) {
             owner = matchedDomain.owner || '';
         }
         
-        const newIndex = currentData.buExitCriteria.length + 1;
+        var newIndex = App.data.buExitCriteria.length + 1;
         
-        const newCriteria = {
+        var newCriteria = {
             id: 'criteria-' + Date.now() + '-' + index,
             index: newIndex,
             domain: domainName,
-            criteria: criteria,
+            criteria: criteriaText,
             owner: owner,
             status: 'not-ready'
         };
         
-        currentData.buExitCriteria.push(newCriteria);
+        App.data.buExitCriteria.push(newCriteria);
         successCount++;
     });
     
-    renderBUExitCriteria(currentData.buExitCriteria);
+    renderBUExitCriteria(App.data.buExitCriteria);
     persistData();
     closeBulkUploadBUModal();
     
-    let message = `成功导入 ${successCount} 条记录`;
+    var message = '成功导入 ' + successCount + ' 条记录';
     if (errorLines.length > 0) {
-        message += `\n第 ${errorLines.join(', ')} 行格式错误已跳过`;
+        message += '\n第 ' + errorLines.join(', ') + ' 行格式错误已跳过';
     }
     alert(message);
 }

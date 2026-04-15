@@ -1,18 +1,19 @@
+// Daily progress tracking
+
 function addDailyProgress() {
-    const date = document.getElementById('daily-date-input').value;
-    const domain = document.getElementById('daily-domain-select').value;
-    const content = document.getElementById('daily-content-input').value.trim();
+    var date = document.getElementById('daily-date-input').value;
+    var domain = document.getElementById('daily-domain-select').value;
+    var content = document.getElementById('daily-content-input').value.trim();
     
     if (!date || !domain || !content) {
         alert('请填写日期、Domain和工作内容');
         return;
     }
     
-    // Auto-get owner from domain
-    const domainEntry = currentData.domains.find(d => d.name === domain);
-    const owner = domainEntry ? domainEntry.owner : '';
+    var domainEntry = App.data.domains.find(function(d) { return d.name === domain; });
+    var owner = domainEntry ? domainEntry.owner : '';
     
-    const newProgress = {
+    var newProgress = {
         id: 'progress-' + Date.now(),
         date: date,
         domain: domain,
@@ -20,10 +21,9 @@ function addDailyProgress() {
         owner: owner
     };
     
-    currentData.dailyProgress.push(newProgress);
-    renderDailyProgress(currentData.dailyProgress);
+    App.data.dailyProgress.push(newProgress);
+    renderDailyProgress(App.data.dailyProgress);
     
-    // Clear inputs
     document.getElementById('daily-date-input').value = '';
     document.getElementById('daily-domain-select').value = '';
     document.getElementById('daily-content-input').value = '';
@@ -31,27 +31,24 @@ function addDailyProgress() {
     persistData();
 }
 
-// Delete daily progress entry
 function deleteDailyProgress(progressId) {
     if (confirm('确定要删除这个进度记录吗？')) {
-        currentData.dailyProgress = currentData.dailyProgress.filter(progress => progress.id !== progressId);
-        renderDailyProgress(currentData.dailyProgress);
+        App.data.dailyProgress = App.data.dailyProgress.filter(function(progress) { return progress.id !== progressId; });
+        renderDailyProgress(App.data.dailyProgress);
         persistData();
     }
 }
 
-// Apply filters to daily progress
 function applyFiltersToDailyProgress(progressList) {
-    return progressList.filter(progress => {
-        if (currentDailyProgressFilters.date && progress.date !== currentDailyProgressFilters.date) return false;
-        if (currentDailyProgressFilters.domain && progress.domain !== currentDailyProgressFilters.domain) return false;
+    return progressList.filter(function(progress) {
+        if (App.currentDailyProgressFilters.date && progress.date !== App.currentDailyProgressFilters.date) return false;
+        if (App.currentDailyProgressFilters.domain && progress.domain !== App.currentDailyProgressFilters.domain) return false;
         return true;
     });
 }
 
-// Group and sort daily progress for merged display
 function groupAndRenderDailyProgress(progressList) {
-    const container = document.getElementById('daily-progress-list');
+    var container = document.getElementById('daily-progress-list');
     container.innerHTML = '';
     
     if (progressList.length === 0) {
@@ -59,14 +56,13 @@ function groupAndRenderDailyProgress(progressList) {
         return;
     }
     
-    const filteredProgress = applyFiltersToDailyProgress(progressList);
+    var filteredProgress = applyFiltersToDailyProgress(progressList);
     
-    // Group by date and domain
-    const grouped = {};
-    filteredProgress.forEach(progress => {
-        const key = `${progress.date}|${progress.domain}`;
+    var grouped = {};
+    filteredProgress.forEach(function(progress) {
+        var key = progress.date + '|' + progress.domain;
         if (!grouped[key]) {
-            const domainEntry = currentData.domains.find(d => d.name === progress.domain);
+            var domainEntry = App.data.domains.find(function(d) { return d.name === progress.domain; });
             grouped[key] = {
                 date: progress.date,
                 domain: progress.domain,
@@ -77,49 +73,64 @@ function groupAndRenderDailyProgress(progressList) {
         grouped[key].contents.push({ id: progress.id, content: progress.content });
     });
     
-    // Sort by date (newest first)
-    const groupedArray = Object.values(grouped).sort((a, b) => new Date(b.date) - new Date(a.date));
+    var groupedArray = Object.values(grouped).sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
     
-    // Render grouped progress
-    groupedArray.forEach(group => {
-        const groupDiv = document.createElement('div');
+    groupedArray.forEach(function(group) {
+        var groupDiv = document.createElement('div');
         groupDiv.className = 'daily-progress-item';
         
-        let contentsHtml = '';
-        group.contents.forEach(item => {
-            contentsHtml += `
-                <div class="daily-content-display">
-                    ${escapeHtml(item.content)}
-                    <button class="edit-btn user-only ${userVisibleClass()}" onclick="editDailyProgress('${item.id}')">编辑</button>
-                    <button class="delete-btn user-only ${userVisibleClass()}" onclick="deleteDailyProgress('${item.id}')">删除</button>
-                </div>
-            `;
+        var infoDiv = document.createElement('div');
+        infoDiv.className = 'daily-progress-info';
+        
+        var dateDiv = document.createElement('div');
+        dateDiv.className = 'daily-date-display';
+        dateDiv.textContent = group.date;
+        infoDiv.appendChild(dateDiv);
+        
+        var domainDiv = document.createElement('div');
+        domainDiv.className = 'daily-domain-display';
+        domainDiv.textContent = group.domain;
+        infoDiv.appendChild(domainDiv);
+        
+        var ownerDiv = document.createElement('div');
+        ownerDiv.className = 'daily-owner-display';
+        ownerDiv.textContent = '\u{1F464} ' + (group.owner || '-');
+        infoDiv.appendChild(ownerDiv);
+        
+        group.contents.forEach(function(item) {
+            var contentDiv = document.createElement('div');
+            contentDiv.className = 'daily-content-display';
+            contentDiv.textContent = item.content;
+            
+            var editBtn = document.createElement('button');
+            editBtn.className = 'edit-btn user-only ' + userVisibleClass();
+            editBtn.textContent = '编辑';
+            editBtn.addEventListener('click', function() { editDailyProgress(item.id); });
+            contentDiv.appendChild(editBtn);
+            
+            var delBtn = document.createElement('button');
+            delBtn.className = 'delete-btn user-only ' + userVisibleClass();
+            delBtn.textContent = '删除';
+            delBtn.addEventListener('click', function() { deleteDailyProgress(item.id); });
+            contentDiv.appendChild(delBtn);
+            
+            infoDiv.appendChild(contentDiv);
         });
         
-        groupDiv.innerHTML = `
-            <div class="daily-progress-info">
-                <div class="daily-date-display">${escapeHtml(group.date)}</div>
-                <div class="daily-domain-display">${escapeHtml(group.domain)}</div>
-                <div class="daily-owner-display">👤 ${escapeHtml(group.owner || '-')}</div>
-                ${contentsHtml}
-            </div>
-        `;
-        
+        groupDiv.appendChild(infoDiv);
         container.appendChild(groupDiv);
     });
 }
 
-// Render daily progress list (using merged grouping)
 function renderDailyProgress(progressList) {
     groupAndRenderDailyProgress(progressList);
 }
 
-// Open edit daily progress modal
 function editDailyProgress(progressId) {
-    const progress = currentData.dailyProgress.find(p => p.id === progressId);
+    var progress = App.data.dailyProgress.find(function(p) { return p.id === progressId; });
     if (!progress) return;
     
-    currentEditDailyProgressId = progressId;
+    App.currentEditDailyProgressId = progressId;
     document.getElementById('edit-daily-date').value = progress.date;
     document.getElementById('edit-daily-domain').value = progress.domain;
     document.getElementById('edit-daily-content').value = progress.content;
@@ -127,53 +138,47 @@ function editDailyProgress(progressId) {
     openModal('edit-daily-progress-modal');
 }
 
-// Close edit daily progress modal
 function closeEditDailyProgressModal() {
     closeModal('edit-daily-progress-modal');
-    currentEditDailyProgressId = null;
+    App.currentEditDailyProgressId = null;
 }
 
-// Save edited daily progress (auto-update owner from domain)
 function saveEditedDailyProgress() {
-    if (!currentEditDailyProgressId) return;
+    if (!App.currentEditDailyProgressId) return;
     
-    const progress = currentData.dailyProgress.find(p => p.id === currentEditDailyProgressId);
+    var progress = App.data.dailyProgress.find(function(p) { return p.id === App.currentEditDailyProgressId; });
     if (!progress) return;
     
-    const newDomain = document.getElementById('edit-daily-domain').value;
+    var newDomain = document.getElementById('edit-daily-domain').value;
     progress.date = document.getElementById('edit-daily-date').value;
     progress.domain = newDomain;
     progress.content = document.getElementById('edit-daily-content').value.trim();
     
-    // Auto-update owner from domain
-    const domainEntry = currentData.domains.find(d => d.name === newDomain);
+    var domainEntry = App.data.domains.find(function(d) { return d.name === newDomain; });
     progress.owner = domainEntry ? domainEntry.owner : '';
     
-    saveAndRefresh('edit-daily-progress-modal', renderDailyProgress, 'dailyProgress', () => { currentEditDailyProgressId = null; });
+    saveAndRefresh('edit-daily-progress-modal', renderDailyProgress, 'dailyProgress', function() { App.currentEditDailyProgressId = null; });
 }
 
-// Delete daily progress from modal
 function deleteDailyProgressFromModal() {
     if (confirm('确定要删除这个进度记录吗？')) {
-        deleteDailyProgress(currentEditDailyProgressId);
+        deleteDailyProgress(App.currentEditDailyProgressId);
         closeEditDailyProgressModal();
     }
 }
 
-// Apply daily progress filters from UI
 function applyDailyProgressFilters() {
-    currentDailyProgressFilters = {
+    App.currentDailyProgressFilters = {
         date: document.getElementById('filter-daily-date').value,
         domain: document.getElementById('filter-daily-domain').value
     };
-    renderDailyProgress(currentData.dailyProgress);
+    renderDailyProgress(App.data.dailyProgress);
 }
 
-// Reset daily progress filters
 function resetDailyProgressFilters() {
     document.getElementById('filter-daily-date').value = '';
     document.getElementById('filter-daily-domain').value = '';
     
-    currentDailyProgressFilters = {};
-    renderDailyProgress(currentData.dailyProgress);
+    App.currentDailyProgressFilters = {};
+    renderDailyProgress(App.data.dailyProgress);
 }

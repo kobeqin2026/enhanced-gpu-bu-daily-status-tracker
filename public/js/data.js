@@ -1,29 +1,24 @@
 // Storage keys
-const PROJECTS_STORAGE_KEY = 'buTracker_projects';
-const PROJECT_DATA_PREFIX = 'buTracker_data_';
+var PROJECTS_STORAGE_KEY = 'buTracker_projects';
+var PROJECT_DATA_PREFIX = 'buTracker_data_';
 
-// ====== 混合数据管理模式 ======
-// 策略：
-// 1. 优先从API加载数据
-// 2. API失败时，从项目特定的localStorage加载
-// 3. 保存时同时写localStorage（立即）和API（异步）
+// ====== Hybrid data management ======
+// Strategy:
+// 1. Primary: load from API
+// 2. Fallback: load from project-specific localStorage
+// 3. Save: write localStorage immediately + API async
 
-// 保存到localStorage（项目隔离）
 function saveToLocalStorage(data, projectId) {
-    const key = PROJECT_DATA_PREFIX + (projectId || currentProject);
+    var key = PROJECT_DATA_PREFIX + (projectId || App.currentProject);
     try {
-        // 保存项目特定数据
         localStorage.setItem(key, JSON.stringify(data));
-        console.log(`Data saved to localStorage [${key}]`);
-        
-        // 同时保存备份（最后一个项目）
+        console.log('Data saved to localStorage [' + key + ']');
         localStorage.setItem('buTrackerData', JSON.stringify(data));
     } catch (e) {
         console.error('Failed to save to localStorage:', e);
     }
 }
 
-// 保存项目列表到localStorage
 function saveProjectsToLocalStorage(projects) {
     try {
         localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
@@ -33,33 +28,26 @@ function saveProjectsToLocalStorage(projects) {
     }
 }
 
-// 从localStorage加载项目列表
 function loadProjectsFromLocalStorage() {
     try {
-        const saved = localStorage.getItem(PROJECTS_STORAGE_KEY);
-        if (saved) {
-            return JSON.parse(saved);
-        }
+        var saved = localStorage.getItem(PROJECTS_STORAGE_KEY);
+        if (saved) return JSON.parse(saved);
     } catch (e) {
         console.error('Failed to load projects from localStorage:', e);
     }
     return null;
 }
 
-// Load from localStorage (项目隔离 fallback)
 function loadFromLocalStorage(projectId) {
-    const key = PROJECT_DATA_PREFIX + (projectId || currentProject);
+    var key = PROJECT_DATA_PREFIX + (projectId || App.currentProject);
     try {
-        let savedData = localStorage.getItem(key);
-        
-        // 如果没有项目特定的数据，尝试加载备份
+        var savedData = localStorage.getItem(key);
         if (!savedData) {
             savedData = localStorage.getItem('buTrackerData');
         }
-        
         if (savedData) {
-            const data = JSON.parse(savedData);
-            console.log(`Data loaded from localStorage [${key}]`);
+            var data = JSON.parse(savedData);
+            console.log('Data loaded from localStorage [' + key + ']');
             return data;
         }
     } catch (e) {
@@ -68,53 +56,37 @@ function loadFromLocalStorage(projectId) {
     return null;
 }
 
-// 获取同步状态文字描述
-function getSyncModeText(source) {
-    const modes = {
-        'api': '从服务器加载',
-        'localStorage': '从本地缓存加载',
-        'default': '使用默认数据',
-        'saved': '已保存到本地缓存'
-    };
-    return modes[source] || modes['default'];
-}
-
-// API call with error handling (使用httpOnly cookie认证 + 401自动处理)
-async function apiCall(url, options = {}) {
-    const headers = {
-        'Content-Type': 'application/json',
-    };
+// API call with error handling (httpOnly cookie auth + 401 auto-handling)
+async function apiCall(url, options) {
+    options = options || {};
+    var headers = { 'Content-Type': 'application/json' };
     
-    // 合并headers：保留options中自定义的headers
     if (options.headers) {
         Object.assign(headers, options.headers);
         delete options.headers;
     }
     
-    const defaultOptions = {
-        ...options,
+    var defaultOptions = Object.assign({}, options, {
         headers: headers,
-        credentials: 'same-origin',  // 自动发送httpOnly cookie
-    };
+        credentials: 'same-origin'
+    });
     
     try {
-        const response = await fetch(url, defaultOptions);
+        var response = await fetch(url, defaultOptions);
         
-        // 401 未授权：token过期或无效，自动处理
         if (response.status === 401) {
             handleTokenExpired();
-            const result = await response.json().catch(() => ({ success: false, message: '登录已过期' }));
+            var result = await response.json().catch(function() { return { success: false, message: '登录已过期' }; });
             throw new Error(result.message || '登录已过期，请重新登录');
         }
         
-        // 403 禁止访问
         if (response.status === 403) {
-            const result = await response.json().catch(() => ({ success: false, message: '无权限访问' }));
-            throw new Error(result.message || '无权限执行此操作');
+            var result403 = await response.json().catch(function() { return { success: false, message: '无权限访问' }; });
+            throw new Error(result403.message || '无权限执行此操作');
         }
         
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
         }
         return await response.json();
     } catch (error) {
@@ -123,49 +95,43 @@ async function apiCall(url, options = {}) {
     }
 }
 
-// Token过期处理：清除状态，提示重新登录
+// Token expired handler
 function handleTokenExpired() {
-    currentUser = null;
-    userRole = null;
-    authToken = null;
+    App.currentUser = null;
+    App.userRole = null;
+    App.authToken = null;
     localStorage.removeItem('currentUser');
     localStorage.removeItem('userRole');
     updateUIBasedOnRole();
     showSyncStatus('登录已过期，请重新登录', 'error');
-    // 自动弹出登录框
     showLoginModal();
 }
 
-// Load data from API (primary source) with localStorage fallback
+// Load data from API with localStorage fallback
 async function loadDataFromAPI() {
-    const projectKey = currentProject;
+    var projectKey = App.currentProject;
     
     try {
         showSyncStatus('正在从服务器加载最新数据...', 'info');
-        const data = await apiCall(`/api/data?project=${currentProject}`);
+        var data = await apiCall('/api/data?project=' + App.currentProject);
         
-        // Update global data
-        currentData.domains = data.domains || currentData.domains;
-        currentData.bugs = data.bugs || currentData.bugs;
-        currentData.dailyProgress = data.dailyProgress || currentData.dailyProgress;
-        currentData.buExitCriteria = data.buExitCriteria || currentData.buExitCriteria;
-        currentData.lastUpdated = data.lastUpdated || currentData.lastUpdated;
+        App.data.domains = data.domains || App.data.domains;
+        App.data.bugs = data.bugs || App.data.bugs;
+        App.data.dailyProgress = data.dailyProgress || App.data.dailyProgress;
+        App.data.buExitCriteria = data.buExitCriteria || App.data.buExitCriteria;
+        App.data.lastUpdated = data.lastUpdated || App.data.lastUpdated;
         
-        // Save to localStorage as backup (project-specific)
-        saveToLocalStorage(currentData, projectKey);
+        saveToLocalStorage(App.data, projectKey);
         
-        // Update UI
         if (data.lastUpdated) {
             document.getElementById('last-update').textContent = data.lastUpdated.split(' ')[0];
             document.getElementById('timestamp').textContent = data.lastUpdated;
         }
         
-        renderDomains(currentData.domains);
-        renderBugs(currentData.bugs);
-        renderDailyProgress(currentData.dailyProgress);
-        renderBUExitCriteria(currentData.buExitCriteria);
-        
-        // Update UI based on role after rendering data
+        renderDomains(App.data.domains);
+        renderBugs(App.data.bugs);
+        renderDailyProgress(App.data.dailyProgress);
+        renderBUExitCriteria(App.data.buExitCriteria);
         updateUIBasedOnRole();
         
         showSyncStatus('✓ 数据已从服务器同步', 'success');
@@ -173,16 +139,13 @@ async function loadDataFromAPI() {
     } catch (error) {
         console.error('Failed to load data from API:', error);
         
-        // Fallback: 尝试从项目特定的localStorage加载
-        const localData = loadFromLocalStorage(projectKey);
+        var localData = loadFromLocalStorage(projectKey);
         if (localData) {
-            currentData = localData;
-            renderDomains(currentData.domains);
-            renderBugs(currentData.bugs);
-            renderDailyProgress(currentData.dailyProgress);
-            renderBUExitCriteria(currentData.buExitCriteria);
-            
-            // Update UI based on role after rendering data
+            App.data = localData;
+            renderDomains(App.data.domains);
+            renderBugs(App.data.bugs);
+            renderDailyProgress(App.data.dailyProgress);
+            renderBUExitCriteria(App.data.buExitCriteria);
             updateUIBasedOnRole();
             
             if (localData.lastUpdated) {
@@ -199,13 +162,13 @@ async function loadDataFromAPI() {
     }
 }
 
-// Save data to API (primary storage)
+// Save data to API
 async function saveDataToAPI() {
     try {
         showSyncStatus('正在保存数据到服务器...', 'info');
-        const response = await apiCall(`/api/data?project=${currentProject}`, {
+        var response = await apiCall('/api/data?project=' + App.currentProject, {
             method: 'POST',
-            body: JSON.stringify({ ...currentData, projectId: currentProject })
+            body: JSON.stringify(Object.assign({}, App.data, { projectId: App.currentProject }))
         });
         
         if (response.success) {
@@ -221,30 +184,27 @@ async function saveDataToAPI() {
     }
 }
 
-// Load projects list from API (primary) with localStorage fallback
+// Load projects list from API with localStorage fallback
 async function loadProjects() {
     try {
-        const projects = await apiCall('/api/projects');
-        projectsList = projects;
-        // 保存项目列表到localStorage作为备份
+        var projects = await apiCall('/api/projects');
+        App.projectsList = projects;
         saveProjectsToLocalStorage(projects);
         renderProjectSelect();
         return projects;
     } catch (error) {
         console.error('Failed to load projects from API:', error);
         
-        // 尝试从localStorage加载
-        const localProjects = loadProjectsFromLocalStorage();
+        var localProjects = loadProjectsFromLocalStorage();
         if (localProjects) {
-            projectsList = localProjects;
+            App.projectsList = localProjects;
             showSyncStatus('⚠ 服务器不可用，使用本地项目列表', 'warning');
         } else {
-            // 默认项目
-            projectsList = [
+            App.projectsList = [
                 { id: 'gpu-bringup', name: 'GPU Bring Up', description: '国产GPU芯片bring up每日追踪', createdAt: new Date().toISOString() }
             ];
         }
         renderProjectSelect();
-        return projectsList;
+        return App.projectsList;
     }
 }
