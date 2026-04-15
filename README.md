@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v2.4-green)
+![Version](https://img.shields.io/badge/version-v2.5-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -155,6 +155,50 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/logs/:date` - 查看操作日志
 
 ## 版本历史
+
+### v2.5 (2026-04-15)
+**独立项目URL路由：每个项目拥有专属网址**
+
+本次版本实现了项目独立URL路由，每个项目可以通过专属URL直接访问，不再依赖项目切换器。
+
+#### URL路由方案
+
+| URL | 行为 |
+|---|---|
+| `http://host:8088/` | 项目列表页，显示所有项目 + 切换器（管理员可创建/删除项目） |
+| `http://host:8088/gpu-bringup/` | 直接进入 GPU Bring Up 项目，隐藏切换器 |
+| `http://host:8088/project-2/` | 直接进入项目二，隐藏切换器 |
+
+#### 核心特性
+- **直接URL访问**: 每个项目可通过 `/:projectId/` 直接访问，无需先登录再切换
+- **独立视图**: 直接项目URL上隐藏项目切换器，专注单个项目内容
+- **页面标题自动更新**: 页面标题自动包含当前项目名称（如 "GPU Bring Up - GPU Bring Up Tracker"）
+- **返回项目列表**: 直接项目URL页面顶部显示 "← 返回项目列表" 链接
+- **浏览器前进/后退**: 完整的 history.pushState 支持
+- **向后兼容**: 保留 `/project/:id` 旧URL格式兼容
+
+#### 技术实现
+
+**Nginx SPA路由**
+- `try_files $uri $uri/ =404` 改为 `try_files $uri $uri/ /index.html`
+- 任何不存在的路径都回退到 index.html，由前端JS路由处理
+- 静态资源（/css/, /js/）仍正常返回，不受影响
+
+**前端路由改造** (`public/js/app.js`)
+- `getProjectIdFromURL()`: 新增直接路径解析（`/gpu-bringup/`），保留 `/project/:id` 兼容
+- `updateProjectURL()`: URL格式从 `/project/:id` 改为 `/:id/`
+- 新增 `setProjectSwitcherVisibility()`: 控制项目切换器和返回链接的显示/隐藏
+- `initProjects()`: 根据URL模式自动切换显示模式（列表页 vs 项目页）
+- `switchProjectById()`: 切换时同步更新标题和切换器可见性
+- 内置保留路径白名单（api, js, css, images, fonts），避免与静态资源冲突
+
+**HTML改造** (`public/index.html`)
+- 新增 "返回项目列表" 链接元素，默认隐藏，仅在直接项目URL上显示
+
+**Bug修复** (`public/js/projects.js`)
+- `switchProject()`、`createNewProject()`、`confirmDeleteProject()` 中补充缺失的 `updateProjectURL()` 调用，确保URL同步
+
+---
 
 ### v2.4 (2026-04-15)
 **CSV批量导入：Domain + BU准出标准**
@@ -408,7 +452,8 @@ server {
     index index.html;
     
     location / {
-        try_files $uri $uri/ =404;
+        # SPA routing: serve index.html for unknown paths
+        try_files $uri $uri/ /index.html;
     }
     
     location /api/ {
@@ -453,4 +498,4 @@ MIT License
 ---
 
 **最后更新**: 2026年4月15日  
-**版本**: 2.4
+**版本**: 2.5

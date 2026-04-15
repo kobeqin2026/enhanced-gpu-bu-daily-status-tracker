@@ -1,19 +1,132 @@
-// ==================== Init & Main ====================
+// ==================== URL Routing & Init ====================
+
+// Reserved paths that are NOT project IDs
+var RESERVED_PATHS = ['api', 'js', 'css', 'images', 'fonts', 'favicon.ico'];
+
+// Parse projectId from URL path
+// Supports: /gpu-bringup/, /project-2/, /project/:id (legacy)
+// Falls back to '' for root URL
+function getProjectIdFromURL() {
+    var pathname = window.location.pathname;
+
+    // Match direct project path: /gpu-bringup/ or /gpu-bringup
+    var directMatch = pathname.match(/^\/([^\/\?]+)\/?$/);
+    if (directMatch && RESERVED_PATHS.indexOf(directMatch[1]) === -1) {
+        return decodeURIComponent(directMatch[1]);
+    }
+
+    // Legacy: Match /project/xxx or /project/xxx/
+    var legacyMatch = pathname.match(/^\/project\/([^\/]+)\/?$/);
+    if (legacyMatch) {
+        return decodeURIComponent(legacyMatch[1]);
+    }
+
+    return '';
+}
+
+// Update browser URL to direct project path without page reload
+function updateProjectURL(projectId) {
+    var newPath = projectId ? '/' + encodeURIComponent(projectId) + '/' : '/';
+    if (window.location.pathname !== newPath) {
+        history.pushState({ projectId: projectId }, '', newPath);
+    }
+}
+
+// Show/hide project switcher based on URL mode
+function setProjectSwitcherVisibility(show) {
+    var switcher = document.querySelector('.project-switcher');
+    if (switcher) {
+        switcher.style.display = show ? '' : 'none';
+    }
+    var backLink = document.getElementById('back-to-list-link');
+    if (backLink) {
+        backLink.style.display = show ? 'none' : 'inline-block';
+    }
+}
+
+// Handle browser back/forward navigation
+window.addEventListener('popstate', function(event) {
+    var projectId = getProjectIdFromURL();
+    if (projectId && projectId !== App.currentProject) {
+        switchProjectById(projectId);
+    }
+});
 
 async function initProjects() {
-    var savedProject = localStorage.getItem('currentProject');
-    if (savedProject) {
-        App.currentProject = savedProject;
+    var urlProjectId = getProjectIdFromURL();
+    var isDirectProjectURL = !!urlProjectId;
+
+    // Priority 1: URL path
+    if (urlProjectId) {
+        App.currentProject = urlProjectId;
     }
-    
+    // Priority 2: localStorage
+    else {
+        var savedProject = localStorage.getItem('currentProject');
+        if (savedProject) {
+            App.currentProject = savedProject;
+        }
+    }
+
     await loadProjects();
-    
+
+    // If the URL project is not in the list, fall back to first project
+    var foundProject = App.projectsList.find(function(p) { return p.id === App.currentProject; });
+    if (!foundProject && App.projectsList.length > 0) {
+        App.currentProject = App.projectsList[0].id;
+    }
+
     var select = document.getElementById('project-select');
     if (select) {
         select.value = App.currentProject;
     }
-    
+
+    // Sync URL to current project
+    updateProjectURL(App.currentProject);
+
+    // On direct project URL: hide switcher, update title
+    // On root URL: show switcher for browsing all projects
+    if (isDirectProjectURL) {
+        setProjectSwitcherVisibility(false);
+        var proj = App.projectsList.find(function(p) { return p.id === App.currentProject; });
+        var projName = proj ? proj.name : App.currentProject;
+        document.title = projName + ' - GPU Bring Up Tracker';
+        var h1 = document.querySelector('h1');
+        if (h1) h1.textContent = projName;
+    } else {
+        setProjectSwitcherVisibility(true);
+    }
+
     updateProjectTimeline();
+}
+
+// Switch to a project by ID (called from popstate or manually)
+async function switchProjectById(projectId) {
+    if (!projectId || projectId === App.currentProject) return;
+
+    await saveDataToAPI();
+
+    App.currentProject = projectId;
+    localStorage.setItem('currentProject', projectId);
+    updateProjectURL(projectId);
+
+    await loadDataFromAPI();
+
+    var select = document.getElementById('project-select');
+    if (select) select.value = projectId;
+
+    renderProjectSelect();
+    updateProjectTimeline();
+
+    var proj = App.projectsList.find(function(p) { return p.id === projectId; });
+    var projName = proj ? proj.name : projectId;
+    showSyncStatus('已切换到项目: ' + projName, 'success');
+
+    // Update title and switcher visibility
+    setProjectSwitcherVisibility(false);
+    document.title = projName + ' - GPU Bring Up Tracker';
+    var h1 = document.querySelector('h1');
+    if (h1) h1.textContent = projName;
 }
 
 function populateDomainDropdowns() {

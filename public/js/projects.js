@@ -29,6 +29,7 @@ async function switchProject() {
         
         App.currentProject = newProject;
         localStorage.setItem('currentProject', App.currentProject);
+        updateProjectURL(App.currentProject);
         
         await loadDataFromAPI();
         renderProjectSelect();
@@ -84,6 +85,7 @@ async function createNewProject() {
             await loadProjects();
             App.currentProject = response.project.id;
             localStorage.setItem('currentProject', App.currentProject);
+            updateProjectURL(App.currentProject);
             await loadDataFromAPI();
             renderProjectSelect();
             closeAddProjectModal();
@@ -188,10 +190,12 @@ async function confirmDeleteProject() {
             if (App.projectsList.length > 0) {
                 App.currentProject = App.projectsList[0].id;
                 localStorage.setItem('currentProject', App.currentProject);
+                updateProjectURL(App.currentProject);
                 await loadDataFromAPI();
             } else {
                 App.currentProject = 'gpu-bringup';
                 localStorage.setItem('currentProject', App.currentProject);
+                updateProjectURL(App.currentProject);
                 App.data = App.getDefaultData();
                 App.renderAll();
             }
