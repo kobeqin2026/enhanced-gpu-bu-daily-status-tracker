@@ -142,10 +142,16 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('daily-date-input').value = today;
     
     window.onclick = function(event) {
-        var modals = ['edit-domain-modal', 'edit-bug-modal', 'edit-daily-progress-modal', 'edit-bu-exit-criteria-modal', 'bulk-upload-bu-modal'];
+        var modals = [
+            'edit-domain-modal', 'edit-bug-modal', 'edit-daily-progress-modal',
+            'edit-bu-exit-criteria-modal', 'domain-import-modal', 'bu-import-modal'
+        ];
         modals.forEach(function(id) {
             if (event.target === document.getElementById(id)) {
-                var closeFn = 'close' + id.replace('edit-', 'Edit').replace('bulk-upload-bu', 'BulkUploadBU').replace('-modal', 'Modal');
+                var closeFn;
+                if (id === 'domain-import-modal') closeFn = 'closeDomainImportModal';
+                else if (id === 'bu-import-modal') closeFn = 'closeBUImportModal';
+                else closeFn = 'close' + id.replace('edit-', 'Edit').replace('-modal', 'Modal');
                 if (typeof window[closeFn] === 'function') window[closeFn]();
             }
         });

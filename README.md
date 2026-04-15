@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v2.3-green)
+![Version](https://img.shields.io/badge/version-v2.4-green)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -85,6 +85,7 @@ enhanced-gpu-bu-daily-status-tracker/
 │   │   ├── bugs.js             # Bug跟踪模块 (217行)
 │   │   ├── daily-progress.js   # 每日进度模块 (184行)
 │   │   ├── bu-exit-criteria.js # BU准出标准模块 (299行)
+│   │   ├── import.js           # CSV批量导入模块 (390行)
 │   │   └── app.js              # 主入口/初始化 (161行)
 │   └── css/                    # CSS模块
 │       ├── base.css            # 基础布局与排版
@@ -154,6 +155,68 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/logs/:date` - 查看操作日志
 
 ## 版本历史
+
+### v2.4 (2026-04-15)
+**CSV批量导入：Domain + BU准出标准**
+
+本次版本新增CSV文件批量导入功能，支持Domain和BU准出标准两个模块的快速数据录入。
+
+#### Domain CSV批量导入
+
+- **入口**: Domain添加区域新增"CSV批量导入"按钮
+- **CSV模板**: 两列 — `Domain名称`, `负责人`
+  ```
+  Domain名称,负责人
+  硅验证 (Silicon Validation),张三
+  电源管理 (Power Management),李四
+  内存子系统 (Memory Subsystem),王五
+  ```
+- **功能**:
+  - 下载CSV模板（UTF-8 BOM编码，Excel直接打开不乱码）
+  - 支持UTF-8、GBK、GB2312三种编码（适配Windows Excel导出的CSV）
+  - 文件选择后自动预览前10条数据
+  - 自动检测首行是否为表头
+  - 可选"清除现有Domain数据"
+  - 自动去重（基于Domain名称）
+  - 导入结果显示成功/跳过统计
+
+#### BU准出标准CSV批量导入
+
+- **入口**: BU准出标准区域"批量上传"按钮升级为"CSV批量导入"
+- **CSV模板**: 两列 — `Domain`, `准出标准内容`
+  ```
+  Domain,准出标准内容
+  硅验证 (Silicon Validation),所有基本功能测试通过，无critical bug
+  电源管理 (Power Management),功耗测试符合规格要求，温度控制正常
+  PCIe接口 (PCIe Interface),PCIe链路稳定性测试通过，带宽达标
+  ```
+- **功能**:
+  - 下载CSV模板
+  - 支持UTF-8、GBK、GB2312编码
+  - 文件选择后自动预览
+  - 自动匹配Domain表格中的Owner
+  - 自动重新编号Index
+  - 可选"清除现有准出标准数据"
+
+#### 技术实现
+
+- 新增 `import.js` 模块（~400行），纯前端CSV解析
+- 内置CSV解析器：支持引号字段、转义引号、BOM检测、不同行结束符
+- 使用浏览器 `TextDecoder` API 处理 GBK/GB2312 编码
+- 保留旧版 `processBulkUploadBU` 函数名向后兼容
+- 数据通过现有 `persistData()` 流程保存（localStorage + API）
+
+| 特性 | 旧版（粘贴文本） | 新版（CSV文件） |
+|---|---|---|
+| 数据来源 | 手动粘贴 | 上传CSV文件 |
+| 分隔符 | 需手动选择Tab/逗号 | CSV标准解析（自动处理引号/转义） |
+| 编码支持 | UTF-8 only | UTF-8 + GBK + GB2312 |
+| 预览 | 无 | 导入前预览前10条 |
+| 模板 | 无 | 一键下载CSV模板 |
+| 去重 | 无 | 自动检测重复Domain |
+| Owner关联 | 手动 | BU准出自动匹配Domain表格Owner |
+
+---
 
 ### v2.3 (2026-04-15)
 **三大重构：后端模块化 + 前端全局变量封装 + XSS全面防护**
@@ -390,4 +453,4 @@ MIT License
 ---
 
 **最后更新**: 2026年4月15日  
-**版本**: 2.3
+**版本**: 2.4
