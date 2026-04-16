@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v2.53-blue)
+![Version](https://img.shields.io/badge/version-v2.55-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -155,6 +155,16 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/logs/:date` - 查看操作日志
 
 ## 版本历史
+
+### v2.55 (2026-04-16)
+**Bug批量导入增强：支持按Bug ID自动更新**
+
+- **自动去重**：导入时自动检测已存在的Bug ID
+- **智能更新**：已存在的Bug将自动更新所有字段（描述、状态、负责人等），不再创建重复记录
+- **导入统计**：完成后显示"新增X条，更新Y条"的详细统计
+- **字段顺序调整**：报告日期移至状态字段之后
+
+---
 
 ### v2.53 (2026-04-16)
 **Bug批量导入：CSV格式批量上传Bug**
