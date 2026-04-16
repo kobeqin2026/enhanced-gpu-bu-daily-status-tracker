@@ -474,6 +474,174 @@ async function importBUFromCSV() {
     alert(message);
 }
 
+// ============ Bug Import ============
+
+function downloadBugTemplate() {
+    var csv = '\uFEFF' + 'Bug ID,Domain,描述,严重性,状态,负责人\n';
+    csv += 'MPW2-77,PCIe接口 (PCIe Interface),PCIe链路训练失败，卡在Gen1,High,open,Ge Qiang\n';
+    csv += 'MPW2-78,HBM,HBM初始化报错ECC failure,Highest,open,Xiaoming\n';
+    csv += 'MPW2-79,FW,Bootrom启动超时,Medium,open,Haiping\n';
+    downloadCSV(csv, 'bug_import_template.csv');
+}
+
+function showBugImportModal() {
+    document.getElementById('bug-import-file').value = '';
+    document.getElementById('bug-import-clear').checked = false;
+    document.getElementById('bug-import-encoding').value = 'UTF-8';
+    document.getElementById('bug-import-preview').style.display = 'none';
+    document.getElementById('bug-import-preview').innerHTML = '';
+    openModal('bug-import-modal');
+}
+
+function closeBugImportModal() {
+    closeModal('bug-import-modal');
+    document.getElementById('bug-import-file').value = '';
+    document.getElementById('bug-import-preview').style.display = 'none';
+}
+
+async function previewBugFile() {
+    var fileInput = document.getElementById('bug-import-file');
+    var file = fileInput.files[0];
+    if (!file) return;
+
+    try {
+        var encoding = document.getElementById('bug-import-encoding').value;
+        var text = await readFileAsText(file, encoding);
+        var rows = parseCSV(text);
+
+        if (rows.length === 0) {
+            alert('CSV文件为空');
+            return;
+        }
+
+        // Check if first row is header
+        var dataRows = rows;
+        var hasHeader = false;
+        var firstRow = rows[0];
+        if (firstRow.length > 0) {
+            var firstCell = firstRow[0].toLowerCase();
+            if (firstCell.indexOf('bug') !== -1 || firstCell.indexOf('id') !== -1 || firstCell.indexOf('bug id') !== -1) {
+                hasHeader = true;
+                dataRows = rows.slice(1);
+            }
+        }
+
+        // Validate: each row needs at least Bug ID + Domain + Description
+        var validRows = [];
+        var errors = [];
+        dataRows.forEach(function(row, idx) {
+            var rowNum = hasHeader ? idx + 2 : idx + 1;
+            if (row.length >= 3 && row[0] && row[1] && row[2]) {
+                validRows.push(row);
+            } else {
+                errors.push('第 ' + rowNum + ' 行缺少Bug ID/Domain/描述');
+            }
+        });
+
+        if (validRows.length === 0) {
+            alert('没有有效的数据行\n' + errors.join('\n'));
+            return;
+        }
+
+        // Show preview
+        showPreview('bug-import-preview', validRows, ['Bug ID', 'Domain', '描述', '严重性', '状态', '负责人']);
+
+        window._bugImportData = validRows;
+
+        if (errors.length > 0) {
+            showSyncStatus('检测到 ' + validRows.length + ' 条有效数据，' + errors.length + ' 条跳过', 'warning');
+        } else {
+            showSyncStatus('检测到 ' + validRows.length + ' 条有效数据', 'success');
+        }
+    } catch (error) {
+        alert('读取文件失败: ' + error.message);
+    }
+}
+
+async function importBugsFromCSV() {
+    var data = window._bugImportData;
+    if (!data || data.length === 0) {
+        alert('请先选择CSV文件并预览');
+        return;
+    }
+
+    var clearExisting = document.getElementById('bug-import-clear').checked;
+
+    if (clearExisting && App.data.bugs.length > 0) {
+        if (!confirm('确定要清除现有的 ' + App.data.bugs.length + ' 条Bug数据吗？')) {
+            return;
+        }
+    }
+
+    var added = 0;
+    var skipped = 0;
+
+    if (clearExisting) {
+        App.data.bugs = [];
+    }
+
+    var validSeverities = ['highest', 'high', 'medium', 'low', 'lowest'];
+    var validStatuses = ['open', 'triage', 'implement', 'closed', 'rejected'];
+    var today = new Date().toISOString().split('T')[0];
+
+    data.forEach(function(row, idx) {
+        var bugId = (row[0] || '').trim();
+        var domain = (row[1] || '').trim();
+        var description = (row[2] || '').trim();
+        var severity = (row[3] || '').trim().toLowerCase();
+        var status = (row[4] || '').trim().toLowerCase();
+        var owner = (row[5] || '').trim();
+
+        if (!bugId || !domain || !description) {
+            skipped++;
+            return;
+        }
+
+        // Validate severity
+        if (!validSeverities.includes(severity)) {
+            severity = 'medium';
+        }
+
+        // Validate status
+        if (!validStatuses.includes(status)) {
+            status = 'open';
+        }
+
+        // Default owner
+        if (!owner) {
+            // Try to find owner from domains table
+            var matchedDomain = App.data.domains.find(function(d) {
+                return d.name === domain || d.name.indexOf(domain) !== -1 || domain.indexOf(d.name) !== -1;
+            });
+            owner = matchedDomain ? (matchedDomain.owner || 'TBD') : 'TBD';
+        }
+
+        var newBug = {
+            id: 'bug-' + Date.now() + '-' + idx,
+            bugId: bugId,
+            domain: domain,
+            description: description,
+            severity: severity,
+            status: status,
+            reportDate: today,
+            owner: owner
+        };
+
+        App.data.bugs.push(newBug);
+        added++;
+    });
+
+    renderBugs(App.data.bugs);
+    persistData();
+    closeBugImportModal();
+
+    var message = '成功导入 ' + added + ' 条Bug';
+    if (skipped > 0) {
+        message += '，跳过 ' + skipped + ' 条（无效数据）';
+    }
+    alert(message);
+}
+
 // ============ Backward compatibility for old function names ============
 // These are kept for any remaining references to the old modal names
 

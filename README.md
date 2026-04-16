@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v2.52-blue)
+![Version](https://img.shields.io/badge/version-v2.53-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -155,6 +155,46 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/logs/:date` - 查看操作日志
 
 ## 版本历史
+
+### v2.53 (2026-04-16)
+**Bug批量导入：CSV格式批量上传Bug**
+
+本次版本为Bug跟踪模块增加了CSV批量导入功能，与Domain和BU准出标准的导入方式保持一致。
+
+#### 新增功能: Bug CSV批量导入
+
+- **入口**: Bug跟踪区域的"添加Bug"按钮旁新增"CSV批量导入"按钮
+- **CSV格式**: `Bug ID, Domain, 描述, 严重性, 状态, 负责人`
+  - 必填字段: Bug ID、Domain、描述
+  - 可选字段: 严重性(默认medium)、状态(默认open)、负责人(默认从Domain表格自动匹配，否则TBD)
+  - 支持GBK/GB2312编码（Windows Excel导出）
+- **功能**:
+  - 下载CSV模板按钮
+  - 文件预览（前10行）
+  - 自动跳过无效行（缺少必填字段）
+  - 严重性自动校验（仅接受highest/high/medium/low/lowest，无效值回退到medium）
+  - 状态自动校验（仅接受open/triage/implement/closed/rejected，无效值回退到open）
+  - 自动从Domain表格匹配负责人
+  - 支持"清除现有Bug数据"选项
+  - 报告日期自动设置为今天
+
+#### 改动文件
+
+| 文件 | 改动 |
+|---|---|
+| `public/index.html` | 新增Bug CSV导入按钮、Bug导入弹窗HTML |
+| `public/js/import.js` | 新增 `downloadBugTemplate()`, `showBugImportModal()`, `closeBugImportModal()`, `previewBugFile()`, `importBugsFromCSV()` |
+
+#### CSV模板示例
+
+```csv
+Bug ID,Domain,描述,严重性,状态,负责人
+MPW2-77,PCIe接口 (PCIe Interface),PCIe链路训练失败，卡在Gen1,High,open,Ge Qiang
+MPW2-78,HBM,HBM初始化报错ECC failure,Highest,open,Xiaoming
+MPW2-79,FW,Bootrom启动超时,Medium,open,Haiping
+```
+
+---
 
 ### v2.52 (2026-04-16)
 **权限控制与数据持久化修复**

@@ -217,6 +217,7 @@
                 </select>
                 <input type="text" id="new-bug-owner" placeholder="负责人" class="bug-input">
                 <button class="add-btn user-only" onclick="addNewBug()">添加Bug</button>
+                <button class="add-btn user-only" onclick="showBugImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
             </div>
         </div>
         
@@ -636,5 +637,64 @@
     <script src="/js/bu-exit-criteria.js"></script>
     <script src="/js/import.js"></script>
     <script src="/js/app.js"></script>
+
+    <!-- Bug CSV Import Modal -->
+    <div id="bug-import-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <div class="modal-title">CSV批量导入Bug</div>
+                <span class="close" onclick="closeBugImportModal()">&times;</span>
+            </div>
+            <div style="padding: 15px 0;">
+                <p style="margin-bottom: 10px; color: #666; font-size: 14px;">
+                    上传CSV文件批量导入Bug，支持以下列：
+                </p>
+                <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                    <p style="margin: 0 0 5px 0; font-family: monospace; font-size: 12px; color: #333;">
+                        <strong>CSV列：</strong>Bug ID, Domain, 描述, 严重性, 状态, 负责人
+                    </p>
+                    <p style="margin: 0 0 5px 0; font-family: monospace; font-size: 12px; color: #555;">
+                        MPW2-77, PCIe接口, PCIe链路训练失败, High, open, Ge Qiang
+                    </p>
+                    <p style="margin: 0 0 5px 0; font-family: monospace; font-size: 12px; color: #555;">
+                        MPW2-78, HBM, HBM初始化报错ECC failure, Highest, open, Xiaoming
+                    </p>
+                    <p style="margin: 0; font-family: monospace; font-size: 12px; color: #555;">
+                        MPW2-79, FW, Bootrom启动超时, Medium, open, Haiping
+                    </p>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <button class="filter-btn" onclick="downloadBugTemplate()" style="background-color: #27ae60;">下载CSV模板</button>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 13px; color: #666; display: block; margin-bottom: 8px;">选择CSV文件：</label>
+                    <input type="file" id="bug-import-file" accept=".csv,.txt" onchange="previewBugFile()" style="display: block; width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 13px; color: #666;">
+                        文件编码：
+                        <select id="bug-import-encoding" style="padding: 5px; margin-left: 5px;">
+                            <option value="UTF-8">UTF-8</option>
+                            <option value="GBK">GBK (Windows/Excel)</option>
+                            <option value="GB2312">GB2312</option>
+                        </select>
+                    </label>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label style="font-size: 13px; color: #666;">
+                        <input type="checkbox" id="bug-import-clear" style="margin-right: 5px;">
+                        清除现有Bug数据
+                    </label>
+                </div>
+                <div id="bug-import-preview" style="max-height: 200px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; padding: 10px; display: none;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-cancel-btn" onclick="closeBugImportModal()">取消</button>
+                <button class="modal-btn modal-save-btn" onclick="importBugsFromCSV()">导入</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
