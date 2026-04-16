@@ -574,6 +574,7 @@ async function importBugsFromCSV() {
     }
 
     var added = 0;
+    var updated = 0;
     var skipped = 0;
 
     if (clearExisting) {
@@ -622,26 +623,45 @@ async function importBugsFromCSV() {
             reportDate = today;
         }
 
-        var newBug = {
-            id: 'bug-' + Date.now() + '-' + idx,
-            bugId: bugId,
-            domain: domain,
-            description: description,
-            severity: severity,
-            status: status,
-            reportDate: reportDate,
-            owner: owner
-        };
+        // Check if bug with same ID already exists
+        var existingBug = App.data.bugs.find(function(b) {
+            return b.bugId === bugId;
+        });
 
-        App.data.bugs.push(newBug);
-        added++;
+        if (existingBug) {
+            // Update existing bug fields
+            existingBug.domain = domain;
+            existingBug.description = description;
+            existingBug.severity = severity;
+            existingBug.status = status;
+            existingBug.reportDate = reportDate;
+            existingBug.owner = owner;
+            updated++;
+        } else {
+            // Create new bug
+            var newBug = {
+                id: 'bug-' + Date.now() + '-' + idx,
+                bugId: bugId,
+                domain: domain,
+                description: description,
+                severity: severity,
+                status: status,
+                reportDate: reportDate,
+                owner: owner
+            };
+            App.data.bugs.push(newBug);
+            added++;
+        }
     });
 
     renderBugs(App.data.bugs);
     persistData();
     closeBugImportModal();
 
-    var message = '成功导入 ' + added + ' 条Bug';
+    var message = '成功导入 ' + added + ' 条新Bug';
+    if (updated > 0) {
+        message += '，更新 ' + updated + ' 条已有Bug';
+    }
     if (skipped > 0) {
         message += '，跳过 ' + skipped + ' 条（无效数据）';
     }
