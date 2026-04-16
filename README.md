@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v2.5-blue)
+![Version](https://img.shields.io/badge/version-v2.31-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -155,6 +155,73 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/logs/:date` - 查看操作日志
 
 ## 版本历史
+
+### v2.31 (2026-04-15)
+**XSS防护强化：消除所有innerHTML动态渲染**
+
+本次版本进一步收紧前端XSS防护，将最后两个使用innerHTML动态渲染的代码段改为纯DOM API实现，彻底消除用户数据通过innerHTML渲染的风险。
+
+#### 改动1: auth.js -- loadUserList() 重构为DOM API
+
+**改动前**: `loadUserList()` 使用字符串拼接构建整个用户管理表格HTML，包含内联 `onclick` handler：
+```javascript
+var html = '<table>...';
+html += '<button onclick="showEditUserModal(\'' + escapeHtml(user.username) + '\', ...)">编辑</button>';
+userListEl.innerHTML = html;
+```
+
+虽然使用了 `escapeHtml()` 转义，但字符串拼接 + 内联 `onclick` 仍是潜在的攻击面，特别是当转义逻辑遗漏或用户数据包含特殊字符时。
+
+**改动后**: 全面使用 `document.createElement()` + `textContent` + `addEventListener` 构建：
+```javascript
+var editBtn = document.createElement('button');
+editBtn.textContent = '编辑';
+(function(u) {
+    editBtn.addEventListener('click', function() {
+        showEditUserModal(u.username, u.name, u.role);
+    });
+})(user);
+```
+
+具体改进：
+- 表格每一行、每个单元格都通过 `createElement()` 创建
+- 用户名、名称等用户数据通过 `textContent` 设置（不经过HTML解析器）
+- 按钮事件通过 `addEventListener` + IIFE 闭包绑定，彻底消除内联 `onclick`
+- 所有错误状态、空状态提示同样使用 DOM API 构建
+- 保留 `innerHTML = ''` 仅用于清空容器内容（无数据渲染）
+
+#### 改动2: daily-progress.js -- 空状态消息改为DOM API
+
+**改动前**:
+```javascript
+container.innerHTML = '<p style="...">暂无每日进度记录</p>';
+```
+
+**改动后**:
+```javascript
+var emptyP = document.createElement('p');
+emptyP.textContent = '暂无每日进度记录';
+container.appendChild(emptyP);
+```
+
+#### 剩余innerHTML使用情况
+
+代码中剩余的 `innerHTML` 调用全部符合安全规范：
+- `auth.js` 第30/38/45行：`loginStatus.innerHTML` 仅将 `escapeHtml(App.currentUser)` 作为唯一动态值，其余为固定模板字符串
+- `utils.js` `getTableBody()`: `innerHTML = ''` 仅用于清空表格体
+- `daily-progress.js` 第52行：`container.innerHTML = ''` 仅用于清空容器
+
+这些用例不涉及用户数据动态拼接，安全可控。
+
+#### 安全收益
+
+| 模块 | 改动前 | 改动后 |
+|---|---|---|
+| `loadUserList()` | innerHTML + escapeHtml + onclick拼接 | createElement + textContent + addEventListener |
+| 空状态提示 | innerHTML拼接 | createElement + textContent |
+| 用户数据渲染面 | 2处innerHTML | 0处（仅保留清空操作） |
+
+---
 
 ### v2.5 (2026-04-15)
 **独立项目URL路由：每个项目拥有专属网址**
@@ -498,4 +565,4 @@ MIT License
 ---
 
 **最后更新**: 2026年4月15日  
-**版本**: 2.5
+**版本**: 2.31
