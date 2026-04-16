@@ -26,11 +26,12 @@
     color: #2980b9;
 }
 
-/* Closed bug row styling */
+/* Closed bug row styling - darker gray */
 .bug-table tr.status-closed-row {
-    background-color: #f2f2f2 !important;
-    color: #888888 !important;
+    background-color: #dcdcdc !important;
+    color: #555555 !important;
 }
 .bug-table tr.status-closed-row td {
-    color: #888888 !important;
+    color: #555555 !important;
+    border-color: #bfbfbf !important;
 }
