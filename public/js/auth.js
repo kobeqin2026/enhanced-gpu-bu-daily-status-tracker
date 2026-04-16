@@ -180,7 +180,7 @@ function closeUserManagementModal() {
 async function loadUserList() {
     var addUserSection = document.getElementById('add-user-section');
     var userViewOnly = document.getElementById('user-view-only');
-    
+
     if (App.userRole === 'admin') {
         addUserSection.style.display = 'block';
         userViewOnly.style.display = 'none';
@@ -188,70 +188,161 @@ async function loadUserList() {
         addUserSection.style.display = 'none';
         userViewOnly.style.display = 'block';
     }
-    
+
     var userListEl = document.getElementById('user-list');
-    userListEl.innerHTML = '<p style="color:#666;">加载中...</p>';
-    
+    userListEl.innerHTML = '';
+    var loadingP = document.createElement('p');
+    loadingP.style.color = '#666';
+    loadingP.textContent = '加载中...';
+    userListEl.appendChild(loadingP);
+
     try {
         var result = await apiCall('/api/users');
-        
+
         if (Array.isArray(result)) {
             if (result.length === 0) {
-                userListEl.innerHTML = '<p style="color:#666;">暂无用户</p>';
+                userListEl.innerHTML = '';
+                var emptyP = document.createElement('p');
+                emptyP.style.color = '#666';
+                emptyP.textContent = '暂无用户';
+                userListEl.appendChild(emptyP);
                 return;
             }
-            
-            var html = '<table style="width:100%; border-collapse:collapse; font-size:14px;">';
-            html += '<tr style="background:#3498db; color:white;"><th style="padding:8px; text-align:left;">用户名</th><th style="padding:8px; text-align:left;">显示名称</th><th style="padding:8px; text-align:left;">角色</th><th style="padding:8px; text-align:left;">操作</th></tr>';
-            
+
+            userListEl.innerHTML = '';
+
+            var table = document.createElement('table');
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
+            table.style.fontSize = '14px';
+
+            // Header row
+            var thead = document.createElement('tr');
+            thead.style.background = '#3498db';
+            thead.style.color = 'white';
+            ['用户名', '显示名称', '角色', '操作'].forEach(function(thText) {
+                var th = document.createElement('th');
+                th.style.padding = '8px';
+                th.style.textAlign = 'left';
+                th.textContent = thText;
+                thead.appendChild(th);
+            });
+            table.appendChild(thead);
+
+            // Data rows
+            var currentUserStr = localStorage.getItem('currentUser');
             result.forEach(function(user) {
                 var roleText = user.role === 'admin' ? '管理员' : '普通用户';
                 var roleClass = user.role === 'admin' ? 'role-admin' : 'role-user';
-                var isCurrentUser = user.username === localStorage.getItem('currentUser');
+                var isCurrentUser = user.username === currentUserStr;
                 var isLoggedInUser = App.userRole !== null;
-                
-                html += '<tr style="border-bottom:1px solid #ddd;">';
-                html += '<td style="padding:8px;">' + escapeHtml(user.username) + '</td>';
-                html += '<td style="padding:8px;">' + escapeHtml(user.name) + '</td>';
-                html += '<td style="padding:8px;"><span class="user-role ' + roleClass + '">' + roleText + '</span></td>';
-                html += '<td style="padding:8px;">';
+
+                var row = document.createElement('tr');
+                row.style.borderBottom = '1px solid #ddd';
+
+                // Username cell
+                var tdUsername = document.createElement('td');
+                tdUsername.style.padding = '8px';
+                tdUsername.textContent = user.username;
+                row.appendChild(tdUsername);
+
+                // Name cell
+                var tdName = document.createElement('td');
+                tdName.style.padding = '8px';
+                tdName.textContent = user.name;
+                row.appendChild(tdName);
+
+                // Role cell
+                var tdRole = document.createElement('td');
+                tdRole.style.padding = '8px';
+                var roleSpan = document.createElement('span');
+                roleSpan.className = 'user-role ' + roleClass;
+                roleSpan.textContent = roleText;
+                tdRole.appendChild(roleSpan);
+                row.appendChild(tdRole);
+
+                // Actions cell
+                var tdActions = document.createElement('td');
+                tdActions.style.padding = '8px';
+
                 if (isLoggedInUser) {
-                    if (user.role !== 'admin') {
-                        html += '<button class="edit-btn" onclick="showEditUserModal(\'' + escapeHtml(user.username) + '\', \'' + escapeHtml(user.name) + '\', \'' + escapeHtml(user.role) + '\')" style="padding:4px 8px; font-size:12px; margin-right:5px;">编辑</button>';
-                    } else if (isCurrentUser) {
-                        html += '<button class="edit-btn" onclick="showEditUserModal(\'' + escapeHtml(user.username) + '\', \'' + escapeHtml(user.name) + '\', \'' + escapeHtml(user.role) + '\')" style="padding:4px 8px; font-size:12px; margin-right:5px;">编辑</button>';
+                    // Edit button for non-admins or current user
+                    if (user.role !== 'admin' || isCurrentUser) {
+                        var editBtn = document.createElement('button');
+                        editBtn.className = 'edit-btn';
+                        editBtn.style.padding = '4px 8px';
+                        editBtn.style.fontSize = '12px';
+                        editBtn.style.marginRight = '5px';
+                        editBtn.textContent = '编辑';
+                        (function(u) {
+                            editBtn.addEventListener('click', function() {
+                                showEditUserModal(u.username, u.name, u.role);
+                            });
+                        })(user);
+                        tdActions.appendChild(editBtn);
                     } else {
-                        html += '<span style="color:#999; font-size:12px;">-</span>';
+                        var dash1 = document.createElement('span');
+                        dash1.style.color = '#999';
+                        dash1.style.fontSize = '12px';
+                        dash1.textContent = '-';
+                        tdActions.appendChild(dash1);
                     }
+
+                    // Delete button or status text
                     if (App.userRole === 'admin' && user.role !== 'admin' && !isCurrentUser) {
-                        html += '<button class="delete-btn" onclick="deleteUser(\'' + escapeHtml(user.username) + '\')" style="padding:4px 8px; font-size:12px;">删除</button>';
-                    } else if (App.userRole === 'admin' && user.role === 'admin' && isCurrentUser) {
-                        html += '<span style="color:#999; font-size:12px;">(当前)</span>';
-                    } else if (App.userRole === 'admin' && user.role === 'admin') {
-                        html += '<span style="color:#999; font-size:12px;">-</span>';
-                    } else if (isCurrentUser) {
-                        html += '<span style="color:#999; font-size:12px;">(当前)</span>';
+                        var delBtn = document.createElement('button');
+                        delBtn.className = 'delete-btn';
+                        delBtn.style.padding = '4px 8px';
+                        delBtn.style.fontSize = '12px';
+                        delBtn.textContent = '删除';
+                        (function(u) {
+                            delBtn.addEventListener('click', function() {
+                                deleteUser(u.username);
+                            });
+                        })(user);
+                        tdActions.appendChild(delBtn);
                     } else {
-                        html += '<span style="color:#999; font-size:12px;">-</span>';
+                        var statusSpan = document.createElement('span');
+                        statusSpan.style.color = '#999';
+                        statusSpan.style.fontSize = '12px';
+                        if (App.userRole === 'admin' && user.role === 'admin') {
+                            statusSpan.textContent = '-';
+                        } else {
+                            statusSpan.textContent = '(当前)';
+                        }
+                        tdActions.appendChild(statusSpan);
                     }
                 } else {
-                    html += '<span style="color:#999; font-size:12px;">只读</span>';
+                    var readOnlySpan = document.createElement('span');
+                    readOnlySpan.style.color = '#999';
+                    readOnlySpan.style.fontSize = '12px';
+                    readOnlySpan.textContent = '只读';
+                    tdActions.appendChild(readOnlySpan);
                 }
-                html += '</td></tr>';
+
+                row.appendChild(tdActions);
+                table.appendChild(row);
             });
-            
-            html += '</table>';
-            userListEl.innerHTML = html;
+
+            userListEl.appendChild(table);
         } else {
-            userListEl.innerHTML = '<p style="color:#e74c3c;">无法加载用户列表</p>';
+            userListEl.innerHTML = '';
+            var errP = document.createElement('p');
+            errP.style.color = '#e74c3c';
+            errP.textContent = '无法加载用户列表';
+            userListEl.appendChild(errP);
         }
     } catch (error) {
         console.error('Load users error:', error);
+        userListEl.innerHTML = '';
+        var errP2 = document.createElement('p');
+        errP2.style.color = '#e74c3c';
         if (error.message && (error.message.indexOf('登录已过期') !== -1 || error.message.indexOf('无权限') !== -1)) {
-            userListEl.innerHTML = '<p style="color:#e74c3c;">' + escapeHtml(error.message) + '</p>';
+            errP2.textContent = error.message;
         } else {
-            userListEl.innerHTML = '<p style="color:#e74c3c;">加载失败，请稍后重试</p>';
+            errP2.textContent = '加载失败，请稍后重试';
         }
+        userListEl.appendChild(errP2);
     }
 }
 

@@ -52,7 +52,12 @@ function groupAndRenderDailyProgress(progressList) {
     container.innerHTML = '';
     
     if (progressList.length === 0) {
-        container.innerHTML = '<p style="text-align: center; font-style: italic; color: #7f8c8d;">暂无每日进度记录</p>';
+        var emptyP = document.createElement('p');
+        emptyP.style.textAlign = 'center';
+        emptyP.style.fontStyle = 'italic';
+        emptyP.style.color = '#7f8c8d';
+        emptyP.textContent = '暂无每日进度记录';
+        container.appendChild(emptyP);
         return;
     }
     
