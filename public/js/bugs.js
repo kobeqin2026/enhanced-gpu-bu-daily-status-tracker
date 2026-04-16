@@ -20,9 +20,17 @@ function sortBugs(bugs) {
     
     if (!App.currentBugSort.field) {
         return bugs.sort(function(a, b) {
+            // 1. Status: Closed/Rejected go to bottom
+            var statusPriorityA = (a.status === 'closed' || a.status === 'rejected') ? 1 : 0;
+            var statusPriorityB = (b.status === 'closed' || b.status === 'rejected') ? 1 : 0;
+            if (statusPriorityA !== statusPriorityB) return statusPriorityA - statusPriorityB;
+            
+            // 2. Severity
             var priorityA = severityPriority[(a.severity || '').toLowerCase()] !== undefined ? severityPriority[(a.severity || '').toLowerCase()] : 999;
             var priorityB = severityPriority[(b.severity || '').toLowerCase()] !== undefined ? severityPriority[(b.severity || '').toLowerCase()] : 999;
             if (priorityA !== priorityB) return priorityA - priorityB;
+            
+            // 3. Date
             return new Date(b.reportDate) - new Date(a.reportDate);
         });
     }
@@ -77,6 +85,10 @@ function renderBugs(bugs) {
     sortedBugs.forEach(function(bug) {
         var row = document.createElement('tr');
         row.setAttribute('data-bug-id', bug.id);
+        // Mark closed/rejected rows for styling
+        if (bug.status === 'closed' || bug.status === 'rejected') {
+            row.classList.add('status-closed-row');
+        }
         
         // Bug ID cell (JIRA link or plain text - safe)
         var idCell = document.createElement('td');
