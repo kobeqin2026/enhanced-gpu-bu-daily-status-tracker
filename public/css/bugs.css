@@ -28,10 +28,10 @@
 
 /* Closed bug row styling - darker gray */
 .bug-table tr.status-closed-row {
-    background-color: #dcdcdc !important;
-    color: #555555 !important;
+    background-color: #cccccc !important;
+    color: #444444 !important;
 }
 .bug-table tr.status-closed-row td {
-    color: #555555 !important;
-    border-color: #bfbfbf !important;
+    color: #444444 !important;
+    border-color: #aaaaaa !important;
 }
