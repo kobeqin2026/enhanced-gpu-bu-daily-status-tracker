@@ -477,10 +477,10 @@ async function importBUFromCSV() {
 // ============ Bug Import ============
 
 function downloadBugTemplate() {
-    var csv = '\uFEFF' + 'Bug ID,Domain,描述,严重性,状态,负责人\n';
-    csv += 'MPW2-77,PCIe接口 (PCIe Interface),PCIe链路训练失败，卡在Gen1,High,open,Ge Qiang\n';
-    csv += 'MPW2-78,HBM,HBM初始化报错ECC failure,Highest,open,Xiaoming\n';
-    csv += 'MPW2-79,FW,Bootrom启动超时,Medium,open,Haiping\n';
+    var csv = '\uFEFF' + 'Bug ID,Domain,描述,严重性,状态,负责人,报告日期\n';
+    csv += 'MPW2-77,PCIe接口 (PCIe Interface),PCIe链路训练失败，卡在Gen1,High,open,Ge Qiang,2026-04-15\n';
+    csv += 'MPW2-78,HBM,HBM初始化报错ECC failure,Highest,open,Xiaoming,2026-04-16\n';
+    csv += 'MPW2-79,FW,Bootrom启动超时,Medium,open,Haiping,\n';
     downloadCSV(csv, 'bug_import_template.csv');
 }
 
@@ -544,7 +544,7 @@ async function previewBugFile() {
         }
 
         // Show preview
-        showPreview('bug-import-preview', validRows, ['Bug ID', 'Domain', '描述', '严重性', '状态', '负责人']);
+        showPreview('bug-import-preview', validRows, ['Bug ID', 'Domain', '描述', '严重性', '状态', '负责人', '报告日期']);
 
         window._bugImportData = validRows;
 
@@ -591,6 +591,7 @@ async function importBugsFromCSV() {
         var severity = (row[3] || '').trim().toLowerCase();
         var status = (row[4] || '').trim().toLowerCase();
         var owner = (row[5] || '').trim();
+        var reportDate = (row[6] || '').trim();
 
         if (!bugId || !domain || !description) {
             skipped++;
@@ -616,6 +617,11 @@ async function importBugsFromCSV() {
             owner = matchedDomain ? (matchedDomain.owner || 'TBD') : 'TBD';
         }
 
+        // Default reportDate to today if empty or invalid
+        if (!reportDate || !/^\d{4}-\d{2}-\d{2}$/.test(reportDate)) {
+            reportDate = today;
+        }
+
         var newBug = {
             id: 'bug-' + Date.now() + '-' + idx,
             bugId: bugId,
@@ -623,7 +629,7 @@ async function importBugsFromCSV() {
             description: description,
             severity: severity,
             status: status,
-            reportDate: today,
+            reportDate: reportDate,
             owner: owner
         };
 

@@ -188,10 +188,10 @@ enhanced-gpu-bu-daily-status-tracker/
 #### CSV模板示例
 
 ```csv
-Bug ID,Domain,描述,严重性,状态,负责人
-MPW2-77,PCIe接口 (PCIe Interface),PCIe链路训练失败，卡在Gen1,High,open,Ge Qiang
-MPW2-78,HBM,HBM初始化报错ECC failure,Highest,open,Xiaoming
-MPW2-79,FW,Bootrom启动超时,Medium,open,Haiping
+Bug ID,Domain,描述,严重性,状态,负责人,报告日期
+MPW2-77,PCIe接口 (PCIe Interface),PCIe链路训练失败，卡在Gen1,High,open,Ge Qiang,2026-04-15
+MPW2-78,HBM,HBM初始化报错ECC failure,Highest,open,Xiaoming,2026-04-16
+MPW2-79,FW,Bootrom启动超时,Medium,open,Haiping,
 ```
 
 ---
