@@ -581,32 +581,38 @@ async function importBugsFromCSV() {
         App.data.bugs = [];
     }
 
-    var validSeverities = ['highest', 'high', 'medium', 'low', 'lowest'];
-    var validStatuses = ['open', 'triage', 'implement', 'closed', 'rejected'];
     var today = new Date().toISOString().split('T')[0];
+
+    // Helper to map status values
+    function mapStatus(s) {
+        s = (s || '').toLowerCase().trim();
+        if (['open', 'opened'].includes(s)) return 'open';
+        if (['triage', 'triaged'].includes(s)) return 'triage';
+        if (['implement', 'implemented', '开发中'].includes(s)) return 'implement';
+        if (['closed'].includes(s)) return 'closed';
+        if (['rejected'].includes(s)) return 'rejected';
+        return 'open'; // Default
+    }
+
+    // Helper to map severity values
+    function mapSeverity(s) {
+        s = (s || '').toLowerCase().trim();
+        if (['highest', 'high', 'medium', 'low', 'lowest'].includes(s)) return s;
+        return 'medium'; // Default
+    }
 
     data.forEach(function(row, idx) {
         var bugId = (row[0] || '').trim();
         var domain = (row[1] || '').trim();
         var description = (row[2] || '').trim();
-        var severity = (row[3] || '').trim().toLowerCase();
-        var status = (row[4] || '').trim().toLowerCase();
+        var severity = mapSeverity(row[3]);
+        var status = mapStatus(row[4]);
         var reportDate = (row[5] || '').trim();
         var owner = (row[6] || '').trim();
 
         if (!bugId || !domain || !description) {
             skipped++;
             return;
-        }
-
-        // Validate severity
-        if (!validSeverities.includes(severity)) {
-            severity = 'medium';
-        }
-
-        // Validate status
-        if (!validStatuses.includes(status)) {
-            status = 'open';
         }
 
         // Default owner
