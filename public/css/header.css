@@ -157,3 +157,11 @@
     border: 1px solid #ffeaa7;
     display: none;
 }
+
+/* Block-level elements (divs, sections) should use display:block not inline-block */
+div.admin-only.visible,
+section.admin-only.visible,
+div.user-only.visible,
+section.user-only.visible {
+    display: block;
+}

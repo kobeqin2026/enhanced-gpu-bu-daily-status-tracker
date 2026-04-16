@@ -71,9 +71,9 @@ function closeModal(modalId) {
 
 // ==================== Data Persistence Helpers ====================
 
-function persistData() {
+async function persistData() {
     saveToLocalStorage(App.data);
-    saveDataToAPI();
+    await saveDataToAPI();
 }
 
 function saveAndRefresh(modalId, renderFn, dataKey, cleanupFn) {

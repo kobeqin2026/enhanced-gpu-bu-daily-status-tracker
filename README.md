@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v2.51-blue)
+![Version](https://img.shields.io/badge/version-v2.52-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -155,6 +155,49 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/logs/:date` - 查看操作日志
 
 ## 版本历史
+
+### v2.52 (2026-04-16)
+**权限控制与数据持久化修复**
+
+本次版本修复了三个功能问题：未登录用户可见保存按钮、persistData异步保存不完整、以及CSS块级元素布局异常。
+
+#### 修复1: 保存按钮权限控制
+
+**问题**: 未登录用户（只读模式）可以看到并点击"保存数据"按钮，点击后显示令人困惑的"数据已保存到本地缓存"消息，但实际服务器保存失败。
+
+**改动**: `public/index.html` 第354行
+- 修改前: `<button class="save-btn" onclick="saveData()">保存数据</button>`
+- 修改后: `<button class="save-btn user-only" onclick="saveData()">保存数据</button>`
+
+未登录用户不再看到保存按钮，权限逻辑与其他操作按钮保持一致。
+
+#### 修复2: persistData() 异步保存
+
+**问题**: `persistData()` 调用 `saveDataToAPI()` 时未使用 `await`，属于 "fire-and-forget" 模式。如果API保存失败，用户只看到localStorage保存成功提示，不知道服务器保存失败。
+
+**改动**: `public/js/utils.js` 第74-77行
+- 修改前: `function persistData() { saveToLocalStorage(App.data); saveDataToAPI(); }`
+- 修改后: `async function persistData() { saveToLocalStorage(App.data); await saveDataToAPI(); }`
+
+现在数据保存会等待API响应完成，与 `saveData()` 函数行为一致。
+
+#### 修复3: CSS块级元素布局修复
+
+**问题**: `.admin-only.visible` 和 `.user-only.visible` 使用 `display: inline-block`，导致 `div` 元素（如用户管理弹窗中的"添加新用户"区域）显示为行内元素，布局异常。
+
+**改动**: `public/css/header.css` 新增块级元素规则
+```css
+div.admin-only.visible,
+section.admin-only.visible,
+div.user-only.visible,
+section.user-only.visible {
+    display: block;
+}
+```
+
+块级元素（div/section）在显示时保持正确的块级布局。
+
+---
 
 ### v2.51 (2026-04-15)
 **XSS防护强化：消除所有innerHTML动态渲染**
