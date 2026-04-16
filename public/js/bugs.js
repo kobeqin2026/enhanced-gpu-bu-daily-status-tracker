@@ -64,78 +64,91 @@ function updateBugSortIndicators() {
 }
 
 function renderBugs(bugs) {
-    var tbody = getTableBody('bugs-body');
-    
-    if (bugs.length === 0) {
-        tbody.appendChild(emptyTableRow(8, '暂无Bug记录'));
-        return;
-    }
-    
-    var sortedBugs = sortBugs(applyFiltersToBugs(bugs));
-    updateBugSortIndicators();
-    
-    sortedBugs.forEach(function(bug) {
-        var row = document.createElement('tr');
-        row.setAttribute('data-bug-id', bug.id);
-        
-        // Bug ID cell (JIRA link or plain text - safe)
-        var idCell = document.createElement('td');
-        var jiraLink = createJiraLink(bug.bugId);
-        idCell.appendChild(jiraLink);
-        row.appendChild(idCell);
-        
-        // Domain (safe)
-        var domainCell = document.createElement('td');
-        domainCell.textContent = bug.domain || '';
-        row.appendChild(domainCell);
-        
-        // Description (safe)
-        var descCell = document.createElement('td');
-        descCell.className = 'bug-description';
-        descCell.textContent = bug.description || '';
-        row.appendChild(descCell);
-        
-        // Severity (safe)
-        var sevCell = document.createElement('td');
-        var severityDisplay = App.severityText[bug.severity] || bug.severity;
-        var severityClass = App.severityColorClasses[bug.severity] || '';
-        sevCell.className = severityClass;
-        sevCell.textContent = severityDisplay || '';
-        row.appendChild(sevCell);
-        
-        // Status (safe)
-        var statusCell = document.createElement('td');
-        statusCell.className = 'bug-status-static';
-        statusCell.textContent = App.bugStatusText[bug.status] || bug.status || '';
-        row.appendChild(statusCell);
-        
-        // Report date (safe)
-        var dateCell = document.createElement('td');
-        dateCell.textContent = bug.reportDate || '';
-        row.appendChild(dateCell);
-        
-        // Owner (safe)
-        var ownerCell = document.createElement('td');
-        ownerCell.textContent = bug.owner || '';
-        row.appendChild(ownerCell);
-        
-        // Actions
-        var actionsCell = document.createElement('td');
-        var editBtn = document.createElement('button');
-        editBtn.className = 'edit-btn user-only ' + userVisibleClass();
-        editBtn.textContent = '编辑';
-        editBtn.addEventListener('click', function() { editBug(bug.id); });
-        actionsCell.appendChild(editBtn);
-        
-        var deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-btn user-only ' + userVisibleClass();
-        deleteBtn.textContent = '删除';
-        deleteBtn.addEventListener('click', function() { deleteBug(bug.id); });
-        actionsCell.appendChild(deleteBtn);
-        
-        row.appendChild(actionsCell);
-        tbody.appendChild(row);
+    var openStatuses = ['open', 'triage', 'implement'];
+    var openBugs = [];
+    var closedBugs = [];
+
+    applyFiltersToBugs(bugs).forEach(function(bug) {
+        if (openStatuses.indexOf(bug.status) !== -1) {
+            openBugs.push(bug);
+        } else {
+            closedBugs.push(bug);
+        }
     });
+
+    var sortedOpen = sortBugs(openBugs);
+    var sortedClosed = sortBugs(closedBugs);
+
+    var openTbody = getTableBody('bugs-body-open');
+    if (sortedOpen.length === 0) {
+        openTbody.appendChild(emptyTableRow(8, '暂无待修复Bug'));
+    } else {
+        sortedOpen.forEach(function(bug) { renderBugRow(openTbody, bug); });
+    }
+
+    var closedTbody = getTableBody('bugs-body-closed');
+    if (sortedClosed.length === 0) {
+        closedTbody.appendChild(emptyTableRow(8, '暂无已关闭Bug'));
+    } else {
+        sortedClosed.forEach(function(bug) { renderBugRow(closedTbody, bug); });
+    }
+
+    updateBugSortIndicators();
+}
+
+function renderBugRow(tbody, bug) {
+    var row = document.createElement('tr');
+    row.setAttribute('data-bug-id', bug.id);
+
+    var idCell = document.createElement('td');
+    var jiraLink = createJiraLink(bug.bugId);
+    idCell.appendChild(jiraLink);
+    row.appendChild(idCell);
+
+    var domainCell = document.createElement('td');
+    domainCell.textContent = bug.domain || '';
+    row.appendChild(domainCell);
+
+    var descCell = document.createElement('td');
+    descCell.className = 'bug-description';
+    descCell.textContent = bug.description || '';
+    row.appendChild(descCell);
+
+    var sevCell = document.createElement('td');
+    var severityDisplay = App.severityText[bug.severity] || bug.severity;
+    var severityClass = App.severityColorClasses[bug.severity] || '';
+    sevCell.className = severityClass;
+    sevCell.textContent = severityDisplay || '';
+    row.appendChild(sevCell);
+
+    var statusCell = document.createElement('td');
+    statusCell.className = 'bug-status-static';
+    statusCell.textContent = App.bugStatusText[bug.status] || bug.status || '';
+    row.appendChild(statusCell);
+
+    var dateCell = document.createElement('td');
+    dateCell.textContent = bug.reportDate || '';
+    row.appendChild(dateCell);
+
+    var ownerCell = document.createElement('td');
+    ownerCell.textContent = bug.owner || '';
+    row.appendChild(ownerCell);
+
+    var actionsCell = document.createElement('td');
+    var editBtn = document.createElement('button');
+    editBtn.className = 'edit-btn user-only ' + userVisibleClass();
+    editBtn.textContent = '编辑';
+    editBtn.addEventListener('click', function() { editBug(bug.id); });
+    actionsCell.appendChild(editBtn);
+
+    var deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-btn user-only ' + userVisibleClass();
+    deleteBtn.textContent = '删除';
+    deleteBtn.addEventListener('click', function() { deleteBug(bug.id); });
+    actionsCell.appendChild(deleteBtn);
+
+    row.appendChild(actionsCell);
+    tbody.appendChild(row);
 }
 
 function editBug(bugId) {

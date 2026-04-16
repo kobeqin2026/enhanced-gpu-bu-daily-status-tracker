@@ -253,8 +253,8 @@
                 <button class="filter-btn" onclick="resetBugFilters()">重置筛选</button>
             </div>
         </div>
-        
-        <div class="bug-table-wrapper">
+        <div class="bug-table-wrapper" id="open-bugs-wrapper">
+            <h3 style="color: #e74c3c; margin: 10px 0 5px 0;">Open Bugs (待修复)</h3>
             <table class="bug-table">
                 <thead>
                     <tr>
@@ -268,10 +268,32 @@
                         <th>操作</th>
                     </tr>
                 </thead>
-                <tbody id="bugs-body">
-                    <!-- Bugs will be dynamically generated here -->
+                <tbody id="bugs-body-open">
+                    <!-- Open bugs will be dynamically generated here -->
                 </tbody>
             </table>
+        </div>
+
+        <div class="bug-table-wrapper" id="closed-bugs-wrapper" style="margin-top: 20px;">
+            <h3 style="color: #27ae60; margin: 10px 0 5px 0;">Closed Bugs (已关闭)</h3>
+            <table class="bug-table">
+                <thead>
+                    <tr>
+                        <th data-sort="bugId">Bug ID</th>
+                        <th data-sort="domain">域 (Domain)</th>
+                        <th data-sort="description">描述 (Description)</th>
+                        <th data-sort="severity">严重性 (Severity)</th>
+                        <th data-sort="status">状态 (Status)</th>
+                        <th data-sort="reportDate">报告日期</th>
+                        <th data-sort="owner">负责人</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="bugs-body-closed">
+                    <!-- Closed bugs will be dynamically generated here -->
+                </tbody>
+            </table>
+        </div>
         </div>
         
         <!-- 新增：每日进度跟踪 -->

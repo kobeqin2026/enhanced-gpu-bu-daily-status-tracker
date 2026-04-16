@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v2.53-blue)
+![Version](https://img.shields.io/badge/version-v2.54-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -155,6 +155,29 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/logs/:date` - 查看操作日志
 
 ## 版本历史
+
+### v2.54 (2026-04-16)
+**Bug表格按状态分为Open和Closed两个列表**
+
+Bug跟踪表格现在按照状态自动分为两个独立的表格，便于区分待修复和已关闭的Bug。
+
+- **Open Bugs (待修复)**: 状态为 `open`、`triage`、`implement` 的Bug
+- **Closed Bugs (已关闭)**: 状态为 `closed`、`rejected` 的Bug
+
+#### 改动
+
+| 文件 | 改动 |
+|---|---|
+| `public/index.html` | 单一Bug表格拆分为Open/Closed两个独立表格，各带红色/绿色标题 |
+| `public/js/bugs.js` | `renderBugs()` 重构为按状态分组渲染，新增 `renderBugRow()` 公共行渲染函数 |
+
+#### 技术细节
+
+- 筛选和排序仍然作用于全部Bug，然后在渲染时按状态分流到两个表格
+- 两个表格共享同一套筛选控件和排序逻辑
+- 排序指示器会同时高亮两个表格中的对应列
+
+---
 
 ### v2.53 (2026-04-16)
 **Bug批量导入：CSV格式批量上传Bug**
