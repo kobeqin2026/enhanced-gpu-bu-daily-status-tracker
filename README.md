@@ -27,6 +27,7 @@
 - **BU准出标准 (BU Exit Criteria)**: 定义和管理每个Domain的准出标准
 
 ### 技术特性
+- [API 文档](API.md)
 - **模块化后端架构**: 后端拆分为 lib/（共享库）、middleware/（中间件）、routes/（路由），职责清晰
 - **模块化前端架构**: JS/CSS按功能模块拆分为独立文件，便于维护和协作
 - **XSS防护**: 全面使用 DOM API 构建元素，所有用户输入通过 textContent 安全渲染
