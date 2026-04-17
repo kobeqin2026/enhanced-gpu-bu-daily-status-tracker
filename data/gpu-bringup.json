@@ -24,36 +24,74 @@
   ],
   "bugs": [
     {
-      "id": "bug-1",
-      "bugId": "JIRA-1001",
-      "title": "PCIe链路训练失败",
-      "severity": "High",
-      "status": "Open",
-      "assignee": "张三",
+      "id": "bug-1776340211848-0",
+      "bugId": "MPW2-202",
+      "domain": "ATE",
+      "description": "FT 失效率高于定界",
+      "severity": "medium",
+      "status": "open",
+      "reportDate": "2026-04-16",
+      "owner": "Yabing Lu(Finch)"
+    },
+    {
+      "id": "bug-1776340211848-1",
+      "bugId": "MPW2-201",
       "domain": "PCIe",
-      "description": "在Gen4速率下链路训练超时"
-    },
-    {
-      "id": "bug-2",
-      "bugId": "JIRA-1002",
-      "title": "HBM带宽未达标",
-      "severity": "lowest",
-      "status": "",
-      "assignee": "李四",
-      "domain": "HBM",
-      "description": "实测带宽仅达到理论值的70%",
-      "owner": "undefined"
-    },
-    {
-      "id": "bug-3",
-      "bugId": "JIRA-1003",
-      "title": "Ethernet CRC错误",
+      "description": "MPW2 PCIe 频繁retraining 以及36db 测试failed",
       "severity": "highest",
-      "status": "",
-      "assignee": "王五",
-      "domain": "Ethernet",
-      "description": "特定帧长下出现CRC校验错误",
-      "owner": "undefined"
+      "status": "closed",
+      "reportDate": "2026-04-16",
+      "owner": "Girer Geng"
+    },
+    {
+      "id": "bug-1776340211848-2",
+      "bugId": "MPW2-200",
+      "domain": "Power",
+      "description": "gpu_debugger --dump_pmu_trace发现读取的core电压为0",
+      "severity": "medium",
+      "status": "closed",
+      "reportDate": "2026-04-16",
+      "owner": "Xianjie Cao(Jerry)"
+    },
+    {
+      "id": "bug-1776340211848-3",
+      "bugId": "MPW2-199",
+      "domain": "DFT",
+      "description": "MPW2 部分芯片第一次上电Mbist 测试fail",
+      "severity": "high",
+      "status": "triage",
+      "reportDate": "2026-04-16",
+      "owner": "Bo Lin(Bolin)"
+    },
+    {
+      "id": "bug-1776340211848-4",
+      "bugId": "MPW2-198",
+      "domain": "DFT",
+      "description": "HBM3 DFT pattern测试在slave DIE DQ/CA测试failed",
+      "severity": "high",
+      "status": "triage",
+      "reportDate": "2026-04-16",
+      "owner": "Chen Chen"
+    },
+    {
+      "id": "bug-1776340211848-5",
+      "bugId": "MPW2-197",
+      "domain": "DFT",
+      "description": "MPW2 gpll测试，CLKOBS观测无信号",
+      "severity": "medium",
+      "status": "rejected",
+      "reportDate": "2026-04-16",
+      "owner": "Ge Qiang"
+    },
+    {
+      "id": "bug-1776340211848-6",
+      "bugId": "MPW2-195",
+      "domain": "Validation",
+      "description": "MPW2 i2C SI 测试有振铃，下冲太大",
+      "severity": "medium",
+      "status": "closed",
+      "reportDate": "2026-04-16",
+      "owner": "Qun Qian"
     }
   ],
   "dailyProgress": [
@@ -90,7 +128,7 @@
       "domain": "PCIe",
       "criteria": "Link Training成功率 >= 99.9%",
       "signoffOwner": "张三",
-      "status": "",
+      "status": "not-ready",
       "owner": "张三",
       "index": 1
     },
@@ -135,5 +173,5 @@
       "status": "not-ready"
     }
   ],
-  "lastUpdated": "2026/4/13 01:03:24"
+  "lastUpdated": "2026/4/16 12:04:27"
 }
