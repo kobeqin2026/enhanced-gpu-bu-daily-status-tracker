@@ -248,6 +248,12 @@
                 </select>
                 <input type="text" id="filter-bug-owner" class="filter-input" placeholder="负责人">
             </div>
+            <div class="filter-row" style="margin-top: 10px; align-items: center;">
+                <label style="font-size: 14px; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                    <input type="checkbox" id="filter-bug-show-closed" style="width: 16px; height: 16px; cursor: pointer;" onchange="applyBugFilters()">
+                    <span>显示已关闭/已拒绝Bug</span>
+                </label>
+            </div>
             <div class="filter-buttons">
                 <button class="filter-btn" onclick="applyBugFilters()">应用筛选</button>
                 <button class="filter-btn" onclick="resetBugFilters()">重置筛选</button>

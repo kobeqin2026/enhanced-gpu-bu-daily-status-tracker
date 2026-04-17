@@ -11,6 +11,12 @@ function applyFiltersToBugs(bugs) {
         if (App.currentBugFilters.severity && normalizedSeverity !== filterSeverity) return false;
         if (App.currentBugFilters.status && bug.status !== App.currentBugFilters.status) return false;
         if (App.currentBugFilters.owner && bug.owner.toLowerCase().indexOf(App.currentBugFilters.owner.toLowerCase()) === -1) return false;
+        
+        // Hide closed/rejected bugs by default
+        if (!App.currentBugFilters.showClosed && (bug.status === 'closed' || bug.status === 'rejected')) {
+            return false;
+        }
+        
         return true;
     });
 }
@@ -210,7 +216,8 @@ function applyBugFilters() {
         description: document.getElementById('filter-bug-description').value.trim(),
         severity: document.getElementById('filter-bug-severity').value,
         status: document.getElementById('filter-bug-status').value,
-        owner: document.getElementById('filter-bug-owner').value.trim()
+        owner: document.getElementById('filter-bug-owner').value.trim(),
+        showClosed: document.getElementById('filter-bug-show-closed').checked
     };
     renderBugs(App.data.bugs);
 }
@@ -222,8 +229,8 @@ function resetBugFilters() {
     document.getElementById('filter-bug-severity').value = '';
     document.getElementById('filter-bug-status').value = '';
     document.getElementById('filter-bug-owner').value = '';
+    document.getElementById('filter-bug-show-closed').checked = false;
     
-    App.currentBugFilters = {};
-    App.currentBugSort = { field: null, direction: 'asc' };
+    App.currentBugFilters = { showClosed: false };
     renderBugs(App.data.bugs);
 }

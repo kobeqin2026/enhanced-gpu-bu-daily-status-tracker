@@ -51,7 +51,7 @@ var App = {
 
     // === Filters ===
     currentTaskFilters: {},
-    currentBugFilters: {},
+    currentBugFilters: { showClosed: false },
     currentDailyProgressFilters: {},
 
     // === Constants ===
