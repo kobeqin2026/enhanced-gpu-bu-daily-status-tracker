@@ -12,8 +12,11 @@ function applyFiltersToBugs(bugs) {
         if (App.currentBugFilters.status && bug.status !== App.currentBugFilters.status) return false;
         if (App.currentBugFilters.owner && bug.owner.toLowerCase().indexOf(App.currentBugFilters.owner.toLowerCase()) === -1) return false;
         
-        // Hide closed/rejected bugs by default
-        if (!App.currentBugFilters.showClosed && (bug.status === 'closed' || bug.status === 'rejected')) {
+        // Hide closed/rejected bugs by default, unless explicitly filtered or checkbox is checked
+        var isClosedStatus = (bug.status === 'closed' || bug.status === 'rejected');
+        var isFilteringForClosed = (App.currentBugFilters.status === 'closed' || App.currentBugFilters.status === 'rejected');
+        
+        if (!App.currentBugFilters.showClosed && !isFilteringForClosed && isClosedStatus) {
             return false;
         }
         

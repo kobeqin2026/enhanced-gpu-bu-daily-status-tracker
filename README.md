@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v2.56-blue)
+![Version](https://img.shields.io/badge/version-v2.58-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -155,6 +155,17 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/logs/:date` - 查看操作日志
 
 ## 版本历史
+
+### v2.58 (2026-04-16)
+**Bug跟踪优化：默认隐藏Closed/Rejected，筛选修复**
+
+- **默认折叠**：列表默认隐藏状态为 `closed` 和 `rejected` 的Bug，保持页面整洁。
+- **智能筛选**：
+    - 在状态筛选器中明确选择 `Closed` 或 `Rejected` 时，会正确显示对应Bug。
+    - 勾选"显示已关闭/已拒绝Bug"复选框可查看历史Bug。
+    - 修复了筛选器失效的问题。
+
+---
 
 ### v2.56 (2026-04-16)
 **Bug表格UI优化：Closed/Rejected行置底并深灰色显示**
