@@ -167,6 +167,7 @@ enhanced-gpu-bu-daily-status-tracker/
 ### JIRA 集成 (需认证)
 - `GET /api/data/jira-projects` - 获取 JIRA 项目列表
 - `POST /api/data/import-jira` - 从 JIRA 导入 Bug（body: `{project, includeClosed, maxResults, jql}`）
+- `POST /api/data/sync-jira-status` - 同步已导入 Bug 的 JIRA 状态（body: `{jiraKeys: ["KEY-1", "KEY-2"]}`）
 
 ## 版本历史
 
@@ -188,6 +189,7 @@ enhanced-gpu-bu-daily-status-tracker/
     - Closed / Done / Resolved → **closed**
     - Reject / Won't Fix → **rejected**
 - **可选项**: 支持选择是否包含已关闭的 Bug（默认仅 Open/Triage/Implement 中）
+- **一键同步状态**: 新增「同步JIRA状态」按钮，一键从 JIRA 批量拉取所有已导入 Bug 的最新状态和负责人，自动更新本地数据
 - **Bug 智能合并**: 按 Bug ID 自动匹配 — 已有 Bug 更新字段，新 Bug 追加，避免重复
 - **导入预览**: 导入前展示前 5 条 Bug 预览和统计信息，需用户确认后才执行
 - **清空 Bug 功能**: 新增一键清空所有 Bug 数据按钮，双重确认防误操作
