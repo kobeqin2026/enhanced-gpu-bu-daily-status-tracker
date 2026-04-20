@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v3.0-blue)
+![Version](https://img.shields.io/badge/version-v3.2-green)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -22,7 +22,8 @@
 ### 核心功能
 - **多项目切换**: 支持创建和切换多个项目
 - **域概览 (Domain Overview)**: 管理所有技术领域，支持状态更新（仅管理员可编辑）
-- **Bug跟踪 (Bug Tracking)**: 完整的Bug生命周期管理，支持严重性分级
+- **Bug跟踪 (Bug Tracking)**: 完整的Bug生命周期管理，支持严重性分级、CSV批量导入、JIRA集成导入
+- **JIRA集成 (JIRA Integration)**: 从 JIRA Server/Cloud/Data Center 自动拉取 Bug，支持项目选择、字段映射、智能合并
 - **每日进度跟踪 (Daily Progress Tracking)**: 按日期和Domain记录每日工作进展
 - **BU准出标准 (BU Exit Criteria)**: 定义和管理每个Domain的准出标准
 
@@ -38,6 +39,7 @@
 - **数据持久化**: 服务器 JSON文件 + 浏览器localStorage
 - **响应式设计**: 适配桌面、平板和移动设备
 - **nginx反向代理**: 生产环境部署配置
+- **JIRA REST API 集成**: 支持 PAT (Bearer)、Cloud (Email + API Token)、Server (Username + Password) 三种认证方式
 
 ## 快速开始
 
@@ -58,6 +60,11 @@ npm install
 
 # 配置环境变量
 cp .env.example .env
+
+# 配置JIRA集成（可选）
+# 在 ecosystem.config.js 或系统环境变量中设置:
+#   JIRA_BASE_URL=https://jira.your-company.com
+#   JIRA_PAT=your-personal-access-token
 
 # 启动服务器
 npm start
@@ -86,7 +93,7 @@ enhanced-gpu-bu-daily-status-tracker/
 │   │   ├── bugs.js             # Bug跟踪模块 (217行)
 │   │   ├── daily-progress.js   # 每日进度模块 (184行)
 │   │   ├── bu-exit-criteria.js # BU准出标准模块 (299行)
-│   │   ├── import.js           # CSV批量导入模块 (390行)
+│   │   ├── import.js           # CSV批量导入 + JIRA导入模块 (600行)
 │   │   └── app.js              # 主入口/初始化 (161行)
 │   └── css/                    # CSS模块
 │       ├── base.css            # 基础布局与排版
@@ -107,14 +114,16 @@ enhanced-gpu-bu-daily-status-tracker/
 │   ├── sessions.js             # 会话管理 + 自动保存 (62行)
 │   ├── dataStore.js            # 文件I/O + 路径遍历防护 (55行)
 │   ├── users.js                # 用户数据CRUD (49行)
-│   └── projects.js             # 项目数据CRUD (82行)
+│   ├── projects.js             # 项目数据CRUD (82行)
+│   └── jiraConfig.js           # JIRA连接配置（认证方式、JQL、字段映射）
 ├── middleware/                   # Express中间件（v2.3新增）
 │   └── auth.js                 # 认证 + 管理员检查中间件 (52行)
 ├── routes/                     # API路由（v2.3新增）
 │   ├── auth.js                 # 登录/登出/验证 (112行)
 │   ├── users.js                # 用户管理CRUD (217行)
 │   ├── projects.js             # 项目管理CRUD + 导出 (132行)
-│   └── data.js                 # 项目数据读写 (48行)
+│   ├── data.js                 # 项目数据读写 (48行)
+│   └── jira.js                 # JIRA集成: 项目列表获取 + Bug导入 (~180行)
 ├── data/                       # 数据存储目录
 │   ├── gpu-bringup.json        # 项目数据
 │   ├── projects.json           # 项目元数据
@@ -155,7 +164,32 @@ enhanced-gpu-bu-daily-status-tracker/
 ### 操作日志 (仅管理员)
 - `GET /api/logs/:date` - 查看操作日志
 
+### JIRA 集成 (需认证)
+- `GET /api/data/jira-projects` - 获取 JIRA 项目列表
+- `POST /api/data/import-jira` - 从 JIRA 导入 Bug（body: `{project, includeClosed, maxResults, jql}`）
+
 ## 版本历史
+
+### v3.2 (2026-04-20)
+**JIRA Bug 集成导入功能**
+
+- **JIRA REST API 集成**: 新增 `routes/jira.js` 独立路由模块，支持从 JIRA Server / Data Center / Cloud 自动拉取 Bug 数据
+- **三种认证方式**: 
+  - PAT (Bearer Token) — JIRA Server/Data Center 推荐
+  - Cloud Auth (Email + API Token) — JIRA Cloud
+  - Basic Auth (Username + Password) — JIRA Server
+- **JIRA 项目选择器**: 前端新增 Modal 弹窗，动态获取项目列表（Key + 名称 + 负责人），支持搜索过滤
+- **字段智能映射**:
+  - 优先级映射: blocker→highest, major→high, normal/medium→medium, low→low, trivial→lowest
+  - 状态映射: closed/done/resolved→closed, reject/wontfix→rejected, in progress/implementing→implement, triage/open/new→open
+- **可选项**: 支持选择是否包含已关闭的 Bug（默认仅 Open/Triage/Implement 中）
+- **Bug 智能合并**: 按 Bug ID 自动匹配 — 已有 Bug 更新字段，新 Bug 追加，避免重复
+- **导入预览**: 导入前展示前 5 条 Bug 预览和统计信息，需用户确认后才执行
+- **清空 Bug 功能**: 新增一键清空所有 Bug 数据按钮，双重确认防误操作
+- **配置管理**: `lib/jiraConfig.js` 统一配置（baseUrl、认证、JQL、字段、maxResults），支持环境变量注入
+- **安全**: JIRA PAT 不再硬编码，通过 `JIRA_PAT` 和 `JIRA_BASE_URL` 环境变量配置
+
+---
 
 ### v3.0 (2026-04-16)
 **工程化重构与文档完善**
@@ -697,5 +731,5 @@ MIT License
 
 ---
 
-**最后更新**: 2026年4月15日  
-**版本**: 2.51
+**最后更新**: 2026年4月20日  
+**版本**: 3.2
