@@ -167,7 +167,7 @@ router.post('/import-jira', auth.authenticateToken, async function(req, res) {
             }
 
             var bug = {
-                id: 'jira-' + Date.now() + '-' + idx,
+                id: 'jira-' + issue.key + '-' + Date.now(),
                 bugId: issue.key || '',
                 domain: domain,
                 description: f.summary || '',
@@ -294,7 +294,7 @@ router.post('/sync-jira-status', auth.authenticateToken, async function(req, res
         var jql = 'issueKey in (' + jiraKeys.join(',') + ')';
         var queryParams = 'jql=' + encodeURIComponent(jql) +
             '&fields=status,assignee' +
-            '&maxResults=' + Math.max(jiraKeys.length, jiraConfig.maxResults);
+            '&maxResults=' + jiraKeys.length;
 
         var requestOptions = {
             hostname: parsedUrl.hostname,

@@ -730,15 +730,42 @@ function renderJiraProjectItems(projects) {
         return;
     }
 
-    var html = '';
+    container.innerHTML = '';
     projects.forEach(function(p) {
-        var leadText = p.lead ? ' (' + p.lead + ')' : '';
-        html += '<div class="jira-project-item" style="padding: 10px 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background=\'#f0f7ff\'" onmouseout="this.style.background=\'\'" onclick="selectJiraProject(\'' + p.key + '\', \'' + p.name.replace(/'/g, "\\'") + '\')">' +
-            '<div><strong style="color:#27ae60;">' + p.key + '</strong> <span style="color:#333; margin-left: 8px;">' + p.name + '</span><span style="color:#999; font-size: 12px;">' + leadText + '</span></div>' +
-            '<span style="color:#27ae60; font-weight: bold; font-size: 14px;">导入 &gt;</span>' +
-            '</div>';
+        var item = document.createElement('div');
+        item.className = 'jira-project-item';
+        item.style.cssText = 'padding: 10px 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center;';
+        item.addEventListener('mouseover', function() { item.style.background = '#f0f7ff'; });
+        item.addEventListener('mouseout', function() { item.style.background = ''; });
+        item.addEventListener('click', function() { selectJiraProject(p.key, p.name); });
+
+        var infoDiv = document.createElement('div');
+        var keySpan = document.createElement('strong');
+        keySpan.style.color = '#27ae60';
+        keySpan.textContent = p.key;
+        infoDiv.appendChild(keySpan);
+
+        var nameSpan = document.createElement('span');
+        nameSpan.style.cssText = 'color:#333; margin-left: 8px;';
+        nameSpan.textContent = p.name;
+        infoDiv.appendChild(nameSpan);
+
+        if (p.lead) {
+            var leadSpan = document.createElement('span');
+            leadSpan.style.cssText = 'color:#999; font-size: 12px;';
+            leadSpan.textContent = ' (' + p.lead + ')';
+            infoDiv.appendChild(leadSpan);
+        }
+
+        item.appendChild(infoDiv);
+
+        var arrowSpan = document.createElement('span');
+        arrowSpan.style.cssText = 'color:#27ae60; font-weight: bold; font-size: 14px;';
+        arrowSpan.textContent = '导入 >';
+        item.appendChild(arrowSpan);
+
+        container.appendChild(item);
     });
-    container.innerHTML = html;
 }
 
 function filterJiraProjects() {
