@@ -22,78 +22,7 @@
       "notes": "MAC层功能验证完成"
     }
   ],
-  "bugs": [
-    {
-      "id": "bug-1776340211848-0",
-      "bugId": "MPW2-202",
-      "domain": "ATE",
-      "description": "FT 失效率高于定界",
-      "severity": "medium",
-      "status": "open",
-      "reportDate": "2026-04-16",
-      "owner": "Yabing Lu(Finch)"
-    },
-    {
-      "id": "bug-1776340211848-1",
-      "bugId": "MPW2-201",
-      "domain": "PCIe",
-      "description": "MPW2 PCIe 频繁retraining 以及36db 测试failed",
-      "severity": "highest",
-      "status": "closed",
-      "reportDate": "2026-04-16",
-      "owner": "Girer Geng"
-    },
-    {
-      "id": "bug-1776340211848-2",
-      "bugId": "MPW2-200",
-      "domain": "Power",
-      "description": "gpu_debugger --dump_pmu_trace发现读取的core电压为0",
-      "severity": "medium",
-      "status": "closed",
-      "reportDate": "2026-04-16",
-      "owner": "Xianjie Cao(Jerry)"
-    },
-    {
-      "id": "bug-1776340211848-3",
-      "bugId": "MPW2-199",
-      "domain": "DFT",
-      "description": "MPW2 部分芯片第一次上电Mbist 测试fail",
-      "severity": "high",
-      "status": "triage",
-      "reportDate": "2026-04-16",
-      "owner": "Bo Lin(Bolin)"
-    },
-    {
-      "id": "bug-1776340211848-4",
-      "bugId": "MPW2-198",
-      "domain": "DFT",
-      "description": "HBM3 DFT pattern测试在slave DIE DQ/CA测试failed",
-      "severity": "high",
-      "status": "triage",
-      "reportDate": "2026-04-16",
-      "owner": "Chen Chen"
-    },
-    {
-      "id": "bug-1776340211848-5",
-      "bugId": "MPW2-197",
-      "domain": "DFT",
-      "description": "MPW2 gpll测试，CLKOBS观测无信号",
-      "severity": "medium",
-      "status": "rejected",
-      "reportDate": "2026-04-16",
-      "owner": "Ge Qiang"
-    },
-    {
-      "id": "bug-1776340211848-6",
-      "bugId": "MPW2-195",
-      "domain": "Validation",
-      "description": "MPW2 i2C SI 测试有振铃，下冲太大",
-      "severity": "medium",
-      "status": "closed",
-      "reportDate": "2026-04-16",
-      "owner": "Qun Qian"
-    }
-  ],
+  "bugs": [],
   "dailyProgress": [
     {
       "id": "progress-1",
@@ -173,5 +102,5 @@
       "status": "not-ready"
     }
   ],
-  "lastUpdated": "2026/4/16 12:04:27"
+  "lastUpdated": "2026/4/20 07:53:45"
 }

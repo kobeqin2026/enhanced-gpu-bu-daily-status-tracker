@@ -8,7 +8,10 @@ module.exports = {
     max_memory_restart: '1G',
     env: {
       NODE_ENV: 'production',
-      PORT: 3000
+      PORT: 3000,
+      // JIRA config - set via server environment variables:
+      // JIRA_BASE_URL: 'https://jira01.birentech.com',
+      // JIRA_PAT: 'your-personal-access-token'
     }
   }]
 };

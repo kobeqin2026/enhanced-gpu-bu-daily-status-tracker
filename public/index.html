@@ -217,7 +217,9 @@
                 </select>
                 <input type="text" id="new-bug-owner" placeholder="负责人" class="bug-input">
                 <button class="add-btn user-only" onclick="addNewBug()">添加Bug</button>
+                <button class="add-btn user-only" onclick="showJiraProjectModal()" style="background-color: #27ae60; margin-left: 10px;">从JIRA导入</button>
                 <button class="add-btn user-only" onclick="showBugImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
+                <button class="add-btn user-only" onclick="clearAllBugs()" style="background-color: #e74c3c; margin-left: 10px;" title="清空所有Bug数据">清空Bug</button>
             </div>
         </div>
         
@@ -698,6 +700,35 @@
             <div class="modal-footer">
                 <button class="modal-btn modal-cancel-btn" onclick="closeBugImportModal()">取消</button>
                 <button class="modal-btn modal-save-btn" onclick="importBugsFromCSV()">导入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JIRA Project Selection Modal -->
+    <div id="jira-project-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <div class="modal-title">从JIRA导入Bug - 选择项目</div>
+                <span class="close" onclick="closeJiraProjectModal()">&times;</span>
+            </div>
+            <div style="padding: 15px 0;">
+                <div style="margin-bottom: 12px; padding: 10px 12px; background: #f8f9fa; border-radius: 4px;">
+                    <label style="font-size: 14px; color: #333; cursor: pointer;">
+                        <input type="checkbox" id="jira-include-closed" style="margin-right: 8px; transform: scale(1.2);" />
+                        包含已关闭的Bug（默认仅显示Open/Triage/Implement中）
+                    </label>
+                </div>
+                <div id="jira-project-loading" style="text-align: center; padding: 20px; color: #666;">
+                    <div>正在从JIRA获取项目列表...</div>
+                </div>
+                <div id="jira-project-error" style="display: none; padding: 15px; background: #fee; border-radius: 4px; color: #c00; margin-bottom: 10px;"></div>
+                <div id="jira-project-list" style="max-height: 400px; overflow-y: auto; display: none;">
+                    <input type="text" id="jira-project-search" placeholder="搜索项目..." style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;" oninput="filterJiraProjects()" />
+                    <div id="jira-project-items"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-cancel-btn" onclick="closeJiraProjectModal()">取消</button>
             </div>
         </div>
     </div>

@@ -674,6 +674,209 @@ async function importBugsFromCSV() {
     alert(message);
 }
 
+// ============ JIRA Import ============
+
+var jiraProjectsCache = [];
+
+function showJiraProjectModal() {
+    if (!isLoggedIn()) {
+        alert('请先登录');
+        return;
+    }
+    document.getElementById('jira-project-modal').style.display = 'block';
+    document.getElementById('jira-project-loading').style.display = 'block';
+    document.getElementById('jira-project-error').style.display = 'none';
+    document.getElementById('jira-project-list').style.display = 'none';
+    document.getElementById('jira-project-search').value = '';
+    loadJiraProjects();
+}
+
+function closeJiraProjectModal() {
+    document.getElementById('jira-project-modal').style.display = 'none';
+}
+
+async function loadJiraProjects() {
+    try {
+        var token = localStorage.getItem('token');
+        var response = await fetch('/api/data/jira-projects', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            }
+        });
+        var result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || '获取项目列表失败');
+        }
+
+        jiraProjectsCache = result.projects || [];
+        document.getElementById('jira-project-loading').style.display = 'none';
+        document.getElementById('jira-project-list').style.display = 'block';
+        renderJiraProjectItems(jiraProjectsCache);
+    } catch (error) {
+        document.getElementById('jira-project-loading').style.display = 'none';
+        var errorDiv = document.getElementById('jira-project-error');
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = '获取JIRA项目失败: ' + error.message;
+    }
+}
+
+function renderJiraProjectItems(projects) {
+    var container = document.getElementById('jira-project-items');
+    if (projects.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">没有找到匹配的项目</div>';
+        return;
+    }
+
+    var html = '';
+    projects.forEach(function(p) {
+        var leadText = p.lead ? ' (' + p.lead + ')' : '';
+        html += '<div class="jira-project-item" style="padding: 10px 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onmouseover="this.style.background=\'#f0f7ff\'" onmouseout="this.style.background=\'\'" onclick="selectJiraProject(\'' + p.key + '\', \'' + p.name.replace(/'/g, "\\'") + '\')">' +
+            '<div><strong style="color:#27ae60;">' + p.key + '</strong> <span style="color:#333; margin-left: 8px;">' + p.name + '</span><span style="color:#999; font-size: 12px;">' + leadText + '</span></div>' +
+            '<span style="color:#27ae60; font-weight: bold; font-size: 14px;">导入 &gt;</span>' +
+            '</div>';
+    });
+    container.innerHTML = html;
+}
+
+function filterJiraProjects() {
+    var query = document.getElementById('jira-project-search').value.toLowerCase();
+    var filtered = jiraProjectsCache.filter(function(p) {
+        return p.key.toLowerCase().indexOf(query) !== -1 ||
+               p.name.toLowerCase().indexOf(query) !== -1 ||
+               (p.lead && p.lead.toLowerCase().indexOf(query) !== -1);
+    });
+    renderJiraProjectItems(filtered);
+}
+
+function selectJiraProject(projectKey, projectName) {
+    var includeClosed = document.getElementById('jira-include-closed').checked;
+    closeJiraProjectModal();
+    importBugsFromJIRA(projectKey, projectName, includeClosed);
+}
+
+async function importBugsFromJIRA(projectKey, projectName, includeClosed) {
+    var btn = event ? event.target : null;
+    var originalText = btn ? btn.textContent : '';
+    if (btn) {
+        btn.textContent = '正在导入...';
+        btn.disabled = true;
+    }
+
+    try {
+        var token = localStorage.getItem('token');
+        var response = await fetch('/api/data/import-jira', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ project: projectKey, includeClosed: includeClosed })
+        });
+
+        var result = await response.json();
+
+        if (!result.success) {
+            alert('JIRA导入失败: ' + (result.error || '未知错误'));
+            return;
+        }
+
+        var jiraBugs = result.bugs || [];
+        if (jiraBugs.length === 0) {
+            alert(projectName + ' 项目中没有找到匹配的Bug');
+            return;
+        }
+
+        // Show preview dialog
+        var previewMsg = '从JIRA项目 [' + projectName + '] 获取到 ' + jiraBugs.length + ' 条Bug（JIRA总计: ' + (result.total || jiraBugs.length) + '）\n\n';
+        previewMsg += '前5条预览:\n';
+        for (var i = 0; i < Math.min(5, jiraBugs.length); i++) {
+            var b = jiraBugs[i];
+            previewMsg += '  ' + b.bugId + ' | ' + b.description.substring(0, 50) + ' | ' + b.owner + '\n';
+        }
+        if (jiraBugs.length > 5) {
+            previewMsg += '  ... 还有 ' + (jiraBugs.length - 5) + ' 条\n';
+        }
+        previewMsg += '\n是否导入到当前项目？\n（已有Bug会根据Bug ID自动更新）';
+
+        if (!confirm(previewMsg)) {
+            return;
+        }
+
+        // Merge bugs
+        var added = 0;
+        var updated = 0;
+        var skipped = 0;
+
+        jiraBugs.forEach(function(jiraBug) {
+            var existingBug = App.data.bugs.find(function(b) {
+                return b.bugId === jiraBug.bugId;
+            });
+
+            if (existingBug) {
+                // Update existing bug
+                existingBug.domain = jiraBug.domain;
+                existingBug.description = jiraBug.description;
+                existingBug.severity = jiraBug.severity;
+                existingBug.status = jiraBug.status;
+                existingBug.reportDate = jiraBug.reportDate;
+                existingBug.owner = jiraBug.owner;
+                updated++;
+            } else {
+                // Add new bug
+                App.data.bugs.push(jiraBug);
+                added++;
+            }
+        });
+
+        renderBugs(App.data.bugs);
+        persistData();
+
+        var message = '成功从 [' + projectName + '] 导入 ' + added + ' 条新Bug';
+        if (updated > 0) {
+            message += '，更新 ' + updated + ' 条已有Bug';
+        }
+        if (skipped > 0) {
+            message += '，跳过 ' + skipped + ' 条';
+        }
+        alert(message);
+
+    } catch (error) {
+        console.error('JIRA import error:', error);
+        alert('JIRA导入出错: ' + error.message);
+    } finally {
+        if (btn) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    }
+}
+
+// ============ Clear All Bugs ============
+
+async function clearAllBugs() {
+    if (!isLoggedIn()) {
+        alert('请先登录');
+        return;
+    }
+
+    if (!confirm('确定要清空所有Bug数据吗？此操作不可恢复！')) {
+        return;
+    }
+
+    if (!confirm('再次确认：真的要清空所有 ' + App.data.bugs.length + ' 条Bug吗？')) {
+        return;
+    }
+
+    App.data.bugs = [];
+    renderBugs(App.data.bugs);
+    await persistData();
+
+    alert('已清空所有Bug数据');
+}
+
 // ============ Backward compatibility for old function names ============
 // These are kept for any remaining references to the old modal names
 

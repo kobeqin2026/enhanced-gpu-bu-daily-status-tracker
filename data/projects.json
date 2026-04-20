@@ -17,6 +17,8 @@
     "id": "taihu",
     "name": "Taihu",
     "description": "",
-    "createdAt": "2026-04-16T01:10:32.879Z"
+    "createdAt": "2026-04-16T01:10:32.879Z",
+    "startDate": "2026-05-06",
+    "endDate": "2026-05-08"
   }
 ]

@@ -1,9 +1,1 @@
-{
-  "admin": {
-    "username": "admin",
-    "role": "admin",
-    "name": "管理员",
-    "token": "ec0065b17902eddada17b9c836bc501f",
-    "createdAt": 1776340764136
-  }
-}
+{}
