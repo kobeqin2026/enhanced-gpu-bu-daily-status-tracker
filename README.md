@@ -181,7 +181,12 @@ enhanced-gpu-bu-daily-status-tracker/
 - **JIRA 项目选择器**: 前端新增 Modal 弹窗，动态获取项目列表（Key + 名称 + 负责人），支持搜索过滤
 - **字段智能映射**:
   - 优先级映射: blocker→highest, major→high, normal/medium→medium, low→low, trivial→lowest
-  - 状态映射: closed/done/resolved→closed, reject/wontfix→rejected, in progress/implementing→implement, triage/open/new→open
+  - 状态映射:
+    - Opened / Open / New / To Do → **open**
+    - Triaged / Review / Test / Verify / QA / 开发中 / In Progress → **triage**
+    - Implemented → **implement**
+    - Closed / Done / Resolved → **closed**
+    - Reject / Won't Fix → **rejected**
 - **可选项**: 支持选择是否包含已关闭的 Bug（默认仅 Open/Triage/Implement 中）
 - **Bug 智能合并**: 按 Bug ID 自动匹配 — 已有 Bug 更新字段，新 Bug 追加，避免重复
 - **导入预览**: 导入前展示前 5 条 Bug 预览和统计信息，需用户确认后才执行
