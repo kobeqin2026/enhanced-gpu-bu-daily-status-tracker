@@ -854,6 +854,89 @@ async function importBugsFromJIRA(projectKey, projectName, includeClosed) {
     }
 }
 
+// ============ Sync JIRA Bug Status ============
+
+async function syncJiraStatus() {
+    if (!isLoggedIn()) {
+        alert('请先登录');
+        return;
+    }
+
+    // Collect all JIRA bug keys
+    var jiraBugs = App.data.bugs.filter(function(b) { return b.jiraKey; });
+    if (jiraBugs.length === 0) {
+        alert('当前没有从JIRA导入的Bug，无需同步');
+        return;
+    }
+
+    if (!confirm('将同步 ' + jiraBugs.length + ' 条JIRA Bug的状态和负责人，是否继续？')) {
+        return;
+    }
+
+    var jiraKeys = jiraBugs.map(function(b) { return b.jiraKey; });
+
+    try {
+        var token = localStorage.getItem('token');
+        var response = await fetch('/api/data/sync-jira-status', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ jiraKeys: jiraKeys })
+        });
+
+        var result = await response.json();
+
+        if (!result.success) {
+            alert('同步失败: ' + (result.error || '未知错误'));
+            return;
+        }
+
+        var statusMap = result.bugs || {};
+        var synced = 0;
+        var changed = 0;
+        var notFound = 0;
+
+        App.data.bugs.forEach(function(bug) {
+            if (!bug.jiraKey) return;
+            var info = statusMap[bug.jiraKey];
+            if (!info) {
+                notFound++;
+                return;
+            }
+
+            synced++;
+            var oldStatus = bug.status;
+            var oldOwner = bug.owner;
+
+            // Update status and owner from JIRA
+            bug.status = info.status;
+            bug.jiraStatus = info.jiraStatus;
+            if (info.owner) {
+                bug.owner = info.owner;
+            }
+
+            if (oldStatus !== bug.status || oldOwner !== bug.owner) {
+                changed++;
+            }
+        });
+
+        renderBugs(App.data.bugs);
+        await persistData();
+
+        var message = '同步完成！共 ' + synced + ' 条，更新 ' + changed + ' 条';
+        if (notFound > 0) {
+            message += '，JIRA中未找到 ' + notFound + ' 条';
+        }
+        alert(message);
+
+    } catch (error) {
+        console.error('JIRA sync error:', error);
+        alert('同步出错: ' + error.message);
+    }
+}
+
 // ============ Clear All Bugs ============
 
 async function clearAllBugs() {

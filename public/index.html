@@ -218,6 +218,7 @@
                 <input type="text" id="new-bug-owner" placeholder="负责人" class="bug-input">
                 <button class="add-btn user-only" onclick="addNewBug()">添加Bug</button>
                 <button class="add-btn user-only" onclick="showJiraProjectModal()" style="background-color: #27ae60; margin-left: 10px;">从JIRA导入</button>
+                <button class="add-btn user-only" onclick="syncJiraStatus()" style="background-color: #8e44ad; margin-left: 10px;" title="从JIRA同步所有Bug最新状态">同步JIRA状态</button>
                 <button class="add-btn user-only" onclick="showBugImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
                 <button class="add-btn user-only" onclick="clearAllBugs()" style="background-color: #e74c3c; margin-left: 10px;" title="清空所有Bug数据">清空Bug</button>
             </div>

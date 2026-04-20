@@ -268,4 +268,90 @@ router.get('/jira-projects', auth.authenticateToken, async function(req, res) {
     }
 });
 
+/**
+ * POST /api/data/sync-jira-status
+ * Fetches latest status for JIRA bugs from JIRA API
+ */
+router.post('/sync-jira-status', auth.authenticateToken, async function(req, res) {
+    try {
+        var authHeader = getAuthHeader();
+        if (!authHeader) {
+            return res.status(500).json({
+                success: false,
+                error: 'JIRA认证未配置'
+            });
+        }
+
+        var jiraKeys = req.body.jiraKeys || [];
+        if (jiraKeys.length === 0) {
+            return res.json({ success: true, updated: 0, bugs: [] });
+        }
+
+        var jiraUrl = jiraConfig.baseUrl;
+        var parsedUrl = url.parse(jiraUrl);
+
+        // Build JQL to fetch all matching JIRA keys
+        var jql = 'issueKey in (' + jiraKeys.join(',') + ')';
+        var queryParams = 'jql=' + encodeURIComponent(jql) +
+            '&fields=status,assignee' +
+            '&maxResults=' + Math.max(jiraKeys.length, jiraConfig.maxResults);
+
+        var requestOptions = {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+            path: '/rest/api/2/search?' + queryParams,
+            method: 'GET',
+            headers: {
+                'Authorization': authHeader,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            protocol: parsedUrl.protocol,
+            rejectUnauthorized: false
+        };
+
+        console.log('Syncing JIRA status for ' + jiraKeys.length + ' bugs');
+
+        var jiraData = await makeRequest(requestOptions);
+
+        if (!jiraData || !jiraData.issues) {
+            return res.status(500).json({
+                success: false,
+                error: 'JIRA API返回格式异常'
+            });
+        }
+
+        // Build status map: jiraKey -> {jiraStatus, status, owner}
+        var statusMap = {};
+        jiraData.issues.forEach(function(issue) {
+            var f = issue.fields || {};
+            var status = f.status || {};
+            var assignee = f.assignee || {};
+            var key = issue.key;
+
+            statusMap[key] = {
+                jiraStatus: status.name || '',
+                status: mapStatus(status),
+                owner: assignee.displayName || assignee.name || ''
+            };
+        });
+
+        console.log('JIRA sync: found ' + Object.keys(statusMap).length + ' of ' + jiraKeys.length + ' bugs');
+
+        res.json({
+            success: true,
+            updated: Object.keys(statusMap).length,
+            bugs: statusMap,
+            total: jiraKeys.length
+        });
+
+    } catch (error) {
+        console.error('JIRA sync error: ' + error.message);
+        res.status(500).json({
+            success: false,
+            error: '同步JIRA状态失败: ' + error.message
+        });
+    }
+});
+
 module.exports = router;
