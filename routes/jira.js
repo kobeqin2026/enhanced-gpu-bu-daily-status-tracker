@@ -68,11 +68,16 @@ function mapPriority(jiraPriority) {
 function mapStatus(jiraStatus) {
     if (!jiraStatus) return 'open';
     var name = (jiraStatus.name || '').toLowerCase();
+    // Closed / Done / Resolved
     if (name.indexOf('closed') !== -1 || name.indexOf('done') !== -1 || name.indexOf('resolved') !== -1) return 'closed';
+    // Reject / Won't Fix
     if (name.indexOf('reject') !== -1 || name.indexOf('wont') !== -1 || name.indexOf('won\'t') !== -1) return 'rejected';
-    if (name.indexOf('implement') !== -1 || name.indexOf('开发') !== -1 || name.indexOf('in progress') !== -1 || name.indexOf('fix') !== -1) return 'implement';
-    if (name.indexOf('triage') !== -1 || name.indexOf('review') !== -1 || name.indexOf('open') !== -1 || name.indexOf('new') !== -1 || name.indexOf('to do') !== -1) return 'open';
-    if (name.indexOf('test') !== -1 || name.indexOf('verify') !== -1 || name.indexOf('qa') !== -1) return 'triage';
+    // Implemented
+    if (name.indexOf('implement') !== -1) return 'implement';
+    // Triaged / 开发中 / In Progress / Review / Test / Verify / QA
+    if (name.indexOf('triage') !== -1 || name.indexOf('开发') !== -1 || name.indexOf('in progress') !== -1 || name.indexOf('review') !== -1 || name.indexOf('test') !== -1 || name.indexOf('verify') !== -1 || name.indexOf('qa') !== -1) return 'triage';
+    // Opened / Open / New / To Do
+    if (name.indexOf('open') !== -1 || name.indexOf('new') !== -1 || name.indexOf('to do') !== -1) return 'open';
     return 'open';
 }
 
