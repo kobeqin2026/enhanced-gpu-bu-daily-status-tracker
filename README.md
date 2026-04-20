@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v3.2-green)
+![Version](https://img.shields.io/badge/version-v3.3-green)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -171,8 +171,8 @@ enhanced-gpu-bu-daily-status-tracker/
 
 ## 版本历史
 
-### v3.2 (2026-04-20)
-**JIRA Bug 集成导入功能**
+### v3.3 (2026-04-20)
+**JIRA Bug 集成导入 + 一键同步状态**
 
 - **JIRA REST API 集成**: 新增 `routes/jira.js` 独立路由模块，支持从 JIRA Server / Data Center / Cloud 自动拉取 Bug 数据
 - **三种认证方式**: 
@@ -739,4 +739,4 @@ MIT License
 ---
 
 **最后更新**: 2026年4月20日  
-**版本**: 3.2
+**版本**: 3.3
