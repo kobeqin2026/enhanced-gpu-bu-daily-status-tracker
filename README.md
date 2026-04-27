@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v4.2-blue)
+![Version](https://img.shields.io/badge/version-v4.4-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -179,6 +179,31 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v4.4 (2026-04-27)
+**Bug 智能诊断增强 - 跨项目类似 Bug 检索**
+
+- **跨项目 Bug 自动检索**：
+  - 根据 Bug 描述自动提取硬件关键词（PCIE/PHY/I2C/GPIO/Clock 等）和错误模式（fail/timeout/hang 等）
+  - 通过 JIRA API 搜索其他项目中类似 Bug（排除当前项目）
+  - 最多返回 3 个最相关的历史 Bug，包含标题、状态、描述、最近评论
+- **LLM 综合分析**：
+  - 将当前 Bug 描述 + 评论 + 日志 + 跨项目历史 Bug 一起发送给 qwen3.6-plus
+  - LLM 参考历史解决方案，给出更有针对性的调试建议
+  - 诊断结果新增"相关历史Bug"区域，显示检索到的跨项目 Bug，点击可跳转 JIRA
+- **超时优化**：LLM 请求超时从 60s 提升到 120s
+
+---
+
+### v4.3 (2026-04-27)
+**Bug 智能诊断 - 基于 Bailian LLM 的 Bug 自动分析**
+
+- 新增"智能诊断"按钮（🔍），点击后自动分析 Bug 并给出调试建议
+- 分析内容：问题摘要、可能原因、建议操作、需要收集的数据、置信度
+- 使用 qwen3.6-plus 模型，24 小时缓存避免重复调用
+- 诊断弹窗支持查看完整分析结果
+
+---
 
 ### v4.2 (2026-04-27)
 **JIRA Bug Dashboard - 图表增强**
