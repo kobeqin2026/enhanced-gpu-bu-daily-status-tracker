@@ -902,7 +902,9 @@ function renderBugRows(bugs) {
         diagBtn.className = 'diag-btn';
         diagBtn.textContent = '🔍';
         diagBtn.title = '智能诊断';
-        diagBtn.setAttribute('onclick', 'diagnoseBug(\'' + escapeHtml(bug.bugId) + '\')');
+        diagBtn.onclick = (function(key) {
+            return function() { diagnoseBug(key); };
+        })(bug.bugId);
         tdDiag.appendChild(diagBtn);
         tr.appendChild(tdDiag);
 
