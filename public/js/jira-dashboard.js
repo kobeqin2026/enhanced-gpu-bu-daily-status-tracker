@@ -22,8 +22,6 @@ var pieLabelPlugin = {
         var innerRadius = meta.data[0].innerRadius || 0;
 
         ctx.save();
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
 
         meta.data.forEach(function(arc, i) {
             var value = dataset.data[i];
@@ -33,43 +31,26 @@ var pieLabelPlugin = {
             var label = labels[i] || '';
             var color = dataset.backgroundColor[i];
             var textColor = isLightColor(color) ? '#333' : '#fff';
+            var angle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
 
-            // 1) Inside: label name at arc center
-            var labelFontSize = Math.max(10, Math.min(12, chart.width / 42));
-            var insideAngle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
             var ringWidth = outerRadius - innerRadius;
-            var midRadius = innerRadius + ringWidth * 0.5;
-            var insideX = centerX + Math.cos(insideAngle) * midRadius;
-            var insideY = centerY + Math.sin(insideAngle) * midRadius;
+            var labelR = innerRadius + ringWidth * 0.5;
+            var labelX = centerX + Math.cos(angle) * labelR;
+            var labelY = centerY + Math.sin(angle) * labelR;
 
-            ctx.font = 'bold ' + labelFontSize + 'px sans-serif';
-            ctx.fillStyle = textColor;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(label, insideX, insideY);
 
-            // 2) Outside: percentage label next to arc (no connecting line)
-            if (pct < 2) return;
+            // Status name on top
+            var nameSize = Math.max(9, Math.min(12, ringWidth * 0.22));
+            ctx.font = 'bold ' + nameSize + 'px sans-serif';
+            ctx.fillStyle = textColor;
+            ctx.fillText(label, labelX, labelY - nameSize * 0.55);
 
-            var outsideAngle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
-            var outsideR = outerRadius + chart.width * 0.03; // 紧凑靠近扇区
-            var outsideX = centerX + Math.cos(outsideAngle) * outsideR;
-            var outsideY = centerY + Math.sin(outsideAngle) * outsideR;
-
-            var pctFontSize = Math.max(9, Math.min(11, chart.width / 48));
-            ctx.font = 'bold ' + pctFontSize + 'px sans-serif';
-            ctx.fillStyle = '#444';
-
-            // 左右智能对齐
-            if (outsideX >= centerX) {
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(pct + '%', outsideX + 4, outsideY);
-            } else {
-                ctx.textAlign = 'right';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(pct + '%', outsideX - 4, outsideY);
-            }
+            // Percentage below
+            var pctSize = Math.max(9, Math.min(11, ringWidth * 0.20));
+            ctx.font = 'bold ' + pctSize + 'px sans-serif';
+            ctx.fillText(pct + '%', labelX, labelY + pctSize * 0.6);
         });
 
         ctx.restore();
@@ -646,7 +627,7 @@ function renderDomainChart(domainCount) {
     var colors = CHART_COLORS.domain.slice(0, top.length);
 
     Dashboard.charts.domain = new Chart(ctx, {
-        type: 'pie',
+        type: 'doughnut',
         data: {
             labels: labels,
             datasets: [{
@@ -654,9 +635,10 @@ function renderDomainChart(domainCount) {
                 backgroundColor: colors,
                 borderWidth: 2,
                 borderColor: '#fff'
-            }]
+            }],
         },
         options: {
+            cutout: '45%',
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
