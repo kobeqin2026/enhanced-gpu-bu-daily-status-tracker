@@ -698,3 +698,49 @@
     color: #555;
     line-height: 1.4;
 }
+
+/* Related bugs section */
+.diag-related-section {
+    border-top: 2px solid #ecf0f1;
+    padding-top: 12px;
+    margin-top: 8px;
+}
+.related-bug-card {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border-left: 3px solid #3498db;
+    transition: background 0.2s;
+}
+.related-bug-card:hover {
+    background: #eef2f7;
+}
+.related-bug-key {
+    font-weight: bold;
+    color: #2980b9;
+    text-decoration: none;
+    font-size: 13px;
+}
+.related-bug-key:hover {
+    text-decoration: underline;
+}
+.related-bug-project {
+    font-size: 11px;
+    background: #ecf0f1;
+    color: #666;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+}
+.related-bug-status {
+    font-size: 11px;
+    color: #888;
+    margin-left: 8px;
+}
+.related-bug-summary {
+    font-size: 12px;
+    color: #555;
+    margin: 4px 0 0 0;
+    line-height: 1.3;
+}

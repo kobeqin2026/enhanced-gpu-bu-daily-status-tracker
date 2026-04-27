@@ -1032,6 +1032,7 @@ function diagnoseBug(bugKey) {
             summary: bug.description,
             status: bug.status,
             severity: bug.severity,
+            projectKey: bug.projectKey || '',
             description: bug.jiraDescription || '',
             comments: bug.jiraComments || [],
             logContent: ''
@@ -1090,6 +1091,45 @@ function showDiagnoseResult(data) {
         li.textContent = d;
         dataEl.appendChild(li);
     });
+
+    // Related bugs (cross-project)
+    var relatedSection = document.getElementById('diag-related-section');
+    var relatedEl = document.getElementById('diag-related-bugs');
+    relatedEl.innerHTML = '';
+
+    if (data.related_bugs && data.related_bugs.length > 0) {
+        relatedSection.style.display = 'block';
+        data.related_bugs.forEach(function(b) {
+            var card = document.createElement('div');
+            card.className = 'related-bug-card';
+
+            var link = document.createElement('a');
+            link.href = b.url || '#';
+            link.target = '_blank';
+            link.className = 'related-bug-key';
+            link.textContent = b.key;
+
+            var projectSpan = document.createElement('span');
+            projectSpan.className = 'related-bug-project';
+            projectSpan.textContent = b.project;
+
+            var statusSpan = document.createElement('span');
+            statusSpan.className = 'related-bug-status';
+            statusSpan.textContent = b.status + (b.resolution ? ' (' + b.resolution + ')' : '');
+
+            var titleP = document.createElement('p');
+            titleP.className = 'related-bug-summary';
+            titleP.textContent = b.summary || '';
+
+            card.appendChild(link);
+            card.appendChild(projectSpan);
+            card.appendChild(statusSpan);
+            card.appendChild(titleP);
+            relatedEl.appendChild(card);
+        });
+    } else {
+        relatedSection.style.display = 'none';
+    }
 }
 
 function closeDiagModal() {
