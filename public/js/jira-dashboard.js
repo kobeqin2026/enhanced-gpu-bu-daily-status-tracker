@@ -896,6 +896,16 @@ function renderBugRows(bugs) {
         }
         tr.appendChild(tdAge);
 
+        // Diagnosis button
+        var tdDiag = document.createElement('td');
+        var diagBtn = document.createElement('button');
+        diagBtn.className = 'diag-btn';
+        diagBtn.textContent = '🔍';
+        diagBtn.title = '智能诊断';
+        diagBtn.setAttribute('onclick', 'diagnoseBug(\'' + escapeHtml(bug.bugId) + '\')');
+        tdDiag.appendChild(diagBtn);
+        tr.appendChild(tdDiag);
+
         tbody.appendChild(tr);
     });
 
@@ -996,3 +1006,90 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// ============ Bug Diagnosis ============
+
+function diagnoseBug(bugKey) {
+    var bug = Dashboard.allBugs.find(function(b) { return b.bugId === bugKey; });
+    if (!bug) {
+        alert('找不到 Bug: ' + bugKey);
+        return;
+    }
+
+    document.getElementById('diag-bug-key').textContent = bugKey;
+    document.getElementById('diag-loading').style.display = 'block';
+    document.getElementById('diag-result').style.display = 'none';
+    document.getElementById('diag-modal').style.display = 'flex';
+
+    fetch('/api/data/diagnose-bug', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            key: bugKey,
+            summary: bug.description,
+            status: bug.status,
+            severity: bug.severity,
+            description: bug.jiraDescription || '',
+            comments: bug.jiraComments || [],
+            logContent: ''
+        })
+    })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        if (data.success) {
+            showDiagnoseResult(data.data);
+        } else {
+            document.getElementById('diag-loading').style.display = 'none';
+            alert('诊断失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(function(err) {
+        document.getElementById('diag-loading').style.display = 'none';
+        alert('诊断请求失败: ' + err.message);
+    });
+}
+
+function showDiagnoseResult(data) {
+    document.getElementById('diag-loading').style.display = 'none';
+    document.getElementById('diag-result').style.display = 'block';
+
+    document.getElementById('diag-summary').textContent = data.summary || '无';
+
+    // Confidence
+    var confEl = document.getElementById('diag-confidence');
+    var conf = data.confidence || 0;
+    var confColor = conf >= 70 ? '#27ae60' : (conf >= 40 ? '#f39c12' : '#e74c3c');
+    confEl.innerHTML = '置信度: <strong style="color:' + confColor + '">' + conf + '%</strong>';
+
+    // Causes
+    var causesEl = document.getElementById('diag-causes');
+    causesEl.innerHTML = '';
+    (data.possible_causes || []).forEach(function(c) {
+        var li = document.createElement('li');
+        li.textContent = c;
+        causesEl.appendChild(li);
+    });
+
+    // Actions
+    var actionsEl = document.getElementById('diag-actions');
+    actionsEl.innerHTML = '';
+    (data.suggested_actions || []).forEach(function(a) {
+        var li = document.createElement('li');
+        li.textContent = a;
+        actionsEl.appendChild(li);
+    });
+
+    // Needed data
+    var dataEl = document.getElementById('diag-data');
+    dataEl.innerHTML = '';
+    (data.needed_data || []).forEach(function(d) {
+        var li = document.createElement('li');
+        li.textContent = d;
+        dataEl.appendChild(li);
+    });
+}
+
+function closeDiagModal() {
+    document.getElementById('diag-modal').style.display = 'none';
+}

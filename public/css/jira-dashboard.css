@@ -598,3 +598,103 @@
     background: #219a52;
 }
 
+
+/* Diagnosis button */
+.diag-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+.diag-btn:hover {
+    background: #ecf0f1;
+}
+
+/* Diagnosis modal */
+.diag-modal-content {
+    max-width: 700px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.diag-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #27ae60;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+}
+.diag-header h3 {
+    margin: 0;
+    color: #2c3e50;
+}
+.diag-close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #999;
+    padding: 0 4px;
+}
+.diag-close-btn:hover {
+    color: #333;
+}
+
+.diag-loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+.diag-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #27ae60;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: diag-spin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+@keyframes diag-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.diag-result {
+    padding: 0 4px;
+}
+.diag-confidence {
+    font-size: 14px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    display: inline-block;
+}
+.diag-section {
+    margin-bottom: 16px;
+}
+.diag-section h4 {
+    margin: 0 0 6px 0;
+    color: #2c3e50;
+    font-size: 14px;
+}
+.diag-section p {
+    margin: 0;
+    color: #555;
+    line-height: 1.5;
+}
+.diag-section ul, .diag-section ol {
+    margin: 0;
+    padding-left: 20px;
+}
+.diag-section li {
+    margin-bottom: 4px;
+    color: #555;
+    line-height: 1.4;
+}
