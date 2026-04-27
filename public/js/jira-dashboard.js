@@ -54,6 +54,42 @@ function isLightColor(color) {
     return luminance > 0.6;
 }
 
+// ============ Chart.js Plugin: Data Labels on Line Charts ============
+
+var lineDataLabelPlugin = {
+    id: 'lineDataLabel',
+    afterDatasetsDraw: function(chart) {
+        if (chart.config.type !== 'line') return;
+
+        var ctx = chart.ctx;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.font = '10px sans-serif';
+
+        chart.data.datasets.forEach(function(dataset, di) {
+            var meta = chart.getDatasetMeta(di);
+            if (meta.hidden) return;
+
+            meta.data.forEach(function(point, i) {
+                var value = dataset.data[i];
+                if (value === 0 || value === null || value === undefined) return;
+
+                ctx.fillStyle = dataset.borderColor || '#333';
+                ctx.fillText(value, point.x, point.y - 6);
+            });
+        });
+
+        ctx.restore();
+    }
+};
+
+// Register plugins with Chart.js
+if (typeof Chart !== 'undefined' && Chart.register) {
+    Chart.register(percentageLabelPlugin);
+    Chart.register(lineDataLabelPlugin);
+}
+
 // ============ State ============
 var Dashboard = {
     allBugs: [],
@@ -503,7 +539,19 @@ function renderTrendChart(dailyTrend) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'top' }
+                lineDataLabel: {},
+                legend: { position: 'top' },
+                zoom: {
+                    zoom: {
+                        wheel: { enabled: true },
+                        pinch: { enabled: true },
+                        mode: 'x',
+                    },
+                    pan: {
+                        enabled: true,
+                        mode: 'x',
+                    }
+                }
             },
             scales: {
                 y: { beginAtZero: true, ticks: { stepSize: 1 } },
