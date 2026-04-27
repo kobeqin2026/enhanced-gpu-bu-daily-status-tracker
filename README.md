@@ -84,6 +84,7 @@ http://localhost:8088
 enhanced-gpu-bu-daily-status-tracker/
 ├── public/
 │   ├── index.html              # 前端HTML骨架（569行，无内联JS/CSS）
+│   ├── jira-dashboard.html     # JIRA Bug Dashboard 独立可视化分析页面 (231行)
 │   ├── js/                     # JavaScript模块
 │   │   ├── globals.js          # 全局变量封装到App命名空间 (190行)
 │   │   ├── utils.js            # 工具函数 + XSS安全DOM辅助 (113行)
@@ -95,6 +96,7 @@ enhanced-gpu-bu-daily-status-tracker/
 │   │   ├── daily-progress.js   # 每日进度模块 (184行)
 │   │   ├── bu-exit-criteria.js # BU准出标准模块 (299行)
 │   │   ├── import.js           # CSV批量导入 + JIRA导入模块 (600行)
+│   │   ├── jira-dashboard.js   # JIRA Bug Dashboard 前端逻辑 (870行)
 │   │   └── app.js              # 主入口/初始化 (161行)
 │   └── css/                    # CSS模块
 │       ├── base.css            # 基础布局与排版
@@ -105,6 +107,7 @@ enhanced-gpu-bu-daily-status-tracker/
 │       ├── bugs.css            # Bug严重性颜色
 │       ├── daily-progress.css  # 每日进度样式
 │       ├── bu-exit-criteria.css# BU准出标准样式
+│       ├── jira-dashboard.css  # JIRA Bug Dashboard 专属样式
 │       ├── responsive.css      # 响应式布局
 │       └── styles.css          # 主样式/历史遗留
 ├── lib/                        # 后端共享库（v2.3新增）
@@ -124,12 +127,13 @@ enhanced-gpu-bu-daily-status-tracker/
 │   ├── users.js                # 用户管理CRUD (217行)
 │   ├── projects.js             # 项目管理CRUD + 导出 (132行)
 │   ├── data.js                 # 项目数据读写 (48行)
-│   └── jira.js                 # JIRA集成: 项目列表获取 + Bug导入 (~180行)
+│   └── jira.js                 # JIRA集成: 项目列表获取 + Bug导入 + Dashboard API (~610行)
 ├── data/                       # 数据存储目录
 │   ├── gpu-bringup.json        # 项目数据
 │   ├── projects.json           # 项目元数据
 │   ├── sessions.json           # 会话数据
-│   └── users.json              # 用户数据
+│   ├── users.json              # 用户数据
+│   └── jira-cache/             # JIRA Dashboard 历史快照缓存
 ├── logs/                       # 操作日志目录
 ├── server.js                   # Express入口（47行，仅路由组装）
 ├── nginx.conf                  # Nginx配置
@@ -170,7 +174,42 @@ enhanced-gpu-bu-daily-status-tracker/
 - `POST /api/data/import-jira` - 从 JIRA 导入 Bug（body: `{project, includeClosed, maxResults, jql}`）
 - `POST /api/data/sync-jira-status` - 同步已导入 Bug 的 JIRA 状态（body: `{jiraKeys: ["KEY-1", "KEY-2"]}`）
 
+### JIRA Bug Dashboard (需认证)
+- `POST /api/data/jira-dashboard` - 获取 Dashboard 聚合数据（stats + charts + bugs 数组，自动缓存快照）
+- `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
+
 ## 版本历史
+
+### v4.0 (2026-04-27)
+**JIRA Bug Dashboard - 独立 Bug 统计分析可视化页面**
+
+- **JIRA Bug Dashboard 独立页面** (`/jira-dashboard.html`)：一键从主页进入，完整的 Bug 统计分析可视化
+- **7 个 KPI 指标卡片**：总 Bug 数、未关闭、已关闭、今日新增、本周关闭、平均修复天数、超期未关闭 (>14天)
+- **6 种可视化图表**（Chart.js）：
+  - Bug 状态分布（环形图）：Open / Triage / Implement / Closed / Rejected 占比
+  - Bug 严重性分布（柱状图）：Highest / High / Medium / Low / Lowest
+  - Bug 趋势（折线图）：每日新增 vs 每日关闭趋势线
+  - 按负责人分布（水平条形图）：识别工作负载
+  - 按 Domain 分布（饼图）：按 JIRA Label 分类
+  - Bug 年龄分布（柱象图）：未关闭 Bug 的存在天数分布（0-3天 / 3-7天 / 7-14天 / 14-30天 / 30天+）
+- **历史趋势图**：缓存每日快照数据，展示长期的未关闭/已关闭变化趋势
+- **Bug 明细列表**：可排序、可筛选、点击 Key 直接跳转 JIRA、超期 Bug 红色高亮
+- **项目多选**：支持单选或多项目对比模式
+- **自动刷新**：可选 5 / 15 / 30 分钟间隔自动拉取最新数据
+- **Bug 明细默认隐藏已关闭**：增加"显示已关闭"复选框
+
+**后端新增 API**：
+- `POST /api/data/jira-dashboard`：聚合查询，返回 stats + charts + bugs 数组，自动缓存快照到 `data/jira-cache/`
+- `GET /api/data/jira-dashboard-history/:project`：返回历史快照数据用于趋势分析
+
+**新增文件**：`public/jira-dashboard.html`、`public/css/jira-dashboard.css`、`public/js/jira-dashboard.js`
+
+**其他改动**：
+- 主页新增 "JIRA Bug Dashboard" 入口链接
+- 所有 fetch 调用添加 `credentials: 'same-origin'` 修复认证问题
+- 修复错误显示：同时检查 `data.error` 和 `data.message` 字段
+
+---
 
 ### v3.3 (2026-04-20)
 **JIRA Bug 集成导入 + 一键同步状态**
@@ -741,41 +780,3 @@ MIT License
 
 **最后更新**: 2026年4月27日  
 **版本**: 4.0
-
-## 版本更新日志
-
-### v4.0 - JIRA Bug Dashboard (2026-04-27)
-
-#### 新增功能
-- **JIRA Bug Dashboard 独立页面** (`/jira-dashboard.html`)：一键从主页进入，完整的 Bug 统计分析可视化
-- **7 个 KPI 指标卡片**：总 Bug 数、未关闭、已关闭、今日新增、本周关闭、平均修复天数、超期未关闭 (>14天)
-- **6 种可视化图表**（Chart.js）：
-  - Bug 状态分布（环形图）：Open / Triage / Implement / Closed / Rejected 占比
-  - Bug 严重性分布（柱状图）：Highest / High / Medium / Low / Lowest
-  - Bug 趋势（折线图）：每日新增 vs 每日关闭趋势线
-  - 按负责人分布（水平条形图）：识别工作负载
-  - 按 Domain 分布（饼图）：按 JIRA Label 分类
-  - Bug 年龄分布（柱状图）：未关闭 Bug 的存在天数分布（0-3天 / 3-7天 / 7-14天 / 14-30天 / 30天+）
-- **历史趋势图**：缓存每日快照数据，展示长期的未关闭/已关闭变化趋势
-- **Bug 明细列表**：可排序、可筛选、点击 Key 直接跳转 JIRA、超期 Bug 红色高亮
-- **项目多选**：支持单选或多项目对比模式
-- **自动刷新**：可选 5 / 15 / 30 分钟间隔自动拉取最新数据
-- **Bug 明细默认隐藏已关闭**：增加"显示已关闭"复选框，默认不展示 Closed/Rejected bug
-
-#### 后端新增 API
-- `POST /api/data/jira-dashboard`：聚合查询，返回 stats + charts + bugs 数组，自动缓存快照到 `data/jira-cache/`
-- `GET /api/data/jira-dashboard-history/:project`：返回历史快照数据用于趋势分析
-- 新增 helper 函数：`fetchJiraBugs()`、`computeDashboardStats()`、`computeChartData()`、`cacheSnapshot()`、`buildTrendData()`
-
-#### 前端新增文件
-- `public/jira-dashboard.html`：Dashboard 页面骨架
-- `public/css/jira-dashboard.css`：Dashboard 专属样式（KPI 卡片、图表网格、表格筛选、状态/严重性徽章等）
-- `public/js/jira-dashboard.js`：完整前端逻辑（认证、项目加载、Chart.js 图表渲染、表格筛选排序、自动刷新、历史趋势）
-
-#### 其他改动
-- `public/index.html`：主页新增 "JIRA Bug Dashboard" 入口链接
-- `routes/jira.js`：扩展 Dashboard API，新增 `fetchJiraBugs` 等辅助函数
-- `ecosystem.config.js`：新增 JIRA 环境变量配置注释（PAT 需通过服务器环境变量设置，不可提交到仓库）
-- Bug 明细表新增"显示已关闭"复选框，默认隐藏 Closed/Rejected bug
-- 修复 fetch 认证问题：所有 fetch 调用添加 `credentials: 'same-origin'`
-- 修复错误显示：同时检查 `data.error` 和 `data.message` 字段
