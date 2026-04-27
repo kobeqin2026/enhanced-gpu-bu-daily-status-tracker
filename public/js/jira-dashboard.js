@@ -1103,6 +1103,9 @@ function showDiagnoseResult(data) {
             var card = document.createElement('div');
             card.className = 'related-bug-card';
 
+            var header = document.createElement('div');
+            header.className = 'related-bug-header';
+
             var link = document.createElement('a');
             link.href = b.url || '#';
             link.target = '_blank';
@@ -1117,14 +1120,24 @@ function showDiagnoseResult(data) {
             statusSpan.className = 'related-bug-status';
             statusSpan.textContent = b.status + (b.resolution ? ' (' + b.resolution + ')' : '');
 
+            header.appendChild(link);
+            header.appendChild(projectSpan);
+            header.appendChild(statusSpan);
+            card.appendChild(header);
+
             var titleP = document.createElement('p');
             titleP.className = 'related-bug-summary';
             titleP.textContent = b.summary || '';
-
-            card.appendChild(link);
-            card.appendChild(projectSpan);
-            card.appendChild(statusSpan);
             card.appendChild(titleP);
+
+            // Show root cause if available
+            if (b.root_cause) {
+                var rcDiv = document.createElement('div');
+                rcDiv.className = 'related-bug-root-cause';
+                rcDiv.textContent = b.root_cause;
+                card.appendChild(rcDiv);
+            }
+
             relatedEl.appendChild(card);
         });
     } else {
