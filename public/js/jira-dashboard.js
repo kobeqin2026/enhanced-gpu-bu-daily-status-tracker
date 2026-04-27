@@ -1,6 +1,111 @@
 // JIRA Bug Dashboard - Frontend Logic
 // Chart.js via CDN: https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js
 
+// ============ Chart.js Plugin: Labels on Pie/Doughnut (status inside, percentage outside) ============
+
+var pieLabelPlugin = {
+    id: 'pieLabel',
+    afterDatasetsDraw: function(chart) {
+        if (chart.config.type !== 'pie' && chart.config.type !== 'doughnut') return;
+
+        var ctx = chart.ctx;
+        var dataset = chart.data.datasets[0];
+        var labels = chart.data.labels;
+        var meta = chart.getDatasetMeta(0);
+        var total = dataset.data.reduce(function(a, b) { return a + b; }, 0);
+
+        if (total === 0) return;
+
+        var centerX = meta.data[0].x;
+        var centerY = meta.data[0].y;
+        var outerRadius = meta.data[0].outerRadius;
+        var innerRadius = meta.data[0].innerRadius || 0;
+
+        ctx.save();
+
+        meta.data.forEach(function(arc, i) {
+            var value = dataset.data[i];
+            var pct = Math.round((value / total) * 100);
+            if (pct < 1) return;
+
+            var label = labels[i] || '';
+            var color = dataset.backgroundColor[i];
+            var textColor = isLightColor(color) ? '#333' : '#fff';
+            var angle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
+
+            var ringWidth = outerRadius - innerRadius;
+            var labelR = innerRadius + ringWidth * 0.5;
+            var labelX = centerX + Math.cos(angle) * labelR;
+            var labelY = centerY + Math.sin(angle) * labelR;
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Status name on top
+            var nameSize = Math.max(9, Math.min(12, ringWidth * 0.22));
+            ctx.font = 'bold ' + nameSize + 'px sans-serif';
+            ctx.fillStyle = textColor;
+            ctx.fillText(label, labelX, labelY - nameSize * 0.55);
+
+            // Percentage below
+            var pctSize = Math.max(9, Math.min(11, ringWidth * 0.20));
+            ctx.font = 'bold ' + pctSize + 'px sans-serif';
+            ctx.fillText(pct + '%', labelX, labelY + pctSize * 0.6);
+        });
+
+        ctx.restore();
+    }
+};
+
+function isLightColor(color) {
+    var r = 0, g = 0, b = 0;
+    if (color.startsWith('#')) {
+        var hex = color.slice(1);
+        if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
+    }
+    var luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.6;
+}
+
+// ============ Chart.js Plugin: Data Labels on Line Charts ============
+
+var lineDataLabelPlugin = {
+    id: 'lineDataLabel',
+    afterDatasetsDraw: function(chart) {
+        if (chart.config.type !== 'line') return;
+
+        var ctx = chart.ctx;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.font = '10px sans-serif';
+
+        chart.data.datasets.forEach(function(dataset, di) {
+            var meta = chart.getDatasetMeta(di);
+            if (meta.hidden) return;
+
+            meta.data.forEach(function(point, i) {
+                var value = dataset.data[i];
+                if (value === 0 || value === null || value === undefined) return;
+
+                ctx.fillStyle = dataset.borderColor || '#333';
+                ctx.fillText(value, point.x, point.y - 6);
+            });
+        });
+
+        ctx.restore();
+    }
+};
+
+// Register plugins with Chart.js
+if (typeof Chart !== 'undefined' && Chart.register) {
+    Chart.register(pieLabelPlugin);
+    Chart.register(lineDataLabelPlugin);
+}
+
 // ============ State ============
 var Dashboard = {
     allBugs: [],
@@ -358,6 +463,7 @@ function renderStatusChart(statusCount) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
+                pieLabel: {},
                 legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } }
             }
         }
@@ -449,7 +555,19 @@ function renderTrendChart(dailyTrend) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'top' }
+                lineDataLabel: {},
+                legend: { position: 'top' },
+                zoom: {
+                    zoom: {
+                        wheel: { enabled: true },
+                        pinch: { enabled: true },
+                        mode: 'x',
+                    },
+                    pan: {
+                        enabled: true,
+                        mode: 'x',
+                    }
+                }
             },
             scales: {
                 y: { beginAtZero: true, ticks: { stepSize: 1 } },
@@ -509,7 +627,7 @@ function renderDomainChart(domainCount) {
     var colors = CHART_COLORS.domain.slice(0, top.length);
 
     Dashboard.charts.domain = new Chart(ctx, {
-        type: 'pie',
+        type: 'doughnut',
         data: {
             labels: labels,
             datasets: [{
@@ -517,12 +635,14 @@ function renderDomainChart(domainCount) {
                 backgroundColor: colors,
                 borderWidth: 2,
                 borderColor: '#fff'
-            }]
+            }],
         },
         options: {
+            cutout: '45%',
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
+                pieLabel: {},
                 legend: { position: 'right', labels: { padding: 8, font: { size: 10 } } }
             }
         }
@@ -558,6 +678,14 @@ function renderAgeChart(ageBuckets) {
             }
         }
     });
+}
+
+// ============ Trend Zoom Control ============
+
+function resetTrendZoom() {
+    if (Dashboard.charts.trend) {
+        Dashboard.charts.trend.resetZoom();
+    }
 }
 
 function generateBarColors(count) {

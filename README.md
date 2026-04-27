@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v4.0-blue)
+![Version](https://img.shields.io/badge/version-v4.2-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -179,6 +179,23 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v4.2 (2026-04-27)
+**JIRA Bug Dashboard - 图表增强**
+
+- **饼图/环形图标签增强**：
+  - 扇区内部显示状态名 + 百分比，两行居中排列
+  - 标签字号根据环形宽度自适应，避免文字重叠
+  - Domain 图改为 doughnut 类型 (cutout 45%)，与状态图风格统一
+- **趋势图数据标签**：折线图每个数据点上方显示具体数值（0 值不显示）
+- **趋势图时间轴缩放/拖动**：
+  - 鼠标滚轮缩放横轴时间范围
+  - 鼠标拖拽左右平移
+  - 支持触屏手势
+  - 新增「重置缩放」按钮一键恢复默认视图
+  - 依赖：hammerjs + chartjs-plugin-zoom@2.2.0
+
+---
 
 ### v4.0 (2026-04-27)
 **JIRA Bug Dashboard - 独立 Bug 统计分析可视化页面**

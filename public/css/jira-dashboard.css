@@ -570,3 +570,31 @@
         width: 100%;
     }
 }
+
+/* Chart header row with reset zoom button */
+.chart-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.chart-header-row h3 {
+    margin: 0;
+}
+
+.reset-zoom-btn {
+    background: #27ae60;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.reset-zoom-btn:hover {
+    background: #219a52;
+}
+
