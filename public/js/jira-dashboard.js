@@ -34,64 +34,41 @@ var pieLabelPlugin = {
             var color = dataset.backgroundColor[i];
             var textColor = isLightColor(color) ? '#333' : '#fff';
 
-            // 1) Inside: label name at center of arc
-            var insidePoint = arc.getCenterPoint();
-            var labelFontSize = Math.max(10, Math.min(13, chart.width / 40));
-
-            // For doughnut, check if label fits inside
-            if (chart.config.type === 'doughnut') {
-                var ringWidth = outerRadius - innerRadius;
-                var midRadius = innerRadius + ringWidth * 0.5;
-                // Use mid-radius position
-                var angle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
-                insidePoint = {
-                    x: centerX + Math.cos(angle) * midRadius,
-                    y: centerY + Math.sin(angle) * midRadius
-                };
-            }
+            // 1) Inside: label name at arc center
+            var labelFontSize = Math.max(10, Math.min(12, chart.width / 42));
+            var insideAngle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
+            var ringWidth = outerRadius - innerRadius;
+            var midRadius = innerRadius + ringWidth * 0.5;
+            var insideX = centerX + Math.cos(insideAngle) * midRadius;
+            var insideY = centerY + Math.sin(insideAngle) * midRadius;
 
             ctx.font = 'bold ' + labelFontSize + 'px sans-serif';
             ctx.fillStyle = textColor;
-            ctx.fillText(label, insidePoint.x, insidePoint.y);
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, insideX, insideY);
 
-            // 2) Outside: percentage label with connecting line
-            if (pct < 2) return; // skip very small slices for outer label
+            // 2) Outside: percentage label next to arc (no connecting line)
+            if (pct < 2) return;
 
-            var angle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
-            var labelRadius = outerRadius + chart.width * 0.06;
-            var outsideX = centerX + Math.cos(angle) * labelRadius;
-            var outsideY = centerY + Math.sin(angle) * labelRadius;
+            var outsideAngle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
+            var outsideR = outerRadius + chart.width * 0.03; // 紧凑靠近扇区
+            var outsideX = centerX + Math.cos(outsideAngle) * outsideR;
+            var outsideY = centerY + Math.sin(outsideAngle) * outsideR;
 
-            // Draw connecting line from arc edge to label
-            var edgeX = centerX + Math.cos(angle) * (outerRadius + 4);
-            var edgeY = centerY + Math.sin(angle) * (outerRadius + 4);
-
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(edgeX, edgeY);
-            ctx.lineTo(outsideX, outsideY);
-            ctx.stroke();
-
-            // Draw small dot at label position
-            ctx.beginPath();
-            ctx.arc(outsideX, outsideY, 2.5, 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            ctx.fill();
-
-            // Draw percentage text with smart left/right alignment
-            var pctFontSize = Math.max(10, Math.min(12, chart.width / 45));
+            var pctFontSize = Math.max(9, Math.min(11, chart.width / 48));
             ctx.font = 'bold ' + pctFontSize + 'px sans-serif';
-            ctx.fillStyle = '#333';
+            ctx.fillStyle = '#444';
 
-            // Labels on the right side: align left of the dot
-            // Labels on the left side: align right of the dot
+            // 左右智能对齐
             if (outsideX >= centerX) {
                 ctx.textAlign = 'left';
-                ctx.fillText(pct + '%', outsideX + 5, outsideY);
+                ctx.textBaseline = 'middle';
+                ctx.fillText(pct + '%', outsideX + 4, outsideY);
             } else {
                 ctx.textAlign = 'right';
-                ctx.fillText(pct + '%', outsideX - 5, outsideY);
+                ctx.textBaseline = 'middle';
+                ctx.fillText(pct + '%', outsideX - 4, outsideY);
             }
         });
 
@@ -719,6 +696,14 @@ function renderAgeChart(ageBuckets) {
             }
         }
     });
+}
+
+// ============ Trend Zoom Control ============
+
+function resetTrendZoom() {
+    if (Dashboard.charts.trend) {
+        Dashboard.charts.trend.resetZoom();
+    }
 }
 
 function generateBarColors(count) {

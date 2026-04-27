@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JIRA Bug Dashboard - GPU Tracker</title>
     <link rel="stylesheet" href="/css/base.css">
-    <link rel="stylesheet" href="/css/jira-dashboard.css">
+    <link rel="stylesheet" href="/css/jira-dashboard.css?v=2">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
 </head>
 <body>
     <div class="container dashboard-container">
@@ -138,7 +138,10 @@
 
             <!-- Row 2: Trend + Owner -->
             <div class="chart-card chart-wide">
-                <h3>Bug 趋势 (按日)</h3>
+                <div class="chart-header-row">
+                    <h3>Bug 趋势 (按日)</h3>
+                    <button class="reset-zoom-btn" onclick="resetTrendZoom()" title="重置缩放">⟲ 重置缩放</button>
+                </div>
                 <div class="chart-wrapper chart-trend-wrapper">
                     <canvas id="chart-trend"></canvas>
                 </div>
@@ -228,6 +231,6 @@
         </div>
     </div>
 
-    <script src="/js/jira-dashboard.js?v=6"></script>
+    <script src="/js/jira-dashboard.js?v=7"></script>
 </body>
 </html>
