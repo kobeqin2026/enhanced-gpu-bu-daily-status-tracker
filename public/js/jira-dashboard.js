@@ -1,40 +1,98 @@
 // JIRA Bug Dashboard - Frontend Logic
 // Chart.js via CDN: https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js
 
-// ============ Chart.js Plugin: Percentage Labels on Pie/Doughnut ============
+// ============ Chart.js Plugin: Labels on Pie/Doughnut (status inside, percentage outside) ============
 
-var percentageLabelPlugin = {
-    id: 'percentageLabel',
+var pieLabelPlugin = {
+    id: 'pieLabel',
     afterDatasetsDraw: function(chart) {
         if (chart.config.type !== 'pie' && chart.config.type !== 'doughnut') return;
 
         var ctx = chart.ctx;
         var dataset = chart.data.datasets[0];
+        var labels = chart.data.labels;
         var meta = chart.getDatasetMeta(0);
         var total = dataset.data.reduce(function(a, b) { return a + b; }, 0);
 
         if (total === 0) return;
 
+        var centerX = meta.data[0].x;
+        var centerY = meta.data[0].y;
+        var outerRadius = meta.data[0].outerRadius;
+        var innerRadius = meta.data[0].innerRadius || 0;
+
         ctx.save();
-        ctx.textBaseline = 'middle';
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
 
         meta.data.forEach(function(arc, i) {
             var value = dataset.data[i];
             var pct = Math.round((value / total) * 100);
-            if (pct < 3) return; // skip tiny slices
+            if (pct < 1) return;
 
-            // Position label at center of arc
-            var center = arc.getCenterPoint();
-            var fontSize = Math.max(11, Math.min(14, chart.width / 35));
-            ctx.font = 'bold ' + fontSize + 'px sans-serif';
-            ctx.fillStyle = '#fff';
-
-            // Darken check: use white text on dark colors, dark text on light colors
+            var label = labels[i] || '';
             var color = dataset.backgroundColor[i];
-            ctx.fillStyle = isLightColor(color) ? '#333' : '#fff';
+            var textColor = isLightColor(color) ? '#333' : '#fff';
 
-            ctx.fillText(pct + '%', center.x, center.y);
+            // 1) Inside: label name at center of arc
+            var insidePoint = arc.getCenterPoint();
+            var labelFontSize = Math.max(10, Math.min(13, chart.width / 40));
+
+            // For doughnut, check if label fits inside
+            if (chart.config.type === 'doughnut') {
+                var ringWidth = outerRadius - innerRadius;
+                var midRadius = innerRadius + ringWidth * 0.5;
+                // Use mid-radius position
+                var angle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
+                insidePoint = {
+                    x: centerX + Math.cos(angle) * midRadius,
+                    y: centerY + Math.sin(angle) * midRadius
+                };
+            }
+
+            ctx.font = 'bold ' + labelFontSize + 'px sans-serif';
+            ctx.fillStyle = textColor;
+            ctx.fillText(label, insidePoint.x, insidePoint.y);
+
+            // 2) Outside: percentage label with connecting line
+            if (pct < 2) return; // skip very small slices for outer label
+
+            var angle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
+            var labelRadius = outerRadius + chart.width * 0.06;
+            var outsideX = centerX + Math.cos(angle) * labelRadius;
+            var outsideY = centerY + Math.sin(angle) * labelRadius;
+
+            // Draw connecting line from arc edge to label
+            var edgeX = centerX + Math.cos(angle) * (outerRadius + 4);
+            var edgeY = centerY + Math.sin(angle) * (outerRadius + 4);
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(edgeX, edgeY);
+            ctx.lineTo(outsideX, outsideY);
+            ctx.stroke();
+
+            // Draw small dot at label position
+            ctx.beginPath();
+            ctx.arc(outsideX, outsideY, 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+
+            // Draw percentage text with smart left/right alignment
+            var pctFontSize = Math.max(10, Math.min(12, chart.width / 45));
+            ctx.font = 'bold ' + pctFontSize + 'px sans-serif';
+            ctx.fillStyle = '#333';
+
+            // Labels on the right side: align left of the dot
+            // Labels on the left side: align right of the dot
+            if (outsideX >= centerX) {
+                ctx.textAlign = 'left';
+                ctx.fillText(pct + '%', outsideX + 5, outsideY);
+            } else {
+                ctx.textAlign = 'right';
+                ctx.fillText(pct + '%', outsideX - 5, outsideY);
+            }
         });
 
         ctx.restore();
@@ -86,7 +144,7 @@ var lineDataLabelPlugin = {
 
 // Register plugins with Chart.js
 if (typeof Chart !== 'undefined' && Chart.register) {
-    Chart.register(percentageLabelPlugin);
+    Chart.register(pieLabelPlugin);
     Chart.register(lineDataLabelPlugin);
 }
 
@@ -447,7 +505,7 @@ function renderStatusChart(statusCount) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                percentageLabel: {},
+                pieLabel: {},
                 legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } }
             }
         }
@@ -625,7 +683,7 @@ function renderDomainChart(domainCount) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                percentageLabel: {},
+                pieLabel: {},
                 legend: { position: 'right', labels: { padding: 8, font: { size: 10 } } }
             }
         }
