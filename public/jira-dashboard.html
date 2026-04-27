@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JIRA Bug Dashboard - GPU Tracker</title>
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/jira-dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container dashboard-container">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <h1>JIRA Bug Dashboard</h1>
+            <a href="/" class="back-link">&larr; 返回Tracker</a>
+        </div>
+
+        <!-- Login Section -->
+        <div class="login-section" id="login-section">
+            <span id="login-status"></span>
+            <button id="login-btn" class="login-btn" onclick="showLoginModal()">登录</button>
+            <button id="logout-btn" class="logout-btn" onclick="doLogout()" style="display:none;">退出</button>
+        </div>
+
+        <!-- Login Modal -->
+        <div id="login-modal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <h3>用户登录</h3>
+                <input type="text" id="login-username" placeholder="用户名" />
+                <input type="password" id="login-password" placeholder="密码" />
+                <div class="modal-buttons">
+                    <button class="modal-cancel-btn" onclick="closeLoginModal()">取消</button>
+                    <button class="modal-confirm-btn" onclick="doLogin()">登录</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Bar -->
+        <div class="control-bar" id="control-bar" style="display:none;">
+            <div class="control-group">
+                <label>项目:</label>
+                <div class="project-selector">
+                    <select id="project-select" class="project-select" onchange="onProjectChange()">
+                        <option value="">-- 全部项目 --</option>
+                    </select>
+                    <button class="refresh-btn" onclick="loadJiraProjects()" title="刷新项目列表">&#8635;</button>
+                </div>
+                <div class="multi-select-wrapper">
+                    <label><input type="checkbox" id="multi-project-mode" onchange="toggleMultiSelect()"> 多选模式</label>
+                    <div id="multi-project-chips" class="multi-project-chips"></div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label><input type="checkbox" id="include-closed" checked onchange="onFilterChange()"> 包含已关闭</label>
+                <label>时间范围:
+                    <select id="time-range" onchange="onFilterChange()">
+                        <option value="all">全部</option>
+                        <option value="30">最近30天</option>
+                        <option value="14">最近14天</option>
+                        <option value="7">最近7天</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="control-group">
+                <button class="sync-btn" onclick="fetchDashboardData()">同步JIRA数据</button>
+                <label>自动刷新:
+                    <select id="auto-refresh" onchange="toggleAutoRefresh()">
+                        <option value="0">关闭</option>
+                        <option value="300000">5分钟</option>
+                        <option value="900000">15分钟</option>
+                        <option value="1800000">30分钟</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay" style="display:none;">
+            <div class="loading-spinner"></div>
+            <p>正在从JIRA获取数据...</p>
+        </div>
+
+        <!-- Error Message -->
+        <div id="error-message" class="error-message" style="display:none;"></div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid" id="kpi-grid" style="display:none;">
+            <div class="kpi-card kpi-total">
+                <div class="kpi-value" id="kpi-total">0</div>
+                <div class="kpi-label">总 Bug 数</div>
+            </div>
+            <div class="kpi-card kpi-open">
+                <div class="kpi-value" id="kpi-open">0</div>
+                <div class="kpi-label">未关闭</div>
+            </div>
+            <div class="kpi-card kpi-closed">
+                <div class="kpi-value" id="kpi-closed">0</div>
+                <div class="kpi-label">已关闭</div>
+            </div>
+            <div class="kpi-card kpi-today">
+                <div class="kpi-value" id="kpi-today">0</div>
+                <div class="kpi-label">今日新增</div>
+            </div>
+            <div class="kpi-card kpi-week">
+                <div class="kpi-value" id="kpi-week">0</div>
+                <div class="kpi-label">本周关闭</div>
+            </div>
+            <div class="kpi-card kpi-avg">
+                <div class="kpi-value" id="kpi-avg">0</div>
+                <div class="kpi-label">平均修复(天)</div>
+            </div>
+            <div class="kpi-card kpi-overdue">
+                <div class="kpi-value" id="kpi-overdue">0</div>
+                <div class="kpi-label">超期未关闭(>14天)</div>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid" id="charts-grid" style="display:none;">
+            <!-- Row 1: Status + Severity -->
+            <div class="chart-card">
+                <h3>Bug 状态分布</h3>
+                <div class="chart-wrapper">
+                    <canvas id="chart-status"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Bug 严重性分布</h3>
+                <div class="chart-wrapper">
+                    <canvas id="chart-severity"></canvas>
+                </div>
+            </div>
+
+            <!-- Row 2: Trend + Owner -->
+            <div class="chart-card chart-wide">
+                <h3>Bug 趋势 (按日)</h3>
+                <div class="chart-wrapper chart-trend-wrapper">
+                    <canvas id="chart-trend"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>按负责人分布</h3>
+                <div class="chart-wrapper">
+                    <canvas id="chart-owner"></canvas>
+                </div>
+            </div>
+
+            <!-- Row 3: Domain + Age -->
+            <div class="chart-card">
+                <h3>按 Domain 分布</h3>
+                <div class="chart-wrapper">
+                    <canvas id="chart-domain"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>未关闭Bug年龄分布</h3>
+                <div class="chart-wrapper">
+                    <canvas id="chart-age"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trend History (cached data) -->
+        <div class="trend-history" id="trend-history" style="display:none;">
+            <h3>历史趋势 (缓存数据)</h3>
+            <div class="chart-wrapper chart-trend-wrapper">
+                <canvas id="chart-history-trend"></canvas>
+            </div>
+        </div>
+
+        <!-- Bug Detail Table -->
+        <div class="bug-table-section" id="bug-table-section" style="display:none;">
+            <h3>Bug 明细列表</h3>
+
+            <!-- Table Filters -->
+            <div class="table-filters">
+                <input type="text" id="filter-key" placeholder="Key" class="filter-input" oninput="filterBugs()">
+                <input type="text" id="filter-summary" placeholder="描述" class="filter-input" oninput="filterBugs()">
+                <select id="filter-status" class="filter-select" onchange="filterBugs()">
+                    <option value="">全部状态</option>
+                    <option value="open">Open</option>
+                    <option value="triage">Triage</option>
+                    <option value="implement">Implement</option>
+                    <option value="closed">Closed</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+                <select id="filter-severity" class="filter-select" onchange="filterBugs()">
+                    <option value="">全部严重性</option>
+                    <option value="highest">Highest</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                    <option value="lowest">Lowest</option>
+                </select>
+                <input type="text" id="filter-owner" placeholder="负责人" class="filter-input" oninput="filterBugs()">
+                <label><input type="checkbox" id="show-closed" onchange="filterBugs()"> 显示已关闭</label>
+                <span id="bug-count" class="bug-count"></span>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="dashboard-bug-table" id="bug-table">
+                    <thead>
+                        <tr>
+                            <th data-sort="bugId" onclick="sortBugs('bugId')">Key</th>
+                            <th data-sort="description" onclick="sortBugs('description')">描述</th>
+                            <th data-sort="status" onclick="sortBugs('status')">状态</th>
+                            <th data-sort="severity" onclick="sortBugs('severity')">严重性</th>
+                            <th data-sort="owner" onclick="sortBugs('owner')">负责人</th>
+                            <th data-sort="domain" onclick="sortBugs('domain')">Domain</th>
+                            <th data-sort="reportDate" onclick="sortBugs('reportDate')">报告日期</th>
+                            <th data-sort="ageDays" onclick="sortBugs('ageDays')">年龄(天)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bug-table-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Last Updated -->
+        <div class="last-updated" id="last-updated" style="display:none;">
+            <span id="last-updated-text"></span>
+        </div>
+    </div>
+
+    <script src="/js/jira-dashboard.js"></script>
+</body>
+</html>

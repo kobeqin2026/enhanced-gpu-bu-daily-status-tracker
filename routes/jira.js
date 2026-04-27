@@ -354,4 +354,437 @@ router.post('/sync-jira-status', auth.authenticateToken, async function(req, res
     }
 });
 
+/**
+ * POST /api/data/jira-dashboard
+ * Fetches all bugs for dashboard aggregation + caches snapshot for trend history
+ */
+router.post('/jira-dashboard', auth.authenticateToken, async function(req, res) {
+    try {
+        var authHeader = getAuthHeader();
+        if (!authHeader) {
+            return res.status(500).json({
+                success: false,
+                error: 'JIRA认证未配置。请在环境变量中设置 JIRA_PAT 或 JIRA_EMAIL + JIRA_API_TOKEN'
+            });
+        }
+
+        var project = req.body.project || null;
+        var projects = req.body.projects || [];
+        var includeClosed = req.body.includeClosed !== false; // default true for dashboard
+        var jql;
+
+        if (projects.length > 0) {
+            var projectClause = projects.length === 1
+                ? 'project = ' + projects[0]
+                : 'project in (' + projects.join(',') + ')';
+            jql = projectClause + ' AND issuetype = Bug';
+            if (!includeClosed) {
+                jql += ' AND status not in (Done, Closed, Rejected)';
+            }
+            jql += ' ORDER BY created DESC';
+        } else if (project) {
+            jql = 'project = ' + project + ' AND issuetype = Bug';
+            if (!includeClosed) {
+                jql += ' AND status not in (Done, Closed, Rejected)';
+            }
+            jql += ' ORDER BY created DESC';
+        } else {
+            // Default: fetch from configured projects
+            jql = jiraConfig.jql;
+        }
+
+        var maxResults = req.body.maxResults || 500;
+
+        // Fetch bugs from JIRA
+        var allBugs = await fetchJiraBugs(authHeader, jql, maxResults);
+
+        // Build dashboard stats
+        var stats = computeDashboardStats(allBugs);
+        var charts = computeChartData(allBugs);
+
+        // Cache snapshot for trend history
+        if (project) {
+            cacheSnapshot(project, allBugs);
+        }
+        // Also cache per-project if multi-project fetch
+        if (projects.length > 0) {
+            projects.forEach(function(p) {
+                var projectBugs = allBugs.filter(function(b) { return b.projectKey === p; });
+                cacheSnapshot(p, projectBugs);
+            });
+        }
+
+        res.json({
+            success: true,
+            bugs: allBugs,
+            stats: stats,
+            charts: charts,
+            total: allBugs.length,
+            project: project,
+            projects: projects,
+            message: '成功获取 ' + allBugs.length + ' 条Bug数据'
+        });
+
+    } catch (error) {
+        console.error('JIRA dashboard error: ' + error.message);
+        res.status(500).json({
+            success: false,
+            error: '获取Dashboard数据失败: ' + error.message
+        });
+    }
+});
+
+/**
+ * GET /api/data/jira-dashboard-history/:project
+ * Returns cached snapshots for trend analysis
+ */
+router.get('/jira-dashboard-history/:project', auth.authenticateToken, async function(req, res) {
+    try {
+        var project = req.params.project.replace(/[^a-zA-Z0-9\-_]/g, '');
+        if (!project) {
+            return res.status(400).json({ success: false, error: '无效的项目名' });
+        }
+
+        var fs = require('fs');
+        var path = require('path');
+        var cacheDir = path.join(__dirname, '..', 'data', 'jira-cache');
+
+        if (!fs.existsSync(cacheDir)) {
+            return res.json({ success: true, project: project, snapshots: [], trendData: [] });
+        }
+
+        var cacheFile = path.join(cacheDir, project + '-history.json');
+        var history = [];
+        if (fs.existsSync(cacheFile)) {
+            history = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+        }
+
+        // Build trend data from snapshots
+        var trendData = buildTrendData(history);
+
+        res.json({
+            success: true,
+            project: project,
+            snapshots: history.slice(-30), // last 30 snapshots
+            trendData: trendData
+        });
+
+    } catch (error) {
+        console.error('JIRA history error: ' + error.message);
+        res.status(500).json({
+            success: false,
+            error: '获取历史数据失败: ' + error.message
+        });
+    }
+});
+
+// ============ Helper Functions for Dashboard ============
+
+/**
+ * Fetch bugs from JIRA with given JQL
+ */
+function fetchJiraBugs(authHeader, jql, maxResults) {
+    return new Promise(function(resolve, reject) {
+        var jiraUrl = jiraConfig.baseUrl;
+        var parsedUrl = url.parse(jiraUrl);
+
+        var apiPath = '/rest/api/2/search';
+        var queryParams = 'jql=' + encodeURIComponent(jql) +
+            '&fields=' + encodeURIComponent(jiraConfig.fields + ',reporter,updated,duedate,components,customfield_10023') +
+            '&maxResults=' + maxResults;
+
+        var client = parsedUrl.protocol === 'https:' ? https : http;
+        var options = {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+            path: apiPath + '?' + queryParams,
+            method: 'GET',
+            headers: {
+                'Authorization': authHeader,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            rejectUnauthorized: false
+        };
+
+        var req = client.request(options, function(resp) {
+            var data = '';
+            resp.on('data', function(chunk) { data += chunk; });
+            resp.on('end', function() {
+                try {
+                    var jiraData = JSON.parse(data);
+                    if (!jiraData || !jiraData.issues) {
+                        resolve([]);
+                        return;
+                    }
+
+                    var bugs = jiraData.issues.map(function(issue) {
+                        var f = issue.fields || {};
+                        var assignee = f.assignee || {};
+                        var reporter = f.reporter || {};
+                        var status = f.status || {};
+                        var priority = f.priority || {};
+                        var created = f.created || new Date().toISOString();
+                        var updated = f.updated || created;
+
+                        var labels = f.labels || [];
+                        var domain = 'TBD';
+                        if (labels.length > 0) {
+                            domain = labels[0];
+                        }
+                        // Try components as domain fallback
+                        if (domain === 'TBD' && f.components && f.components.length > 0) {
+                            domain = f.components[0].name;
+                        }
+
+                        // Extract project key from issue key (e.g., MPW2-77 -> MPW2)
+                        var projectKey = '';
+                        if (issue.key && issue.key.indexOf('-') !== -1) {
+                            projectKey = issue.key.split('-')[0];
+                        }
+
+                        var bug = {
+                            id: 'jira-' + issue.key + '-' + Date.now(),
+                            bugId: issue.key || '',
+                            domain: domain,
+                            description: f.summary || '',
+                            severity: mapPriority(priority),
+                            status: mapStatus(status),
+                            reportDate: created.split('T')[0],
+                            updatedDate: updated.split('T')[0],
+                            owner: assignee.displayName || assignee.name || 'TBD',
+                            reporter: reporter.displayName || reporter.name || '',
+                            jiraKey: issue.key,
+                            jiraStatus: status.name || '',
+                            jiraPriority: priority.name || '',
+                            jiraUrl: jiraUrl + '/browse/' + issue.key,
+                            projectKey: projectKey,
+                            labels: labels,
+                            createdTimestamp: new Date(created).getTime(),
+                            updatedTimestamp: new Date(updated).getTime()
+                        };
+
+                        // Calculate age in days
+                        var createdDate = new Date(created);
+                        var now = new Date();
+                        var ageMs = now - createdDate;
+                        bug.ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
+
+                        // If closed, calculate resolution time
+                        if (bug.status === 'closed' || bug.status === 'rejected') {
+                            var updatedDate = new Date(updated);
+                            var resolutionMs = updatedDate - createdDate;
+                            bug.resolutionDays = Math.floor(resolutionMs / (1000 * 60 * 60 * 24));
+                        }
+
+                        return bug;
+                    });
+
+                    resolve(bugs);
+                } catch (e) {
+                    reject(new Error('解析JIRA响应失败: ' + data.substring(0, 200)));
+                }
+            });
+        });
+        req.on('error', function(e) { reject(e); });
+        req.end();
+    });
+}
+
+/**
+ * Compute top-level KPI stats
+ */
+function computeDashboardStats(bugs) {
+    var total = bugs.length;
+    var open = 0, triage = 0, implement = 0, closed = 0, rejected = 0;
+    var today = new Date().toISOString().split('T')[0];
+    var weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    var todayNew = 0, weekClosed = 0;
+    var resolutionDays = [];
+    var overdue = 0;
+
+    bugs.forEach(function(bug) {
+        switch (bug.status) {
+            case 'open': open++; break;
+            case 'triage': triage++; break;
+            case 'implement': implement++; break;
+            case 'closed': closed++; break;
+            case 'rejected': rejected++; break;
+        }
+
+        if (bug.reportDate === today) todayNew++;
+        if (bug.status === 'closed' && bug.updatedDate >= weekAgo) weekClosed++;
+
+        if (bug.resolutionDays !== undefined) resolutionDays.push(bug.resolutionDays);
+        if (bug.status !== 'closed' && bug.status !== 'rejected' && bug.ageDays > 14) overdue++;
+    });
+
+    var avgResolution = resolutionDays.length > 0
+        ? Math.round(resolutionDays.reduce(function(a, b) { return a + b; }, 0) / resolutionDays.length)
+        : 0;
+
+    return {
+        total: total,
+        open: open + triage + implement, // all non-closed
+        closed: closed,
+        rejected: rejected,
+        todayNew: todayNew,
+        weekClosed: weekClosed,
+        avgResolutionDays: avgResolution,
+        overdue: overdue
+    };
+}
+
+/**
+ * Compute chart data aggregates
+ */
+function computeChartData(bugs) {
+    // Status distribution
+    var statusCount = { open: 0, triage: 0, implement: 0, closed: 0, rejected: 0 };
+    // Severity distribution
+    var severityCount = { highest: 0, high: 0, medium: 0, low: 0, lowest: 0 };
+    // Owner distribution
+    var ownerCount = {};
+    // Domain distribution
+    var domainCount = {};
+    // Daily trend: date -> { new: N, closed: N }
+    var dailyTrend = {};
+    // Age distribution
+    var ageBuckets = { '0-3天': 0, '3-7天': 0, '7-14天': 0, '14-30天': 0, '30天+': 0 };
+
+    bugs.forEach(function(bug) {
+        // Status
+        if (statusCount[bug.status] !== undefined) statusCount[bug.status]++;
+
+        // Severity
+        if (severityCount[bug.severity] !== undefined) severityCount[bug.severity]++;
+
+        // Owner
+        var owner = bug.owner || 'TBD';
+        ownerCount[owner] = (ownerCount[owner] || 0) + 1;
+
+        // Domain
+        var domain = bug.domain || 'TBD';
+        domainCount[domain] = (domainCount[domain] || 0) + 1;
+
+        // Daily trend (by reportDate)
+        var date = bug.reportDate;
+        if (!dailyTrend[date]) dailyTrend[date] = { date: date, new: 0, closed: 0 };
+        dailyTrend[date].new++;
+        if ((bug.status === 'closed' || bug.status === 'rejected') && bug.updatedDate) {
+            var uDate = bug.updatedDate;
+            if (!dailyTrend[uDate]) dailyTrend[uDate] = { date: uDate, new: 0, closed: 0 };
+            dailyTrend[uDate].closed++;
+        }
+
+        // Age buckets (for open bugs)
+        if (bug.status !== 'closed' && bug.status !== 'rejected') {
+            if (bug.ageDays <= 3) ageBuckets['0-3天']++;
+            else if (bug.ageDays <= 7) ageBuckets['3-7天']++;
+            else if (bug.ageDays <= 14) ageBuckets['7-14天']++;
+            else if (bug.ageDays <= 30) ageBuckets['14-30天']++;
+            else ageBuckets['30天+']++;
+        }
+    });
+
+    // Sort daily trend by date
+    var trendArray = Object.keys(dailyTrend).sort().map(function(d) { return dailyTrend[d]; });
+
+    // Sort owner by count descending
+    var ownerArray = Object.keys(ownerCount).sort(function(a, b) { return ownerCount[b] - ownerCount[a]; }).map(function(o) {
+        return { owner: o, count: ownerCount[o] };
+    });
+
+    // Sort domain by count descending
+    var domainArray = Object.keys(domainCount).sort(function(a, b) { return domainCount[b] - domainCount[a]; }).map(function(d) {
+        return { domain: d, count: domainCount[d] };
+    });
+
+    return {
+        statusCount: statusCount,
+        severityCount: severityCount,
+        ownerCount: ownerArray,
+        domainCount: domainArray,
+        dailyTrend: trendArray,
+        ageBuckets: ageBuckets
+    };
+}
+
+/**
+ * Cache a snapshot of bugs for historical trend tracking
+ */
+function cacheSnapshot(project, bugs) {
+    try {
+        var fs = require('fs');
+        var pathModule = require('path');
+        var cacheDir = pathModule.join(__dirname, '..', 'data', 'jira-cache');
+
+        if (!fs.existsSync(cacheDir)) {
+            fs.mkdirSync(cacheDir, { recursive: true });
+        }
+
+        var cacheFile = pathModule.join(cacheDir, project + '-history.json');
+        var history = [];
+        if (fs.existsSync(cacheFile)) {
+            history = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+        }
+
+        // Create summary snapshot
+        var stats = computeDashboardStats(bugs);
+        var charts = computeChartData(bugs);
+        var snapshot = {
+            date: new Date().toISOString(),
+            project: project,
+            total: bugs.length,
+            stats: stats,
+            statusCount: charts.statusCount,
+            severityCount: charts.severityCount
+        };
+
+        // Check if snapshot for today already exists, update it
+        var today = new Date().toISOString().split('T')[0];
+        var existingIndex = -1;
+        for (var i = 0; i < history.length; i++) {
+            if (history[i].date && history[i].date.split('T')[0] === today) {
+                existingIndex = i;
+                break;
+            }
+        }
+        if (existingIndex >= 0) {
+            history[existingIndex] = snapshot;
+        } else {
+            history.push(snapshot);
+        }
+
+        // Keep only last 90 days
+        if (history.length > 90) {
+            history = history.slice(history.length - 90);
+        }
+
+        fs.writeFileSync(cacheFile, JSON.stringify(history, null, 2), 'utf8');
+        console.log('Cached JIRA snapshot for ' + project + ' (' + bugs.length + ' bugs)');
+    } catch (e) {
+        console.error('Failed to cache JIRA snapshot: ' + e.message);
+    }
+}
+
+/**
+ * Build trend data from cached snapshots
+ */
+function buildTrendData(history) {
+    var trendData = [];
+    history.forEach(function(snapshot) {
+        var date = snapshot.date ? snapshot.date.split('T')[0] : 'unknown';
+        var sc = snapshot.statusCount || {};
+        trendData.push({
+            date: date,
+            total: snapshot.total || 0,
+            open: (sc.open || 0) + (sc.triage || 0) + (sc.implement || 0),
+            closed: sc.closed || 0,
+            rejected: sc.rejected || 0
+        });
+    });
+    return trendData;
+}
+
 module.exports = router;
