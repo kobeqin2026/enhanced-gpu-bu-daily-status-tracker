@@ -1,6 +1,59 @@
 // JIRA Bug Dashboard - Frontend Logic
 // Chart.js via CDN: https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js
 
+// ============ Chart.js Plugin: Percentage Labels on Pie/Doughnut ============
+
+var percentageLabelPlugin = {
+    id: 'percentageLabel',
+    afterDatasetsDraw: function(chart) {
+        if (chart.config.type !== 'pie' && chart.config.type !== 'doughnut') return;
+
+        var ctx = chart.ctx;
+        var dataset = chart.data.datasets[0];
+        var meta = chart.getDatasetMeta(0);
+        var total = dataset.data.reduce(function(a, b) { return a + b; }, 0);
+
+        if (total === 0) return;
+
+        ctx.save();
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+
+        meta.data.forEach(function(arc, i) {
+            var value = dataset.data[i];
+            var pct = Math.round((value / total) * 100);
+            if (pct < 3) return; // skip tiny slices
+
+            // Position label at center of arc
+            var center = arc.getCenterPoint();
+            var fontSize = Math.max(11, Math.min(14, chart.width / 35));
+            ctx.font = 'bold ' + fontSize + 'px sans-serif';
+            ctx.fillStyle = '#fff';
+
+            // Darken check: use white text on dark colors, dark text on light colors
+            var color = dataset.backgroundColor[i];
+            ctx.fillStyle = isLightColor(color) ? '#333' : '#fff';
+
+            ctx.fillText(pct + '%', center.x, center.y);
+        });
+
+        ctx.restore();
+    }
+};
+
+function isLightColor(color) {
+    var r = 0, g = 0, b = 0;
+    if (color.startsWith('#')) {
+        var hex = color.slice(1);
+        if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
+    }
+    var luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.6;
+}
+
 // ============ State ============
 var Dashboard = {
     allBugs: [],
@@ -358,6 +411,7 @@ function renderStatusChart(statusCount) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
+                percentageLabel: {},
                 legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } }
             }
         }
@@ -523,6 +577,7 @@ function renderDomainChart(domainCount) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
+                percentageLabel: {},
                 legend: { position: 'right', labels: { padding: 8, font: { size: 10 } } }
             }
         }
