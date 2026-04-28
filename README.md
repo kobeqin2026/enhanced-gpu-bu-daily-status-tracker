@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v4.4-blue)
+![Version](https://img.shields.io/badge/version-v4.5-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -179,6 +179,36 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v4.5 (2026-04-28)
+**智能诊断全面增强 + Dashboard 图表与列表优化**
+
+#### 智能诊断 (Bug AI Diagnosis)
+- **评论中的显式引用自动提取**：后端自动获取当前 Bug 的所有评论，从评论中提取显式引用的 JIRA Key（如 `BRHW110-1677`），即使该 Bug 不在 `statusCategory = Done` 状态也能被检索到
+- **评分归一化到 100 分**：重构成 8 维度评分体系，总分严格 0-100：
+  - 标题关键词匹配（20分）+ 主关键词加成（10分）
+  - 描述关键词匹配（15分）+ 评论关键词匹配（10分）
+  - 问题模式重叠（15分）+ N-gram 摘要重叠（10分）
+  - Jaccard 描述相似度（10分）+ 错误术语共现（10分）
+  - 同芯片家族加成（5分）
+- **评分分档**：显式引用 Bug 基础 90 分 + 内容加分（90-100 分）；关键词匹配 Bug 上限 85 分
+- **显示格式优化**：相关 Bug 列表改为表头+数据行格式：`[匹配度%] | [Key 链接] | [标题]`
+  - 匹配度带颜色：≥80 绿色，60-80 黄色，<60 红色
+  - Bug Key 可点击跳转 JIRA
+  - 标题自适应宽度，超出省略号
+- **诊断弹窗优化**：关闭按钮改为「返回」文字；修复 `null reference` 报错，所有 DOM 操作增加空值检查
+- **Bug 描述映射修复**：相关 Bug 的 `summary` 字段优先使用 JIRA 标题而非描述内容
+
+#### JIRA Dashboard 图表优化
+- **柱状图数字标签**：Bug 严重性分布和未关闭 Bug 年龄分布柱状图顶部显示数值，使用自定义 `barDataLabelPlugin` 渲染（Chart.js `afterDatasetsDraw` 钩子）
+- **Y 轴自适应 padding**：添加 `suggestedMax: max + 2`，防止高柱子数字标签被截断
+- **历史趋势移除**：删除历史趋势图（HTML/JS/CSS），简化页面布局
+- **诊断弹窗返回按钮**：`u00d7` 改为「返回」
+
+#### Bug 明细列表
+- **第二列改为标题**：从 `bug.description` 改为 `bug.summary`，表头从「描述」改为「标题」
+
+---
 
 ### v4.4 (2026-04-27)
 **Bug 智能诊断增强 - 跨项目类似 Bug 检索**
