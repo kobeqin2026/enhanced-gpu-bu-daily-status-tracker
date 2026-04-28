@@ -1,11 +1,4 @@
 {
-  "admin": {
-    "username": "admin",
-    "role": "admin",
-    "name": "管理员",
-    "token": "765297d34dbff1973f5cdf534b7eb135",
-    "createdAt": 1777357597085
-  },
   "user": {
     "username": "user",
     "role": "user",

@@ -112,14 +112,19 @@ var barDataLabelPlugin = {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.font = 'bold 12px sans-serif';
-        ctx.fillStyle = '#333';
+
+        var chartArea = chart.chartArea;
 
         chart.data.datasets.forEach(function(dataset, di) {
             var meta = chart.getDatasetMeta(di);
             meta.data.forEach(function(bar, i) {
                 var value = dataset.data[i];
                 if (value === 0 || value === null || value === undefined) return;
-                ctx.fillText(value, bar.x, bar.y - 4);
+                ctx.fillStyle = dataset.backgroundColor[i] || '#333';
+                // Position: bar.top is the actual top edge of the bar
+                // Ensure label stays within chart area
+                var labelY = Math.max(bar.top - 4, chartArea.top + 14);
+                ctx.fillText(value, bar.x, labelY);
             });
         });
 
@@ -1072,7 +1077,7 @@ function showDiagnoseResult(data) {
         });
     }
 
-    // Related bugs (cross-project) — simple: link + title + score only
+    // Related bugs (cross-project) — only bug title link
     var relatedSection = document.getElementById('diag-related-section');
     var relatedEl = document.getElementById('diag-related-bugs');
 
@@ -1084,26 +1089,12 @@ function showDiagnoseResult(data) {
             var row = document.createElement('div');
             row.className = 'related-bug-row';
 
-            var scoreSpan = document.createElement('span');
-            scoreSpan.className = 'related-bug-score';
-            var score = b.relevance_score || 0;
-            scoreSpan.textContent = score + '%';
-            // Color based on score: >=80 green, 60-80 yellow, <60 red
-            if (score >= 80) {
-                scoreSpan.style.color = '#27ae60';
-            } else if (score >= 60) {
-                scoreSpan.style.color = '#f39c12';
-            } else {
-                scoreSpan.style.color = '#e74c3c';
-            }
-
             var link = document.createElement('a');
             link.href = b.url || '#';
             link.target = '_blank';
             link.className = 'related-bug-link';
-            link.textContent = b.key + ' — ' + (b.summary || '');
+            link.textContent = b.summary || b.key || '';
 
-            row.appendChild(scoreSpan);
             row.appendChild(link);
             relatedEl.appendChild(row);
         });
