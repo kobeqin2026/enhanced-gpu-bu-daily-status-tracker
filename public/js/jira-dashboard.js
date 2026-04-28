@@ -506,8 +506,10 @@ function renderSeverityChart(severityCount) {
                     display: true,
                     anchor: 'end',
                     align: 'top',
+                    offset: 2,
                     color: '#333',
-                    font: { weight: 'bold', size: 12 }
+                    font: { weight: 'bold', size: 12 },
+                    formatter: function(value) { return value > 0 ? value : ''; }
                 }
             },
             scales: {
@@ -677,8 +679,10 @@ function renderAgeChart(ageBuckets) {
                     display: true,
                     anchor: 'end',
                     align: 'top',
+                    offset: 2,
                     color: '#333',
-                    font: { weight: 'bold', size: 12 }
+                    font: { weight: 'bold', size: 12 },
+                    formatter: function(value) { return value > 0 ? value : ''; }
                 }
             },
             scales: {
