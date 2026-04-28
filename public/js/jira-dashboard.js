@@ -537,7 +537,11 @@ function renderSeverityChart(severityCount) {
                 legend: { display: false }
             },
             scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                y: { beginAtZero: true, ticks: { stepSize: 1 }, suggestedMax: function(ctx) {
+                    var max = 0;
+                    ctx.chart.data.datasets[0].data.forEach(function(v) { if (v > max) max = v; });
+                    return max + 2;
+                }}
             }
         }
     });
@@ -701,7 +705,11 @@ function renderAgeChart(ageBuckets) {
                 legend: { display: false }
             },
             scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                y: { beginAtZero: true, ticks: { stepSize: 1 }, suggestedMax: function(ctx) {
+                    var max = 0;
+                    ctx.chart.data.datasets[0].data.forEach(function(v) { if (v > max) max = v; });
+                    return max + 2;
+                }}
             }
         }
     });
