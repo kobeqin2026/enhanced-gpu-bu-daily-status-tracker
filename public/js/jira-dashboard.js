@@ -819,10 +819,10 @@ function renderBugRows(bugs) {
         tdKey.appendChild(keyLink);
         tr.appendChild(tdKey);
 
-        // Description
+        // Title
         var tdDesc = document.createElement('td');
-        tdDesc.textContent = bug.description;
-        tdDesc.title = bug.description;
+        tdDesc.textContent = bug.summary || bug.bugId;
+        tdDesc.title = bug.summary || bug.bugId;
         tdDesc.style.maxWidth = '300px';
         tdDesc.style.overflow = 'hidden';
         tdDesc.style.textOverflow = 'ellipsis';
@@ -1089,7 +1089,7 @@ function showDiagnoseResult(data) {
         });
     }
 
-    // Related bugs (cross-project) — only bug title link
+    // Related bugs (cross-project) — score + title link
     var relatedSection = document.getElementById('diag-related-section');
     var relatedEl = document.getElementById('diag-related-bugs');
 
@@ -1101,12 +1101,25 @@ function showDiagnoseResult(data) {
             var row = document.createElement('div');
             row.className = 'related-bug-row';
 
+            var scoreSpan = document.createElement('span');
+            scoreSpan.className = 'related-bug-score';
+            var score = b.relevance_score || 0;
+            scoreSpan.textContent = score;
+            if (score >= 80) {
+                scoreSpan.style.color = '#27ae60';
+            } else if (score >= 60) {
+                scoreSpan.style.color = '#f39c12';
+            } else {
+                scoreSpan.style.color = '#e74c3c';
+            }
+
             var link = document.createElement('a');
             link.href = b.url || '#';
             link.target = '_blank';
             link.className = 'related-bug-link';
             link.textContent = b.summary || b.key || '';
 
+            row.appendChild(scoreSpan);
             row.appendChild(link);
             relatedEl.appendChild(row);
         });

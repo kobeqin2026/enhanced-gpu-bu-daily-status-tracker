@@ -689,6 +689,9 @@
     margin-top: 8px;
 }
 .related-bug-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 6px 10px;
     margin-bottom: 4px;
     border-bottom: 1px solid #eee;
@@ -697,7 +700,15 @@
 .related-bug-row:hover {
     background: #eef2f7;
 }
+.related-bug-score {
+    font-weight: bold;
+    font-size: 14px;
+    min-width: 36px;
+    text-align: center;
+    white-space: nowrap;
+}
 .related-bug-link {
+    flex: 1;
     font-size: 13px;
     color: #2980b9;
     text-decoration: none;
