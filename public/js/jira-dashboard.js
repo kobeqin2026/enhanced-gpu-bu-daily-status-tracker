@@ -1089,7 +1089,7 @@ function showDiagnoseResult(data) {
         });
     }
 
-    // Related bugs (cross-project) — score + title link
+    // Related bugs (cross-project) — score | key | summary
     var relatedSection = document.getElementById('diag-related-section');
     var relatedEl = document.getElementById('diag-related-bugs');
 
@@ -1099,8 +1099,9 @@ function showDiagnoseResult(data) {
         if (relatedSection) relatedSection.style.display = 'block';
         data.related_bugs.forEach(function(b) {
             var row = document.createElement('div');
-            row.className = 'related-bug-row';
+            row.className = 'related-bug-item';
 
+            // Score
             var scoreSpan = document.createElement('span');
             scoreSpan.className = 'related-bug-score';
             var score = b.relevance_score || 0;
@@ -1112,15 +1113,23 @@ function showDiagnoseResult(data) {
             } else {
                 scoreSpan.style.color = '#e74c3c';
             }
-
-            var link = document.createElement('a');
-            link.href = b.url || '#';
-            link.target = '_blank';
-            link.className = 'related-bug-link';
-            link.textContent = b.summary || b.key || '';
-
             row.appendChild(scoreSpan);
-            row.appendChild(link);
+
+            // Bug key (clickable link)
+            var keyLink = document.createElement('a');
+            keyLink.href = b.url || '#';
+            keyLink.target = '_blank';
+            keyLink.className = 'related-bug-key';
+            keyLink.textContent = b.key || '';
+            row.appendChild(keyLink);
+
+            // Summary
+            var summarySpan = document.createElement('span');
+            summarySpan.className = 'related-bug-summary';
+            summarySpan.textContent = b.summary || '';
+            summarySpan.title = b.summary || '';
+            row.appendChild(summarySpan);
+
             relatedEl.appendChild(row);
         });
     } else {
