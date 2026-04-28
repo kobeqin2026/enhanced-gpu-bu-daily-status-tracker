@@ -1018,10 +1018,18 @@ function diagnoseBug(bugKey) {
         return;
     }
 
-    document.getElementById('diag-bug-key').textContent = bugKey;
-    document.getElementById('diag-loading').style.display = 'block';
-    document.getElementById('diag-result').style.display = 'none';
-    document.getElementById('diag-modal').style.display = 'flex';
+    var bugKeyEl = document.getElementById('diag-bug-key');
+    var loadingEl = document.getElementById('diag-loading');
+    var resultEl = document.getElementById('diag-result');
+    var modalEl = document.getElementById('diag-modal');
+    if (!bugKeyEl || !loadingEl || !resultEl || !modalEl) {
+        alert('诊断模块加载失败，请刷新页面后重试');
+        return;
+    }
+    bugKeyEl.textContent = bugKey;
+    loadingEl.style.display = 'block';
+    resultEl.style.display = 'none';
+    modalEl.style.display = 'flex';
 
     fetch('/api/data/diagnose-bug', {
         method: 'POST',
@@ -1043,62 +1051,76 @@ function diagnoseBug(bugKey) {
         if (data.success) {
             showDiagnoseResult(data.data);
         } else {
-            document.getElementById('diag-loading').style.display = 'none';
-            alert('诊断失败: ' + (data.error || '未知错误'));
+            var ldEl = document.getElementById('diag-loading');
+            if (ldEl) ldEl.style.display = 'none';
+            alert('诊断失败: ' + (data.error || data.message || '未知错误'));
         }
     })
     .catch(function(err) {
-        document.getElementById('diag-loading').style.display = 'none';
+        var ldEl = document.getElementById('diag-loading');
+        if (ldEl) ldEl.style.display = 'none';
         alert('诊断请求失败: ' + err.message);
     });
 }
 
 function showDiagnoseResult(data) {
-    document.getElementById('diag-loading').style.display = 'none';
-    document.getElementById('diag-result').style.display = 'block';
+    var ldEl = document.getElementById('diag-loading');
+    var rsEl = document.getElementById('diag-result');
+    if (ldEl) ldEl.style.display = 'none';
+    if (rsEl) rsEl.style.display = 'block';
 
-    document.getElementById('diag-summary').textContent = data.summary || '无';
+    var sumEl = document.getElementById('diag-summary');
+    if (sumEl) sumEl.textContent = data.summary || '无';
 
     // Confidence
     var confEl = document.getElementById('diag-confidence');
-    var conf = data.confidence || 0;
-    var confColor = conf >= 70 ? '#27ae60' : (conf >= 40 ? '#f39c12' : '#e74c3c');
-    confEl.innerHTML = '置信度: <strong style="color:' + confColor + '">' + conf + '%</strong>';
+    if (confEl) {
+        var conf = data.confidence || 0;
+        var confColor = conf >= 70 ? '#27ae60' : (conf >= 40 ? '#f39c12' : '#e74c3c');
+        confEl.innerHTML = '置信度: <strong style="color:' + confColor + '">' + conf + '%</strong>';
+    }
 
     // Causes
     var causesEl = document.getElementById('diag-causes');
-    causesEl.innerHTML = '';
-    (data.possible_causes || []).forEach(function(c) {
-        var li = document.createElement('li');
-        li.textContent = c;
-        causesEl.appendChild(li);
-    });
+    if (causesEl) {
+        causesEl.innerHTML = '';
+        (data.possible_causes || []).forEach(function(c) {
+            var li = document.createElement('li');
+            li.textContent = c;
+            causesEl.appendChild(li);
+        });
+    }
 
     // Actions
     var actionsEl = document.getElementById('diag-actions');
-    actionsEl.innerHTML = '';
-    (data.suggested_actions || []).forEach(function(a) {
-        var li = document.createElement('li');
-        li.textContent = a;
-        actionsEl.appendChild(li);
-    });
+    if (actionsEl) {
+        actionsEl.innerHTML = '';
+        (data.suggested_actions || []).forEach(function(a) {
+            var li = document.createElement('li');
+            li.textContent = a;
+            actionsEl.appendChild(li);
+        });
+    }
 
     // Needed data
     var dataEl = document.getElementById('diag-data');
-    dataEl.innerHTML = '';
-    (data.needed_data || []).forEach(function(d) {
-        var li = document.createElement('li');
-        li.textContent = d;
-        dataEl.appendChild(li);
-    });
+    if (dataEl) {
+        dataEl.innerHTML = '';
+        (data.needed_data || []).forEach(function(d) {
+            var li = document.createElement('li');
+            li.textContent = d;
+            dataEl.appendChild(li);
+        });
+    }
 
     // Related bugs (cross-project) — simple: link + title + score only
     var relatedSection = document.getElementById('diag-related-section');
     var relatedEl = document.getElementById('diag-related-bugs');
-    relatedEl.innerHTML = '';
+
+    if (relatedEl) relatedEl.innerHTML = '';
 
     if (data.related_bugs && data.related_bugs.length > 0) {
-        relatedSection.style.display = 'block';
+        if (relatedSection) relatedSection.style.display = 'block';
         data.related_bugs.forEach(function(b) {
             var row = document.createElement('div');
             row.className = 'related-bug-row';
