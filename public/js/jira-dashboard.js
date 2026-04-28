@@ -111,7 +111,7 @@ var barDataLabelPlugin = {
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.font = 'bold 12px sans-serif';
+        ctx.font = 'bold 13px sans-serif';
 
         var chartArea = chart.chartArea;
 
@@ -119,12 +119,13 @@ var barDataLabelPlugin = {
             var meta = chart.getDatasetMeta(di);
             meta.data.forEach(function(bar, i) {
                 var value = dataset.data[i];
-                if (value === 0 || value === null || value === undefined) return;
-                ctx.fillStyle = dataset.backgroundColor[i] || '#333';
-                // Position: bar.top is the actual top edge of the bar
-                // Ensure label stays within chart area
-                var labelY = Math.max(bar.top - 4, chartArea.top + 14);
-                ctx.fillText(value, bar.x, labelY);
+                if (!value || value <= 0) return;
+                ctx.fillStyle = '#333';
+                // Chart.js 4.x: bar.y = top edge, bar.base = bottom edge
+                var labelY = bar.y - 6;
+                // Keep label inside chart area
+                if (labelY < chartArea.top + 14) labelY = chartArea.top + 14;
+                ctx.fillText(String(value), bar.x, labelY);
             });
         });
 

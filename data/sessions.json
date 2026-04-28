@@ -5,5 +5,12 @@
     "name": "普通用户",
     "token": "7e534629a8e3a863fabc9cf391f4429a",
     "createdAt": 1777256036208
+  },
+  "admin": {
+    "username": "admin",
+    "role": "admin",
+    "name": "管理员",
+    "token": "c4d1b29392519d97cdb72977ea89243d",
+    "createdAt": 1777360507071
   }
 }
