@@ -100,10 +100,38 @@ var lineDataLabelPlugin = {
     }
 };
 
+// ============ Chart.js Plugin: Data Labels on Bar Charts ============
+
+var barDataLabelPlugin = {
+    id: 'barDataLabel',
+    afterDatasetsDraw: function(chart) {
+        if (chart.config.type !== 'bar') return;
+
+        var ctx = chart.ctx;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillStyle = '#333';
+
+        chart.data.datasets.forEach(function(dataset, di) {
+            var meta = chart.getDatasetMeta(di);
+            meta.data.forEach(function(bar, i) {
+                var value = dataset.data[i];
+                if (value === 0 || value === null || value === undefined) return;
+                ctx.fillText(value, bar.x, bar.y - 4);
+            });
+        });
+
+        ctx.restore();
+    }
+};
+
 // Register plugins with Chart.js
 if (typeof Chart !== 'undefined' && Chart.register) {
     Chart.register(pieLabelPlugin);
     Chart.register(lineDataLabelPlugin);
+    Chart.register(barDataLabelPlugin);
 }
 
 // ============ State ============
@@ -501,16 +529,7 @@ function renderSeverityChart(severityCount) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
-                datalabels: {
-                    display: true,
-                    anchor: 'end',
-                    align: 'top',
-                    offset: 2,
-                    color: '#333',
-                    font: { weight: 'bold', size: 12 },
-                    formatter: function(value) { return value > 0 ? value : ''; }
-                }
+                legend: { display: false }
             },
             scales: {
                 y: { beginAtZero: true, ticks: { stepSize: 1 } }
@@ -674,16 +693,7 @@ function renderAgeChart(ageBuckets) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
-                datalabels: {
-                    display: true,
-                    anchor: 'end',
-                    align: 'top',
-                    offset: 2,
-                    color: '#333',
-                    font: { weight: 'bold', size: 12 },
-                    formatter: function(value) { return value > 0 ? value : ''; }
-                }
+                legend: { display: false }
             },
             scales: {
                 y: { beginAtZero: true, ticks: { stepSize: 1 } }
