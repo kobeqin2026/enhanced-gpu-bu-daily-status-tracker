@@ -184,7 +184,7 @@ enhanced-gpu-bu-daily-status-tracker/
 **智能诊断全面增强 + Dashboard 图表与列表优化**
 
 #### 智能诊断 (Bug AI Diagnosis)
-- **评论中的显式引用自动提取**：后端自动获取当前 Bug 的所有评论，从评论中提取显式引用的 JIRA Key（如 `BRHW110-1677`），即使该 Bug 不在 `statusCategory = Done` 状态也能被检索到
+- **评论中的显式引用自动提取**：后端自动获取当前 Bug 的所有评论，从评论中提取显式引用的 JIRA Key，即使该 Bug 不在 `statusCategory = Done` 状态也能被检索到
 - **评分归一化到 100 分**：重构成 8 维度评分体系，总分严格 0-100：
   - 标题关键词匹配（20分）+ 主关键词加成（10分）
   - 描述关键词匹配（15分）+ 评论关键词匹配（10分）
