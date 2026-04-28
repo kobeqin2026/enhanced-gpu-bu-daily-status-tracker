@@ -334,15 +334,9 @@ async function fetchDashboardData() {
             renderCharts(data.charts);
             renderBugTable(Dashboard.allBugs);
 
-            // Try to load historical trend
-            if (singleProject) {
-                loadHistoryTrend(singleProject);
-            }
-
             document.getElementById('kpi-grid').style.display = 'grid';
             document.getElementById('charts-grid').style.display = 'grid';
             document.getElementById('bug-table-section').style.display = 'block';
-            document.getElementById('trend-history').style.display = 'none';
             document.getElementById('last-updated').style.display = 'block';
             document.getElementById('last-updated-text').textContent = '最后更新: ' + new Date().toLocaleString('zh-CN');
         } else {
@@ -507,7 +501,14 @@ function renderSeverityChart(severityCount) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false }
+                legend: { display: false },
+                datalabels: {
+                    display: true,
+                    anchor: 'end',
+                    align: 'top',
+                    color: '#333',
+                    font: { weight: 'bold', size: 12 }
+                }
             },
             scales: {
                 y: { beginAtZero: true, ticks: { stepSize: 1 } }
@@ -671,7 +672,14 @@ function renderAgeChart(ageBuckets) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false }
+                legend: { display: false },
+                datalabels: {
+                    display: true,
+                    anchor: 'end',
+                    align: 'top',
+                    color: '#333',
+                    font: { weight: 'bold', size: 12 }
+                }
             },
             scales: {
                 y: { beginAtZero: true, ticks: { stepSize: 1 } }
@@ -698,69 +706,6 @@ function generateBarColors(count) {
         colors.push(base[i % base.length]);
     }
     return colors;
-}
-
-// ============ History Trend ============
-
-async function loadHistoryTrend(project) {
-    try {
-        var resp = await fetch('/api/data/jira-dashboard-history/' + project, { credentials: 'same-origin' });
-        var data = await resp.json();
-
-        if (data.success && data.trendData && data.trendData.length >= 2) {
-            renderHistoryChart(data.trendData);
-            document.getElementById('trend-history').style.display = 'block';
-        }
-    } catch (e) {
-        // Silently fail - history is optional
-    }
-}
-
-function renderHistoryChart(trendData) {
-    var ctx = document.getElementById('chart-history-trend').getContext('2d');
-
-    var labels = trendData.map(function(d) { return d.date; });
-    var openData = trendData.map(function(d) { return d.open; });
-    var closedData = trendData.map(function(d) { return d.closed; });
-
-    if (Dashboard.charts.history) {
-        Dashboard.charts.history.destroy();
-    }
-
-    Dashboard.charts.history = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: '未关闭',
-                    data: openData,
-                    borderColor: '#e67e22',
-                    backgroundColor: 'rgba(230,126,34,0.1)',
-                    fill: true,
-                    tension: 0.3
-                },
-                {
-                    label: '累计关闭',
-                    data: closedData,
-                    borderColor: '#27ae60',
-                    backgroundColor: 'rgba(39,174,96,0.1)',
-                    fill: true,
-                    tension: 0.3
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'top' }
-            },
-            scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1 } }
-            }
-        }
-    });
 }
 
 // ============ Bug Table ============
@@ -1127,7 +1072,16 @@ function showDiagnoseResult(data) {
 
             var scoreSpan = document.createElement('span');
             scoreSpan.className = 'related-bug-score';
-            scoreSpan.textContent = b.relevance_score + '%';
+            var score = b.relevance_score || 0;
+            scoreSpan.textContent = score + '%';
+            // Color based on score: >=80 green, 60-80 yellow, <60 red
+            if (score >= 80) {
+                scoreSpan.style.color = '#27ae60';
+            } else if (score >= 60) {
+                scoreSpan.style.color = '#f39c12';
+            } else {
+                scoreSpan.style.color = '#e74c3c';
+            }
 
             var link = document.createElement('a');
             link.href = b.url || '#';

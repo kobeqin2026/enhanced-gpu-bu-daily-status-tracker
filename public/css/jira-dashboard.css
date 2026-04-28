@@ -355,23 +355,6 @@
     height: 320px;
 }
 
-/* Trend History */
-.trend-history {
-    background: white;
-    border-radius: 8px;
-    padding: 16px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    margin-bottom: 20px;
-}
-
-.trend-history h3 {
-    margin: 0 0 12px 0;
-    font-size: 14px;
-    color: #555;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 8px;
-}
-
 /* Bug Table Section */
 .bug-table-section {
     background: white;
@@ -722,7 +705,6 @@
 .related-bug-score {
     font-weight: bold;
     font-size: 14px;
-    color: #27ae60;
     min-width: 42px;
     text-align: center;
     white-space: nowrap;
