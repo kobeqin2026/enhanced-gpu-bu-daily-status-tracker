@@ -688,6 +688,13 @@
     padding-top: 12px;
     margin-top: 8px;
 }
+.related-bug-header-row {
+    font-weight: bold;
+    font-size: 12px;
+    color: #888;
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
 .related-bug-item {
     display: flex;
     align-items: center;

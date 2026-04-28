@@ -1089,7 +1089,7 @@ function showDiagnoseResult(data) {
         });
     }
 
-    // Related bugs (cross-project) — score | key | summary
+    // Related bugs (cross-project) — header + score | key | summary
     var relatedSection = document.getElementById('diag-related-section');
     var relatedEl = document.getElementById('diag-related-bugs');
 
@@ -1097,6 +1097,15 @@ function showDiagnoseResult(data) {
 
     if (data.related_bugs && data.related_bugs.length > 0) {
         if (relatedSection) relatedSection.style.display = 'block';
+
+        // Header row
+        var header = document.createElement('div');
+        header.className = 'related-bug-item related-bug-header-row';
+        header.innerHTML = '<span class="related-bug-score">匹配度</span>' +
+            '<span class="related-bug-key">Key</span>' +
+            '<span class="related-bug-summary">标题</span>';
+        relatedEl.appendChild(header);
+
         data.related_bugs.forEach(function(b) {
             var row = document.createElement('div');
             row.className = 'related-bug-item';
@@ -1105,7 +1114,7 @@ function showDiagnoseResult(data) {
             var scoreSpan = document.createElement('span');
             scoreSpan.className = 'related-bug-score';
             var score = b.relevance_score || 0;
-            scoreSpan.textContent = score;
+            scoreSpan.textContent = score + '%';
             if (score >= 80) {
                 scoreSpan.style.color = '#27ae60';
             } else if (score >= 60) {
