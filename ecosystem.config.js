@@ -1,3 +1,20 @@
+var fs = require('fs');
+var path = require('path');
+
+// Load environment variables from skills/.env if exists
+var envFile = path.join(process.env.HOME, 'skills', '.env');
+if (fs.existsSync(envFile)) {
+    fs.readFileSync(envFile, 'utf8').split('\n').forEach(function(line) {
+        line = line.trim();
+        if (line && !line.startsWith('#') && line.indexOf('=') !== -1) {
+            var idx = line.indexOf('=');
+            var key = line.substring(0, idx).trim();
+            var val = line.substring(idx + 1).trim();
+            if (!process.env[key]) process.env[key] = val;
+        }
+    });
+}
+
 module.exports = {
   apps: [{
     name: 'gpu-tracker',
@@ -9,9 +26,11 @@ module.exports = {
     env: {
       NODE_ENV: 'production',
       PORT: 3000,
-      // JIRA config - set via server environment variables:
-      // JIRA_BASE_URL: 'https://jira01.birentech.com',
-      // JIRA_PAT: 'your-personal-access-token'
+      JIRA_BASE_URL: 'https://jira01.birentech.com',
+      JIRA_PAT: process.env.JIRA_PAT || '',
+      BAILIAN_API_KEY: process.env.BAILIAN_API_KEY || '',
+      BAILIAN_BASE_URL: process.env.BAILIAN_BASE_URL || '',
+      BAILIAN_MODEL: process.env.BAILIAN_MODEL || ''
     }
   }]
 };

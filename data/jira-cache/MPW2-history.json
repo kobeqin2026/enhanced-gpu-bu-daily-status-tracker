@@ -1,0 +1,60 @@
+[
+  {
+    "date": "2026-04-27T11:11:55.278Z",
+    "project": "MPW2",
+    "total": 23,
+    "stats": {
+      "total": 23,
+      "open": 12,
+      "closed": 11,
+      "rejected": 0,
+      "todayNew": 0,
+      "weekClosed": 1,
+      "avgResolutionDays": 19,
+      "overdue": 9
+    },
+    "statusCount": {
+      "open": 0,
+      "triage": 11,
+      "implement": 1,
+      "closed": 11,
+      "rejected": 0
+    },
+    "severityCount": {
+      "highest": 3,
+      "high": 7,
+      "medium": 12,
+      "low": 1,
+      "lowest": 0
+    }
+  },
+  {
+    "date": "2026-04-28T02:51:59.177Z",
+    "project": "MPW2",
+    "total": 23,
+    "stats": {
+      "total": 23,
+      "open": 12,
+      "closed": 11,
+      "rejected": 0,
+      "todayNew": 0,
+      "weekClosed": 1,
+      "avgResolutionDays": 19,
+      "overdue": 9
+    },
+    "statusCount": {
+      "open": 0,
+      "triage": 11,
+      "implement": 1,
+      "closed": 11,
+      "rejected": 0
+    },
+    "severityCount": {
+      "highest": 3,
+      "high": 7,
+      "medium": 12,
+      "low": 1,
+      "lowest": 0
+    }
+  }
+]

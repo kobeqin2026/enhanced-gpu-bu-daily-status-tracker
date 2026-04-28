@@ -1,0 +1,31 @@
+[
+  {
+    "date": "2026-04-27T02:13:55.667Z",
+    "project": "BHC",
+    "total": 52,
+    "stats": {
+      "total": 52,
+      "open": 52,
+      "closed": 0,
+      "rejected": 0,
+      "todayNew": 0,
+      "weekClosed": 0,
+      "avgResolutionDays": 0,
+      "overdue": 52
+    },
+    "statusCount": {
+      "open": 52,
+      "triage": 0,
+      "implement": 0,
+      "closed": 0,
+      "rejected": 0
+    },
+    "severityCount": {
+      "highest": 1,
+      "high": 5,
+      "medium": 46,
+      "low": 0,
+      "lowest": 0
+    }
+  }
+]
