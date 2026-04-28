@@ -106,6 +106,7 @@ var barDataLabelPlugin = {
     id: 'barDataLabel',
     afterDatasetsDraw: function(chart) {
         if (chart.config.type !== 'bar') return;
+        console.log('[barDataLabel] Drawing labels for bar chart');
 
         var ctx = chart.ctx;
         ctx.save();
@@ -121,9 +122,8 @@ var barDataLabelPlugin = {
                 var value = dataset.data[i];
                 if (!value || value <= 0) return;
                 ctx.fillStyle = '#333';
-                // Chart.js 4.x: bar.y = top edge, bar.base = bottom edge
+                // Chart.js 4.x: bar.y = top edge of bar
                 var labelY = bar.y - 6;
-                // Keep label inside chart area
                 if (labelY < chartArea.top + 14) labelY = chartArea.top + 14;
                 ctx.fillText(String(value), bar.x, labelY);
             });
@@ -138,6 +138,9 @@ if (typeof Chart !== 'undefined' && Chart.register) {
     Chart.register(pieLabelPlugin);
     Chart.register(lineDataLabelPlugin);
     Chart.register(barDataLabelPlugin);
+    console.log('[Chart] Plugins registered: pieLabel, lineDataLabel, barDataLabel');
+} else {
+    console.warn('[Chart] Chart.js not loaded or Chart.register not available');
 }
 
 // ============ State ============
