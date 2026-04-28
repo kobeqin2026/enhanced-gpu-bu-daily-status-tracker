@@ -960,16 +960,17 @@ function searchSimilarBugs(authHeader, bugInfo) {
                         if (!seen[bug.bugId]) {
                             seen[bug.bugId] = true;
                             // Scoring: explicit refs 90-100, keyword matches 0-85
+                            // scoreBugRelevance now returns 0-100 normalized
                             var contentScore = scoreBugRelevance(bug, keywordGroups, sourceText);
                             var baseScore;
                             if (bug.isExplicitReference) {
                                 // Explicit mention in comments: 90 base + up to 10 from content match
-                                baseScore = 90 + Math.round(contentScore * 0.1);
+                                baseScore = 90 + Math.round(contentScore / 10);
                             } else {
-                                // Keyword-based: content score only, capped at 85
-                                baseScore = Math.min(contentScore, 85);
+                                // Keyword-based: content score scaled to 0-85
+                                baseScore = Math.round(contentScore * 0.85);
                             }
-                            bug.relevanceScore = Math.min(Math.round(baseScore + (bug.queryBonus || 0)), 100);
+                            bug.relevanceScore = Math.min(baseScore, 100);
                             scored.push(bug);
                         }
                     });
@@ -1004,11 +1005,11 @@ function searchSimilarBugs(authHeader, bugInfo) {
                                 var reContentScore = scoreBugRelevance(bug, keywordGroups, sourceText);
                                 var reBase;
                                 if (bug.isExplicitReference) {
-                                    reBase = 90 + Math.round(reContentScore * 0.1);
+                                    reBase = 90 + Math.round(reContentScore / 10);
                                 } else {
-                                    reBase = Math.min(reContentScore, 85);
+                                    reBase = Math.round(reContentScore * 0.85);
                                 }
-                                bug.relevanceScore = Math.min(Math.round(reBase + (bug.queryBonus || 0)), 100);
+                                bug.relevanceScore = Math.min(reBase, 100);
                             }
                             return bug;
                         })
@@ -1124,6 +1125,7 @@ function buildTargetedQueries(keywordGroups, excludeProject) {
 
 /**
  * Score a bug's relevance based on keyword overlap AND semantic similarity to source bug
+ * Returns 0-100, normalized across all dimensions.
  */
 function scoreBugRelevance(bug, keywordGroups, sourceText) {
     var score = 0;
@@ -1131,65 +1133,48 @@ function scoreBugRelevance(bug, keywordGroups, sourceText) {
     var primaryKws = keywordGroups.primary || [];
     var secondaryKws = keywordGroups.secondary || [];
 
-    // Helper: count keyword matches in text with weight
-    function countMatches(text, weight) {
-        if (!text) return 0;
-        var lower = text.toLowerCase();
-        var matches = 0;
-        allKeywords.forEach(function(kw) {
-            if (lower.indexOf(kw.toLowerCase()) !== -1) matches++;
-        });
-        return matches * weight;
-    }
-
-    function countPrimaryMatches(text, weight) {
-        if (!text) return 0;
-        var lower = text.toLowerCase();
-        var matches = 0;
-        primaryKws.forEach(function(kw) {
-            if (lower.indexOf(kw.toLowerCase()) !== -1) matches++;
-        });
-        return matches * weight;
-    }
-
-    // --- Keyword overlap scoring ---
-    score += countMatches(bug.summary, 10);
-    score += countPrimaryMatches(bug.summary, 15);
-
-    if (secondaryKws.indexOf('time') !== -1) {
-        var lowerSummary = (bug.summary || '').toLowerCase();
-        if (lowerSummary.indexOf('time') !== -1 && lowerSummary.indexOf('timeout') === -1) {
-            score += 15;
-        }
-    }
-
-    score += countMatches(bug.description, 5);
-    score += countPrimaryMatches(bug.description, 8);
-
     var allCommentsText = (bug.comments || []).map(function(c) { return c.body || ''; }).join(' ');
-    score += countMatches(allCommentsText, 2);
+    var bugText = ((bug.summary || '') + ' ' + (bug.description || '') + ' ' + allCommentsText).toLowerCase();
 
-    var recentComments = (bug.comments || []).slice(-5).map(function(c) { return c.body || ''; }).join(' ');
-    score += countMatches(recentComments, 3);
-
+    // --- Dimension 1: Title keyword match (max 20 pts) ---
+    var titleMatches = 0;
+    var summaryLower = (bug.summary || '').toLowerCase();
+    allKeywords.forEach(function(kw) {
+        if (summaryLower.indexOf(kw.toLowerCase()) !== -1) titleMatches++;
+    });
+    if (allKeywords.length > 0) {
+        score += Math.round(titleMatches / allKeywords.length * 20);
+    }
+    // Primary keyword bonus in title (extra 10 pts)
+    var primaryTitleMatches = 0;
+    primaryKws.forEach(function(kw) {
+        if (summaryLower.indexOf(kw.toLowerCase()) !== -1) primaryTitleMatches++;
+    });
     if (primaryKws.length > 0) {
-        var bugText = ((bug.summary || '') + ' ' + (bug.description || '') + ' ' + allCommentsText).toLowerCase();
-        var domainMatches = 0;
-        primaryKws.forEach(function(kw) {
-            if (bugText.indexOf(kw.toLowerCase()) !== -1) domainMatches++;
-        });
-        if (domainMatches >= primaryKws.length * 0.5) {
-            score += 10;
-        }
+        score += Math.round(primaryTitleMatches / primaryKws.length * 10);
     }
 
-    // --- Semantic similarity scoring (compare to source bug) ---
-    if (sourceText && sourceText.summary) {
-        var candidateSummary = (bug.summary || '').toLowerCase();
-        var candidateDesc = (bug.description || '').toLowerCase();
-        var candidateFull = (candidateSummary + ' ' + candidateDesc + ' ' + allCommentsText).toLowerCase();
+    // --- Dimension 2: Description keyword match (max 15 pts) ---
+    var descLower = (bug.description || '').toLowerCase();
+    var descMatches = 0;
+    allKeywords.forEach(function(kw) {
+        if (descLower.indexOf(kw.toLowerCase()) !== -1) descMatches++;
+    });
+    if (allKeywords.length > 0) {
+        score += Math.round(descMatches / allKeywords.length * 15);
+    }
 
-        // 1) Problem pattern overlap - check for shared error/symptom phrases
+    // --- Dimension 3: Comment keyword match (max 10 pts) ---
+    var commentMatches = 0;
+    allKeywords.forEach(function(kw) {
+        if (allCommentsText.toLowerCase().indexOf(kw.toLowerCase()) !== -1) commentMatches++;
+    });
+    if (allKeywords.length > 0) {
+        score += Math.round(commentMatches / allKeywords.length * 10);
+    }
+
+    // --- Dimension 4: Problem pattern overlap (max 15 pts) ---
+    if (sourceText && sourceText.summary) {
         var problemPatterns = [
             'init.*time', 'init.*long', 'init.*slow', 'init.*fail', 'init.*timeout',
             'link.*time', 'link.*long', 'training.*time', 'training.*long',
@@ -1199,57 +1184,57 @@ function scoreBugRelevance(bug, keywordGroups, sourceText) {
             'not.*ready', 'not.*complete', 'wait.*time',
             'cycle.*time', 'duration.*long'
         ];
-        var sharedPatterns = 0;
+        var sourceLower = (sourceText.fullText || '').toLowerCase();
+        var sourceMatches = {};
         problemPatterns.forEach(function(pattern) {
-            var re = new RegExp(pattern, 'i');
-            if (re.test(sourceText.summary) && re.test(candidateFull)) {
-                sharedPatterns++;
-            }
+            if (new RegExp(pattern, 'i').test(sourceText.summary)) sourceMatches[pattern] = true;
         });
-        score += sharedPatterns * 12; // Each shared pattern = significant boost
+        var sourcePatCount = Object.keys(sourceMatches).length;
+        var sharedPatterns = 0;
+        if (sourcePatCount > 0) {
+            Object.keys(sourceMatches).forEach(function(pattern) {
+                if (new RegExp(pattern, 'i').test(bugText)) sharedPatterns++;
+            });
+            score += Math.round(sharedPatterns / sourcePatCount * 15);
+        }
 
-        // 2) N-gram overlap on summary (2-grams and 3-grams)
-        var sourceSummary = sourceText.summary.toLowerCase();
-        var summaryOverlap = ngramOverlap(sourceSummary, candidateSummary);
-        score += Math.floor(summaryOverlap * 30); // Up to 30 points for high summary overlap
+        // --- Dimension 5: Summary N-gram overlap (max 10 pts) ---
+        var summaryOverlap = ngramOverlap(sourceText.summary.toLowerCase(), (bug.summary || '').toLowerCase());
+        score += Math.round(summaryOverlap * 10);
 
-        // 3) Description word-level Jaccard similarity
-        var descOverlap = wordJaccard(sourceText.fullText, candidateFull);
-        score += Math.floor(descOverlap * 25); // Up to 25 points for description similarity
+        // --- Dimension 6: Description Jaccard similarity (max 10 pts) ---
+        var descOverlap = wordJaccard(sourceText.fullText, bugText);
+        score += Math.round(descOverlap * 10);
 
-        // 4) Specific error term co-occurrence boost
+        // --- Dimension 7: Error term co-occurrence (max 10 pts) ---
         var errorSignatures = ['link down', 'link training', 'gen1', 'gen2', 'gen3', 'gen4',
             'lane 0', 'lane 1', 'phy', 'serdes', 'retimer', 're-driver',
             'l0s', 'l1', 'ltssm', 'detect', 'config', 'configuration',
             'rc', 'endpoint', 'root complex', 'enumeration'];
         var sigMatches = 0;
         errorSignatures.forEach(function(sig) {
-            if (sourceText.fullText.indexOf(sig) !== -1 && candidateFull.indexOf(sig) !== -1) {
+            if (sourceText.fullText.indexOf(sig) !== -1 && bugText.indexOf(sig) !== -1) {
                 sigMatches++;
             }
         });
-        if (sigMatches > 0) {
-            score += Math.min(sigMatches * 5, 20); // Cap at 20
-        }
+        score += Math.min(sigMatches, 2) * 5; // Max 10 pts (2 signatures)
 
-        // 5) Same project family boost (BRHW projects share more IP)
+        // --- Dimension 8: Same chip family (max 5 pts) ---
         if (bug.bugId && sourceText.projectKey) {
             var bugProject = bug.bugId.split('-')[0] || '';
             var srcProject = sourceText.projectKey;
-            // BRHW and MPW2 both relate to same chip family
-            if (bugProject && srcProject) {
-                var familyMap = {
-                    'BRHW110': 'br', 'BR110': 'br', 'BRHW200': 'br', 'BR200': 'br',
-                    'MPW2': 'br', 'MPW': 'br', 'ES': 'br', 'BR': 'br'
-                };
-                if (familyMap[bugProject] && familyMap[srcProject] && familyMap[bugProject] === familyMap[srcProject]) {
-                    score += 8; // Same chip family
-                }
+            var familyMap = {
+                'BRHW110': 'br', 'BR110': 'br', 'BRHW200': 'br', 'BR200': 'br',
+                'MPW2': 'br', 'MPW': 'br', 'ES': 'br', 'BR': 'br'
+            };
+            if (familyMap[bugProject] && familyMap[srcProject] && familyMap[bugProject] === familyMap[srcProject]) {
+                score += 5;
             }
         }
     }
 
-    return score;
+    // Cap at 100
+    return Math.min(score, 100);
 }
 
 /**

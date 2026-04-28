@@ -1092,7 +1092,7 @@ function showDiagnoseResult(data) {
         dataEl.appendChild(li);
     });
 
-    // Related bugs (cross-project)
+    // Related bugs (cross-project) — simple: link + title + score only
     var relatedSection = document.getElementById('diag-related-section');
     var relatedEl = document.getElementById('diag-related-bugs');
     relatedEl.innerHTML = '';
@@ -1100,45 +1100,22 @@ function showDiagnoseResult(data) {
     if (data.related_bugs && data.related_bugs.length > 0) {
         relatedSection.style.display = 'block';
         data.related_bugs.forEach(function(b) {
-            var card = document.createElement('div');
-            card.className = 'related-bug-card';
+            var row = document.createElement('div');
+            row.className = 'related-bug-row';
 
-            var header = document.createElement('div');
-            header.className = 'related-bug-header';
+            var scoreSpan = document.createElement('span');
+            scoreSpan.className = 'related-bug-score';
+            scoreSpan.textContent = b.relevance_score + '%';
 
             var link = document.createElement('a');
             link.href = b.url || '#';
             link.target = '_blank';
-            link.className = 'related-bug-key';
-            link.textContent = b.key;
+            link.className = 'related-bug-link';
+            link.textContent = b.key + ' — ' + (b.summary || '');
 
-            var projectSpan = document.createElement('span');
-            projectSpan.className = 'related-bug-project';
-            projectSpan.textContent = b.project;
-
-            var statusSpan = document.createElement('span');
-            statusSpan.className = 'related-bug-status';
-            statusSpan.textContent = b.status + (b.resolution ? ' (' + b.resolution + ')' : '');
-
-            header.appendChild(link);
-            header.appendChild(projectSpan);
-            header.appendChild(statusSpan);
-            card.appendChild(header);
-
-            var titleP = document.createElement('p');
-            titleP.className = 'related-bug-summary';
-            titleP.textContent = b.summary || '';
-            card.appendChild(titleP);
-
-            // Show root cause if available
-            if (b.root_cause) {
-                var rcDiv = document.createElement('div');
-                rcDiv.className = 'related-bug-root-cause';
-                rcDiv.textContent = b.root_cause;
-                card.appendChild(rcDiv);
-            }
-
-            relatedEl.appendChild(card);
+            row.appendChild(scoreSpan);
+            row.appendChild(link);
+            relatedEl.appendChild(row);
         });
     } else {
         relatedSection.style.display = 'none';
