@@ -1,4 +1,4 @@
-# GPU Bring-up Daily Status Tracker
+# JIRA Dashboard 智能缺陷诊断平台
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
 ![Version](https://img.shields.io/badge/version-v4.8-purple)
