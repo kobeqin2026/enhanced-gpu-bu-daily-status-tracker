@@ -29,8 +29,8 @@ module.exports = {
       JIRA_BASE_URL: 'https://jira01.birentech.com',
       JIRA_PAT: process.env.JIRA_PAT || '',
       BAILIAN_API_KEY: process.env.BAILIAN_API_KEY || '',
-      BAILIAN_BASE_URL: process.env.BAILIAN_BASE_URL || '',
-      BAILIAN_MODEL: process.env.BAILIAN_MODEL || ''
+      BAILIAN_BASE_URL: process.env.BAILIAN_BASE_URL || 'https://coding.dashscope.aliyuncs.com/v1',
+      BAILIAN_MODEL: process.env.BAILIAN_MODEL || 'qwen3.6-plus'
     }
   }]
 };

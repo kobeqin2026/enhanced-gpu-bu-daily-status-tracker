@@ -8,6 +8,92 @@ var url = require('url');
 var auth = require('../middleware/auth');
 var jiraConfig = require('../lib/jiraConfig');
 var diagnosis = require('../lib/diagnosis');
+var crypto = require('crypto');
+var fs = require('fs');
+var os = require('os');
+var path = require('path');
+
+// Image analysis cache path — populated by the AI agent via vision_analyze
+var visionAnalysis = require('../lib/vision-analysis');
+var IMAGE_CACHE_DIR = path.join(os.homedir(), '.hermes', 'gpu-tracker', 'image-cache');
+var IMAGE_CACHE_FILE = path.join(IMAGE_CACHE_DIR, 'analysis-cache.json');
+
+function loadImageCache() {
+    try {
+        if (fs.existsSync(IMAGE_CACHE_FILE)) {
+            return JSON.parse(fs.readFileSync(IMAGE_CACHE_FILE, 'utf8'));
+        }
+    } catch(e) {
+        console.error('[VisionCache] Failed to load cache:', e.message);
+    }
+    return {};
+}
+
+function urlHash(url) {
+    return crypto.createHash('md5').update(url).digest('hex').substring(0, 12);
+}
+
+function getCachedImageAnalysis(imageUrl) {
+    var cache = loadImageCache();
+    var h = urlHash(imageUrl);
+    var entry = cache[h];
+    if (entry && entry.analysis) {
+        console.log('[VisionCache] HIT for', imageUrl.substring(imageUrl.lastIndexOf('/') + 1), '(' + h + ')');
+        return entry.analysis;
+    }
+    console.log('[VisionCache] MISS for', imageUrl.substring(imageUrl.lastIndexOf('/') + 1), '(' + h + ')');
+    return '';
+}
+
+var SUPPORTED_IMAGE_MIMES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+
+function visionAnalysis_extractImageUrls(bug, jiraBaseUrl, maxImages) {
+    maxImages = maxImages || 5;
+    var urls = [];
+    var seen = {};
+
+    // 1) From attachment field
+    if (bug.attachments && Array.isArray(bug.attachments)) {
+        for (var i = 0; i < bug.attachments.length && urls.length < maxImages; i++) {
+            var att = bug.attachments[i];
+            if (att.mimeType && SUPPORTED_IMAGE_MIMES.indexOf(att.mimeType) !== -1) {
+                if (!seen[att.content]) {
+                    seen[att.content] = true;
+                    urls.push(att.content);
+                }
+            }
+        }
+    }
+
+    // 2) Fallback: parse !image-xxx.png! from comment bodies
+    if (bug.comments && Array.isArray(bug.comments)) {
+        var filenameToUrl = {};
+        if (bug.attachments && Array.isArray(bug.attachments)) {
+            bug.attachments.forEach(function(att) {
+                if (att.filename && att.content) {
+                    filenameToUrl[att.filename] = att.content;
+                }
+            });
+        }
+
+        for (var i = 0; i < bug.comments.length && urls.length < maxImages; i++) {
+            var comment = bug.comments[i];
+            var body = comment.body || '';
+            var regex = /!(image-[^\s|!]+(?:\.png|\.jpg|\.jpeg|\.gif|\.webp))/gi;
+            var match;
+            while ((match = regex.exec(body)) !== null && urls.length < maxImages) {
+                var filename = match[1];
+                var attUrl = filenameToUrl[filename];
+                if (attUrl && !seen[attUrl]) {
+                    seen[attUrl] = true;
+                    urls.push(attUrl);
+                }
+            }
+        }
+    }
+
+    return urls.slice(0, maxImages);
+}
 
 /**
  * Make an HTTP request (supports both http and https)
@@ -815,19 +901,70 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
             });
         }
 
-        // Auto-fetch comments for the source bug if not already provided by frontend
-        // This ensures comment-based reference extraction (e.g., "Similar to .../BRHW110-1677")
-        // works even when the dashboard bug data doesn't include comments
+        // Auto-fetch comments and attachments for the source bug if not already provided
         if (!bugInfo.comments || !Array.isArray(bugInfo.comments) || bugInfo.comments.length === 0) {
             try {
                 var details = await fetchJiraBugsWithDetails(authHeader, 'key = "' + bugInfo.key + '"', 1);
                 if (details && details.length > 0) {
                     bugInfo.comments = details[0].comments || [];
                     bugInfo.description = details[0].description || bugInfo.description || '';
-                    console.log('[Diagnosis] Auto-fetched', bugInfo.comments.length, 'comments for', bugInfo.key);
+                    bugInfo.attachments = details[0].attachments || [];
+                    console.log('[Diagnosis] Auto-fetched', bugInfo.comments.length, 'comments and', bugInfo.attachments.length, 'attachments for', bugInfo.key);
                 }
             } catch (e) {
-                console.log('[Diagnosis] Failed to auto-fetch comments:', e.message);
+                console.log('[Diagnosis] Failed to auto-fetch:', e.message);
+            }
+        }
+
+        // Load cached image analysis for the source bug's attachments
+        var sourceImageUrls = visionAnalysis_extractImageUrls(bugInfo, jiraConfig.baseUrl, Number.MAX_SAFE_INTEGER);
+        bugInfo.imageSummaries = [];
+        bugInfo.unanalyzedImages = [];
+        sourceImageUrls.forEach(function(imageUrl) {
+            var analysis = getCachedImageAnalysis(imageUrl);
+            if (analysis) {
+                bugInfo.imageSummaries.push(analysis);
+            } else {
+                bugInfo.unanalyzedImages.push({
+                    url: imageUrl,
+                    filename: imageUrl.substring(imageUrl.lastIndexOf('/') + 1)
+                });
+            }
+        });
+        if (bugInfo.imageSummaries.length > 0) {
+            var imageText = bugInfo.imageSummaries.map(function(s, i) {
+                return '[截图' + (i + 1) + ']: ' + s;
+            }).join('\n');
+            // Inject image analysis into description so LLM sees it
+            bugInfo.description = (bugInfo.description || '') + '\n\n**截图分析（AI提取）**:\n' + imageText;
+            console.log('[VisionCache] Source bug', bugInfo.key + ':', bugInfo.imageSummaries.length, 'images analyzed,', bugInfo.unanalyzedImages.length, 'pending');
+        }
+
+        // Phase 1: Real-time analysis of source bug's uncached images
+        if (bugInfo.unanalyzedImages.length > 0) {
+            console.log('[VisionRealtime] Phase 1 - Analyzing', bugInfo.unanalyzedImages.length, 'uncached source images for', bugInfo.key);
+            var authHdr = getAuthHeader();
+            var realtimeResults = [];
+            for (var ri = 0; ri < bugInfo.unanalyzedImages.length; ri++) {
+                var img = bugInfo.unanalyzedImages[ri];
+                try {
+                    var summary = await visionAnalysis.analyzeImage(img.url, authHdr);
+                    if (summary) {
+                        realtimeResults.push(summary);
+                        bugInfo.imageSummaries.push(summary);
+                        console.log('[VisionRealtime] Source', bugInfo.key, 'image', ri + 1, 'analyzed:', summary.substring(0, 100));
+                    }
+                } catch (e) {
+                    console.error('[VisionRealtime] Failed to analyze image', img.filename, ':', e.message);
+                }
+            }
+            // Update description with newly analyzed images
+            if (realtimeResults.length > 0) {
+                var newText = realtimeResults.map(function(s, i) {
+                    return '[实时分析截图' + (i + 1) + ']: ' + s;
+                }).join('\n');
+                bugInfo.description = (bugInfo.description || '') + '\n\n**截图实时分析（本次诊断时调用VLM）**:\n' + newText;
+                console.log('[VisionRealtime] Source bug', bugInfo.key + ':', realtimeResults.length, 'images analyzed in real-time');
             }
         }
 
@@ -950,6 +1087,7 @@ function searchSimilarBugs(authHeader, bugInfo) {
                 var seen = {};
                 var scored = [];
 
+                // Pass 1: Collect unique bugs, explicit references override keyword matches
                 results.forEach(function(bugs) {
                     // Handle both arrays (from queries) and single objects (from referenced bugs)
                     if (!bugs) return;
@@ -958,22 +1096,23 @@ function searchSimilarBugs(authHeader, bugInfo) {
                     bugs.forEach(function(bug) {
                         if (!bug || !bug.bugId) return;
                         if (!seen[bug.bugId]) {
-                            seen[bug.bugId] = true;
-                            // Scoring: explicit refs 90-100, keyword matches 0-85
-                            // scoreBugRelevance now returns 0-100 normalized
-                            var contentScore = scoreBugRelevance(bug, keywordGroups, sourceText);
-                            var baseScore;
-                            if (bug.isExplicitReference) {
-                                // Explicit mention in comments: 90 base + up to 10 from content match
-                                baseScore = 90 + Math.round(contentScore / 10);
-                            } else {
-                                // Keyword-based: content score scaled to 0-85
-                                baseScore = Math.round(contentScore * 0.85);
-                            }
-                            bug.relevanceScore = Math.min(baseScore, 100);
-                            scored.push(bug);
+                            seen[bug.bugId] = bug;
+                        } else if (bug.isExplicitReference && !seen[bug.bugId].isExplicitReference) {
+                            seen[bug.bugId] = bug;  // explicit ref overrides keyword match
                         }
                     });
+                });
+
+                // Pass 2: Score each unique bug uniformly
+                Object.keys(seen).forEach(function(key) {
+                    var bug = seen[key];
+                    var contentScore = scoreBugRelevance(bug, keywordGroups, sourceText);
+                    if (bug.isExplicitReference) {
+                        bug.relevanceScore = Math.min(90 + Math.round(contentScore / 10), 100);
+                    } else {
+                        bug.relevanceScore = Math.round(contentScore * 0.85);
+                    }
+                    scored.push(bug);
                 });
 
                 scored.sort(function(a, b) { return b.relevanceScore - a.relevanceScore; });
@@ -1025,12 +1164,122 @@ function searchSimilarBugs(authHeader, bugInfo) {
                 // Filter out nulls
                 topBugs = topBugs.filter(function(b) { return b != null; });
 
-                // Final sort after re-scoring
+                // Attach JIRA base URL to each bug for image URL resolution
+                topBugs.forEach(function(b) {
+                    b.jiraBaseUrl = jiraConfig.baseUrl;
+                });
+
+                console.log('[Diagnosis] Detail fetch done for', topBugs.length, 'bugs, loading cached image analysis...');
+                return topBugs;
+            })
+            .then(function(topBugs) {
+                // Load cached image analysis for each bug's screenshots (unlimited)
+                // Then do real-time analysis for high-score candidates
+                var analysisTasks = topBugs.map(function(bug) {
+                    var maxImagesPerBug = Number.MAX_SAFE_INTEGER;
+                    var imageUrls = visionAnalysis_extractImageUrls(bug, bug.jiraBaseUrl || jiraConfig.baseUrl, maxImagesPerBug);
+                    bug.imageSummaries = [];
+                    bug.imageText = '';
+                    bug.unanalyzedImages = [];
+
+                    if (imageUrls.length === 0) {
+                        return Promise.resolve(bug);
+                    }
+
+                    console.log('[VisionCache] Found', imageUrls.length, 'images for', bug.bugId);
+                    imageUrls.forEach(function(imageUrl) {
+                        var analysis = getCachedImageAnalysis(imageUrl);
+                        if (analysis) {
+                            bug.imageSummaries.push(analysis);
+                        } else {
+                            bug.unanalyzedImages.push({
+                                url: imageUrl,
+                                filename: imageUrl.substring(imageUrl.lastIndexOf('/') + 1)
+                            });
+                        }
+                    });
+
+                    if (bug.imageSummaries.length > 0) {
+                        bug.imageText = bug.imageSummaries.map(function(s, i) {
+                            return '[截图' + (i + 1) + ']: ' + s;
+                        }).join('\n');
+
+                        // Re-score with image text included
+                        var originalDesc = bug.description || '';
+                        bug.description = originalDesc + ' ' + bug.imageText;
+                        var reContentScore = scoreBugRelevance(bug, keywordGroups, sourceText);
+                        var reBase;
+                        if (bug.isExplicitReference) {
+                            reBase = 90 + Math.round(reContentScore / 10);
+                        } else {
+                            reBase = Math.round(reContentScore * 0.85);
+                        }
+                        bug.relevanceScore = Math.min(reBase, 100);
+                        bug.description = originalDesc;
+                    }
+
+                    // Phase 2: Real-time analysis for high-score candidates (score >= 60)
+                    if (bug.unanalyzedImages.length > 0 && bug.relevanceScore >= 60) {
+                        console.log('[VisionRealtime] Phase 2 - High-score candidate', bug.bugId, '(score:', bug.relevanceScore + ') - analyzing', bug.unanalyzedImages.length, 'images in real-time');
+                        var authHdr = getAuthHeader();
+                        var analyzePromises = bug.unanalyzedImages.map(function(img, idx) {
+                            return visionAnalysis.analyzeImage(img.url, authHdr)
+                                .then(function(summary) {
+                                    if (summary) {
+                                        console.log('[VisionRealtime] Candidate', bug.bugId, 'image', idx + 1, ':', summary.substring(0, 100));
+                                        return summary;
+                                    }
+                                    return '';
+                                })
+                                .catch(function(e) {
+                                    console.error('[VisionRealtime] Failed to analyze image for', bug.bugId, img.filename, ':', e.message);
+                                    return '';
+                                });
+                        });
+
+                        return Promise.all(analyzePromises).then(function(summaries) {
+                            var realtimeResults = summaries.filter(function(s) { return s; });
+                            if (realtimeResults.length > 0) {
+                                realtimeResults.forEach(function(s) { bug.imageSummaries.push(s); });
+                                var imgText = realtimeResults.map(function(s, i) {
+                                    return '[实时分析截图' + (i + 1) + ']: ' + s;
+                                }).join('\n');
+
+                                // Re-score with newly analyzed image text
+                                var originalDesc = bug.description || '';
+                                bug.description = originalDesc + ' ' + imgText;
+                                var reContentScore = scoreBugRelevance(bug, keywordGroups, sourceText);
+                                var reBase;
+                                if (bug.isExplicitReference) {
+                                    reBase = 90 + Math.round(reContentScore / 10);
+                                } else {
+                                    reBase = Math.round(reContentScore * 0.85);
+                                }
+                                var oldScore = bug.relevanceScore;
+                                bug.relevanceScore = Math.min(reBase, 100);
+                                bug.description = originalDesc;
+                                console.log('[VisionRealtime] Candidate', bug.bugId, 're-scored:', oldScore, '->', bug.relevanceScore, '(+ images)');
+                            }
+                            return bug;
+                        });
+                    } else if (bug.unanalyzedImages.length > 0) {
+                        console.log('[VisionRealtime] Candidate', bug.bugId, '(score:', bug.relevanceScore + ') - skipped real-time analysis (score < 60)');
+                    }
+
+                    return Promise.resolve(bug);
+                });
+
+                return Promise.all(analysisTasks).then(function(results) {
+                    return results.filter(function(b) { return b != null; });
+                });
+            })
+            .then(function(topBugs) {
+                // Final sort after re-scoring (includes image-based re-score)
                 topBugs.sort(function(a, b) { return b.relevanceScore - a.relevanceScore; });
 
                 console.log('[Diagnosis] Final Result: Found', topBugs.length, 'bugs with details.');
                 topBugs.forEach(function(b) {
-                    console.log('  -', b.bugId, 'final score:', b.relevanceScore, b.isExplicitReference ? '(explicit ref)' : '');
+                    console.log('  -', b.bugId, 'final score:', b.relevanceScore, b.isExplicitReference ? '(explicit ref)' : '', b.imageSummaries && b.imageSummaries.length > 0 ? '(' + b.imageSummaries.length + ' images)' : '');
                 });
                 resolve(topBugs.slice(0, 3));
             })
@@ -1219,18 +1468,7 @@ function scoreBugRelevance(bug, keywordGroups, sourceText) {
         });
         score += Math.min(sigMatches, 2) * 5; // Max 10 pts (2 signatures)
 
-        // --- Dimension 8: Same chip family (max 5 pts) ---
-        if (bug.bugId && sourceText.projectKey) {
-            var bugProject = bug.bugId.split('-')[0] || '';
-            var srcProject = sourceText.projectKey;
-            var familyMap = {
-                'BRHW110': 'br', 'BR110': 'br', 'BRHW200': 'br', 'BR200': 'br',
-                'MPW2': 'br', 'MPW': 'br', 'ES': 'br', 'BR': 'br'
-            };
-            if (familyMap[bugProject] && familyMap[srcProject] && familyMap[bugProject] === familyMap[srcProject]) {
-                score += 5;
-            }
-        }
+        // --- Dim9 (同族加分): 暂时移除，需进一步验证匹配逻辑 ---
     }
 
     // Cap at 100
@@ -1326,7 +1564,7 @@ function fetchJiraBugsWithDetails(authHeader, jql, maxResults) {
         var parsedUrl = url.parse(jiraUrl);
 
         var extraFields = 'summary,status,assignee,priority,created,updated,labels,components,' +
-            'description,resolution,comment,reporter,duedate';
+            'description,resolution,comment,reporter,duedate,attachment';
 
         var apiPath = '/rest/api/2/search';
         var queryParams = 'jql=' + encodeURIComponent(jql) +
@@ -1404,6 +1642,7 @@ function fetchJiraBugsWithDetails(authHeader, jql, maxResults) {
                             jiraUrl: jiraUrl + '/browse/' + issue.key,
                             comments: comments,
                             rootCauseComment: rootCauseComment,
+                            attachments: f.attachment || [],
                             created: created,
                             updated: updated
                         };

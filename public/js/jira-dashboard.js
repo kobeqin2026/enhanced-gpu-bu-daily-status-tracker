@@ -1114,7 +1114,7 @@ function showDiagnoseResult(data) {
             var scoreSpan = document.createElement('span');
             scoreSpan.className = 'related-bug-score';
             var score = b.relevance_score || 0;
-            scoreSpan.textContent = score + '%';
+            scoreSpan.textContent = score;
             if (score >= 80) {
                 scoreSpan.style.color = '#27ae60';
             } else if (score >= 60) {
@@ -1143,6 +1143,87 @@ function showDiagnoseResult(data) {
         });
     } else {
         relatedSection.style.display = 'none';
+    }
+
+    // Render screenshot analysis view
+    renderScreenshotAnalysis(data);
+}
+
+function renderScreenshotAnalysis(data) {
+    var container = document.getElementById('diag-screenshots');
+    var section = document.getElementById('diag-screenshot-section');
+    if (!container || !section) return;
+    container.innerHTML = '';
+
+    var hasContent = false;
+
+    function addSection(title, images, badgeText, badgeClass) {
+        if (!images || images.length === 0) return;
+        hasContent = true;
+
+        var wrapper = document.createElement('div');
+        wrapper.className = 'screenshot-accordion';
+
+        // Header
+        var header = document.createElement('div');
+        header.className = 'screenshot-accordion-header';
+        header.innerHTML = '<span>' + title + '</span> ' +
+            '<span class="badge ' + badgeClass + '">' + images.length + ' ' + badgeText + '</span>';
+        
+        // Content (initially hidden)
+        var contentDiv = document.createElement('div');
+        contentDiv.className = 'screenshot-accordion-content';
+        contentDiv.style.display = 'none'; // Default collapsed
+
+        // Toggle logic
+        header.onclick = function() {
+            var isVisible = contentDiv.style.display === 'block';
+            contentDiv.style.display = isVisible ? 'none' : 'block';
+            var arrow = header.querySelector('.accordion-arrow');
+            if (arrow) arrow.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(90deg)';
+        };
+
+        var arrow = document.createElement('span');
+        arrow.className = 'accordion-arrow';
+        arrow.textContent = '▶';
+        header.appendChild(arrow);
+
+        wrapper.appendChild(header);
+
+        // Grid inside content
+        var grid = document.createElement('div');
+        grid.className = 'screenshot-grid';
+        images.forEach(function(s, idx) {
+            var card = document.createElement('div');
+            card.className = 'screenshot-card';
+            var safeText = s ? s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+            card.innerHTML = '<div class="screenshot-card-title">截图 ' + (idx + 1) + '</div><div class="screenshot-card-text">' + safeText + '</div>';
+            grid.appendChild(card);
+        });
+        contentDiv.appendChild(grid);
+        wrapper.appendChild(contentDiv);
+
+        container.appendChild(wrapper);
+    }
+
+    // Source Bug
+    addSection('当前 Bug', data.source_image_summaries, '张已分析', 'badge-source');
+
+    // Related Bugs > 80
+    var relatedBugs = data.related_bugs || [];
+    var highScoreBugs = relatedBugs.filter(function(b) { return b.relevance_score > 80; });
+    
+    highScoreBugs.forEach(function(bug) {
+        if (bug.image_summaries && bug.image_summaries.length > 0) {
+            var title = bug.key + ' (匹配度 ' + bug.relevance_score + '%)';
+            addSection(title, bug.image_summaries, '张已分析', 'badge-related');
+        }
+    });
+
+    if (hasContent) {
+        section.style.display = 'block';
+    } else {
+        section.style.display = 'none';
     }
 }
 

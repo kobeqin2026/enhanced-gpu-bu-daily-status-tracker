@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Bring-up Tracker](https://img.shields.io/badge/GPU-BuD-Tracker-blue)
-![Version](https://img.shields.io/badge/version-v4.5-blue)
+![Version](https://img.shields.io/badge/version-v4.8-purple)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -179,6 +179,69 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v4.8 (2026-05-09)
+**图片识别 + 智能诊断融合 — 四阶段架构（按需分析 + 预计算）**
+
+#### 核心架构：按需分析 + 预计算组合策略
+不再盲目分析所有 JIRA Bug 截图，建立动态按需分析机制，确保只在对匹配度真正有影响的地方进行 VLM 图片分析。
+
+**Phase 1 — 源 Bug 实时分析（诊断触发时）**
+- 用户点击"智能诊断"时，自动下载并识别当前 Bug 的所有未缓存截图
+- 调用 DashScope qwen-vl（qwen3.6-plus）进行视觉分析
+- 分析结果注入诊断 prompt，让 LLM 看到完整上下文（不仅是文字描述）
+- 耗时约 30-60 秒（异步进行，先返回文字诊断，截图结果稍后更新）
+
+**Phase 2 — 跨项目搜索与候选筛选（图片增强匹配度）**
+- 后端通过 JIRA API 搜索历史 Bug（最多 8 个候选者）
+- 文本粗筛后，对排名前列的高匹配度候选者（评分 >= 60）进行图片增强：
+  - **有缓存**：提取图片关键信息追加到描述，重新打分
+  - **无缓存**：实时调用 VLM 分析截图，提取关键信息后参与打分
+- 目的：文本匹配一般但截图证据高度匹配的 Bug 能大幅提升分数（如 60 -> 90）
+
+**Phase 3 — LLM 深度诊断（高置信度）**
+- 将源 Bug（含截图分析）和 Top 历史 Bug（含截图分析）一起发送给 LLM
+- LLM 对比分析根因差异，极大提高诊断置信度，避免"张冠李戴"
+- System Prompt 新增第 7 条要求：深度利用图片证据验证假设
+
+**Phase 4 — 后台异步补全（Cron Job）**
+- 新增 `auto-analyze.js` 定时分析脚本，每 2 小时扫描最近更新的 Bug
+- 分析截图写入 `~/.hermes/gpu-tracker/image-cache/analysis-cache.json` 缓存
+- 为未来诊断做"预热"，确保下次用户诊断时截图已分析，秒级响应
+
+#### 后端改动 (routes/jira.js)
+- **新增图片缓存模块**：`loadImageCache()`, `getCachedImageAnalysis()`, `urlHash()`
+- **截图 URL 提取**：支持从附件和评论（`!image-xxx.png!` 格式）提取图片 URL
+- **Phase 1 实时分析**：诊断时分析源 Bug 未缓存截图，注入 description
+- **Phase 2 高评分候选分析**：`forEach` 改为 `Promise.all` 异步分析模式，对评分 >= 60 的候选强制分析
+- **图片重打分**：分析完成后用图片文本重新计算匹配度
+- **JIRA 查询新增 attachment 字段**：获取附件信息用于图片分析
+
+#### VLM 图片分析模块 (lib/vision-analysis.js)
+- 完整的图片分析管道：下载 -> resize（Pillow 压缩到 1200px） -> 调用 DashScope API -> 解析结果
+- 支持 MIME 类型：PNG, JPEG, JPG, WebP
+- 内置 24 小时内存缓存
+- 并发控制（最多 3 个并行分析任务）
+- System Prompt：GPU Bring-up 调试专家视角，识别 LTSSM/示波器/寄存器 dump/终端 log/架构图
+- 输出结构化数据：type, summary, key_data, technical_details, keywords
+
+#### 定时分析脚本 (lib/auto-analyze.js)
+- 命令行用法：`node lib/auto-analyze.js [--bug-keys KEY1,KEY2,...]`
+- 扫描 JIRA 最近更新的 Bug，下载附件图片
+- 通过 Pillow resize_image.py 压缩（max 1200px, 80% quality）减少 token 消耗
+- 分析结果写入 JSON 缓存文件
+- 支持指定 bug keys 定向分析
+
+#### 前端改动 (jira-dashboard.html + js + css)
+- **截图分析区域**：诊断弹窗新增 `#diag-screenshot-section`，手风琴折叠卡片 UI
+- **手风琴交互**：可展开/收起，显示当前 Bug 和高匹配度相关 Bug 的截图分析
+- **图片状态标签**：
+  - 紫色 "已分析 X 张" 标签（`badge-source` / `badge-related`）
+  - 橙色 "待分析" 斜体标签（`related-bug-image-pending`）
+- **可展开详情**：点击 "查看截图分析" 按钮展开网格卡片，显示每张截图的 AI 提取内容
+- **CSS 新增 150+ 行**：accordion、grid card、badge 样式
+
+---
 
 ### v4.5 (2026-04-28)
 **智能诊断全面增强 + Dashboard 图表与列表优化**
