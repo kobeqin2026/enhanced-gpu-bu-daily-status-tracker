@@ -1027,6 +1027,12 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
         };
 
         var result = await diagnosis.analyzeBug(bugInfo, jiraCtx);
+
+        // Attach source bug image analysis results to the response for frontend display
+        // Fixes the issue where frontend shows "待分析" even after backend analyzed them
+        result.source_image_summaries = bugInfo.imageSummaries || [];
+        result.source_unanalyzed_images = bugInfo.unanalyzedImages || [];
+
         res.json({ success: true, data: result });
     } catch (error) {
         console.error('[Diagnosis] Error:', error.message);
