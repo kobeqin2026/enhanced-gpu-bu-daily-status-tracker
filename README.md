@@ -180,6 +180,100 @@ enhanced-gpu-bu-daily-status-tracker/
 
 ## 版本历史
 
+### v5.0 (2026-05-14)
+**智能诊断全面重构 — 语义匹配度引擎升级 + 三断裂点修复 + 前端截图分析展示**
+
+#### 核心改动概述
+v5.0 是对智能诊断系统的全面重构，修复了图片识别与元数据增强之间的三个逻辑断裂点，重构评分维度从9个合并为7个（满分100分），新增前端截图分析手风琴展示区域。
+
+#### 1. 匹配度评分引擎重构（7维度，100分）
+| 维度 | 权重 | 说明 |
+|------|------|------|
+| **Dim1** | **51分** | 全文关键词+元数据匹配（5个子部分） |
+| Dim2 | 11分 | 问题模式重叠（正则匹配 init.*timeout 等） |
+| Dim3 | 7分 | N-gram摘要重叠（标题2-3词短语） |
+| Dim4 | 7分 | Jaccard描述相似度（词汇集合交集/并集） |
+| Dim5 | 9分 | 错误术语共现（link down, gen3, ltssm 等） |
+| Dim6 | 5分 | 图片类型匹配（VLM识别的ltssm_log/oscilloscope等） |
+| Dim7 | 10分 | 图片关键词重叠（VLM从图片提取的术语重叠） |
+
+**Dim1 子维度拆分：**
+- Part 1a: 标题关键词匹配 (20分)
+- Part 1b: 主关键词标题加成 (8分)
+- Part 1c: 描述关键词匹配 (11分)
+- Part 1d: 评论关键词匹配 (7分)
+- Part 1e: 元数据 components/labels 匹配 (5分)
+
+**权重分布：** 文本关键词(Dim1)=51% + 语义分析(Dim2-5)=34% + 图片(Dim6-7)=15%
+
+#### 2. 三个逻辑断裂点修复
+
+**断裂1：元数据参与关键词提取**
+- `extractKeywords()` 新增 `components` 和 `labels` 参数
+- components（如"PCIe", "I2C", "Clock"）加入 primary 关键词
+- labels（如"voltage_issue", "hang"）加入 secondary 关键词
+- 效果：JIRA查询不再只依赖description文本，元数据直接参与检索
+
+**断裂2：图片关键词参与JIRA查询**
+- Phase 1图片分析后，从VLM结构化结果中提取 keywords
+- 图片关键词（如"ltssm", "gen3", "link training"）加入 keywordGroups
+- 自动识别硬件术语（含pcie/i2c/spi/gpio/phy/serdes/ltssm等20+指示词）
+- 效果：文本不匹配但图片相关的Bug也能被检索到
+- 日志：`[ImageKeywords] Extracted 12 keywords from source images: ltssm, gen3, link training, ...`
+
+**断裂3：元数据匹配纳入评分维度**
+- components/labels 匹配从独立维度合并到Dim1 Part 1e（5分）
+- 支持模糊匹配（子串匹配、大小写不敏感）
+- 候选Bug通过 `fetchJiraBugsWithDetails` 正确获取 labels/components 字段
+
+#### 3. Phase 2 阈值修复
+- 移除 `score >= 60` 触发条件，改为对所有Top候选进行图片分析
+- 修复前：所有候选分数19-31分，Phase 2永远不会触发
+- 修复后：所有Top 8候选的未缓存图片都被VLM实时分析并重新打分
+- 日志变化：`Phase 2 - High-score candidate` → `Phase 2 - Top candidate`
+
+#### 4. 图片结构化数据保留（vision-analysis.js）
+- 缓存从 `{summary: "字符串", timestamp}` 升级为完整结构：
+  ```json
+  {
+    "summary": "一句话概括",
+    "type": "ltssm_log|oscilloscope|register_dump|terminal_log|diagram|other",
+    "key_data": ["关键数据1", "关键数据2"],
+    "technical_details": "详细技术描述",
+    "keywords": ["技术术语1", "技术术语2"],
+    "timestamp": 1234567890
+  }
+  ```
+- 新增 `analyzeImageFull()` 返回完整结构对象
+- 新增 `getCachedImageAnalysis()` 供下游获取结构化数据
+- 向后兼容：`analyzeImage()` 仍返回字符串summary
+
+#### 5. 前端截图分析展示（手风琴UI）
+- HTML：新增 `#diag-screenshot-section` 区域
+- CSS：30+新样式（accordion、grid卡片、badge标签、类型颜色编码）
+- JS功能：
+  - 源Bug截图手风琴组（紫色"已分析X张" + 橙色"待分析X张" badge）
+  - 每个相关Bug独立手风琴组（绿色badge）
+  - 卡片显示：类型标签（颜色编码）+ 摘要 + 关键数据 + 关键词标签
+  - 展开/收起交互动画（箭头旋转）
+  - 待分析图片显示"查看原图"链接
+
+#### 6. 相关Bug匹配度显示恢复
+- 恢复 v4.4-v4.5 的匹配度显示功能（之前意外丢失）
+- 显示格式：`[匹配度%] | [Key链接] | [标题]`
+- 匹配度颜色：≥80绿色，60-79黄色，<60红色
+- CSS恢复：`.related-bug-item`（flex布局）和 `.related-bug-score` 样式
+
+#### 文件改动统计
+- `routes/jira.js`: +321行（评分引擎重构、断裂修复、Phase2修复）
+- `public/js/jira-dashboard.js`: +476行（手风琴UI、匹配度恢复、截图渲染）
+- `public/css/jira-dashboard.css`: +343行（accordion、grid card、badge样式）
+- `lib/vision-analysis.js`: +91行（结构化数据、getCachedImageAnalysis）
+- `lib/diagnosis.js`: +46行（结构化图片数据传递）
+- `public/jira-dashboard.html`: +24行（截图分析区域、相关Bug区域）
+
+---
+
 ### v4.8 (2026-05-09)
 **图片识别 + 智能诊断融合 — 四阶段架构（按需分析 + 预计算）**
 

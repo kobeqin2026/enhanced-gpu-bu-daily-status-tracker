@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JIRA Bug Dashboard - GPU Tracker</title>
     <link rel="stylesheet" href="/css/base.css">
-    <link rel="stylesheet" href="/css/jira-dashboard.css?v=6">
+    <link rel="stylesheet" href="/css/jira-dashboard.css?v=8">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
@@ -168,6 +168,8 @@
             </div>
         </div>
 
+        <!-- Trend History (cached data) - removed -->
+
         <!-- Bug Detail Table -->
         <div class="bug-table-section" id="bug-table-section" style="display:none;">
             <h3>Bug 明细列表</h3>
@@ -202,7 +204,7 @@
                     <thead>
                         <tr>
                             <th data-sort="bugId" onclick="sortBugs('bugId')">Key</th>
-                            <th data-sort="description" onclick="sortBugs('description')">标题</th>
+                            <th data-sort="description" onclick="sortBugs('description')">描述</th>
                             <th data-sort="status" onclick="sortBugs('status')">状态</th>
                             <th data-sort="severity" onclick="sortBugs('severity')">严重性</th>
                             <th data-sort="owner" onclick="sortBugs('owner')">负责人</th>
@@ -235,21 +237,25 @@
                         <h4>🔎 可能原因</h4>
                         <ul id="diag-causes"></ul>
                     </div>
-                    <div class="diag-section">
+                    <div class="diag-section" id="diag-actions-section">
                         <h4>🛠 建议操作</h4>
                         <ol id="diag-actions"></ol>
                     </div>
-                    <div class="diag-section">
+                    <div class="diag-section" id="diag-data-section">
                         <h4>📦 需要收集</h4>
                         <ul id="diag-data"></ul>
                     </div>
-                    <div id="diag-related-section" class="diag-section" style="display:none;">
-                        <h4>🔗 相关历史 Bug</h4>
+                    <div class="diag-section" id="diag-conclusion-section" style="display:none;">
+                        <h4>✅ 诊断结论</h4>
+                        <p id="diag-conclusion"></p>
+                    </div>
+                    <div class="diag-section diag-related-section" id="diag-related-section" style="display:none;">
+                        <h4>🔗 相关历史Bug</h4>
                         <div id="diag-related-bugs"></div>
                     </div>
-                    <div id="diag-screenshot-section" class="diag-section" style="display:none;">
+                    <div class="diag-section diag-screenshot-section" id="diag-screenshot-section" style="display:none;">
                         <h4>📷 截图分析</h4>
-                        <div id="diag-screenshots"></div>
+                        <div id="diag-screenshot-content"></div>
                     </div>
                 </div>
             </div>
@@ -263,6 +269,6 @@
         </div>
     </div>
 
-    <script src="/js/jira-dashboard.js?v=27"></script>
+    <script src="/js/jira-dashboard.js?v=22"></script>
 </body>
 </html>

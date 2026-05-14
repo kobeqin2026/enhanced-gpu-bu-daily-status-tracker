@@ -619,13 +619,29 @@ function fetchJiraBugs(authHeader, jql, maxResults) {
                         var updated = f.updated || created;
 
                         var labels = f.labels || [];
+                        var components = f.components || [];
+                        var componentNames = components.map(function(c) { return c.name || ''; }).filter(function(n) { return n; });
+
+                        // Extract root cause from customfield_10023
+                        var rootCause = '';
+                        var rcField = f.customfield_10023;
+                        if (rcField) {
+                            // Could be a string, or a select object with {value, name}
+                            if (typeof rcField === 'string') {
+                                rootCause = rcField;
+                            } else if (rcField.value) {
+                                rootCause = rcField.value;
+                            } else if (rcField.name) {
+                                rootCause = rcField.name;
+                            }
+                        }
+
+                        // Domain priority: first label -> first component -> TBD
                         var domain = 'TBD';
                         if (labels.length > 0) {
                             domain = labels[0];
-                        }
-                        // Try components as domain fallback
-                        if (domain === 'TBD' && f.components && f.components.length > 0) {
-                            domain = f.components[0].name;
+                        } else if (componentNames.length > 0) {
+                            domain = componentNames[0];
                         }
 
                         // Extract project key from issue key (e.g., MPW2-77 -> MPW2)
@@ -652,6 +668,8 @@ function fetchJiraBugs(authHeader, jql, maxResults) {
                             jiraUrl: jiraUrl + '/browse/' + issue.key,
                             projectKey: projectKey,
                             labels: labels,
+                            components: componentNames,
+                            rootCause: rootCause,
                             createdTimestamp: new Date(created).getTime(),
                             updatedTimestamp: new Date(updated).getTime()
                         };
@@ -739,6 +757,10 @@ function computeChartData(bugs) {
     var ownerCount = {};
     // Domain distribution
     var domainCount = {};
+    // Component distribution
+    var componentCount = {};
+    // Root cause distribution
+    var rootCauseCount = {};
     // Daily trend: date -> { new: N, closed: N }
     var dailyTrend = {};
     // Age distribution
@@ -758,6 +780,19 @@ function computeChartData(bugs) {
         // Domain
         var domain = bug.domain || 'TBD';
         domainCount[domain] = (domainCount[domain] || 0) + 1;
+
+        // Components (a bug can have multiple)
+        if (bug.components && bug.components.length > 0) {
+            bug.components.forEach(function(comp) {
+                componentCount[comp] = (componentCount[comp] || 0) + 1;
+            });
+        } else {
+            componentCount['未设置'] = (componentCount['未设置'] || 0) + 1;
+        }
+
+        // Root cause
+        var rc = bug.rootCause || '未设置';
+        rootCauseCount[rc] = (rootCauseCount[rc] || 0) + 1;
 
         // Daily trend (by reportDate)
         var date = bug.reportDate;
@@ -792,11 +827,23 @@ function computeChartData(bugs) {
         return { domain: d, count: domainCount[d] };
     });
 
+    // Sort component by count descending
+    var componentArray = Object.keys(componentCount).sort(function(a, b) { return componentCount[b] - componentCount[a]; }).map(function(c) {
+        return { component: c, count: componentCount[c] };
+    });
+
+    // Sort root cause by count descending
+    var rootCauseArray = Object.keys(rootCauseCount).sort(function(a, b) { return rootCauseCount[b] - rootCauseCount[a]; }).map(function(r) {
+        return { rootCause: r, count: rootCauseCount[r] };
+    });
+
     return {
         statusCount: statusCount,
         severityCount: severityCount,
         ownerCount: ownerArray,
         domainCount: domainArray,
+        componentCount: componentArray,
+        rootCauseCount: rootCauseArray,
         dailyTrend: trendArray,
         ageBuckets: ageBuckets
     };
@@ -921,7 +968,7 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
         bugInfo.imageSummaries = [];
         bugInfo.unanalyzedImages = [];
         sourceImageUrls.forEach(function(imageUrl) {
-            var analysis = getCachedImageAnalysis(imageUrl);
+            var analysis = visionAnalysis.getCachedImageAnalysis(imageUrl);
             if (analysis) {
                 bugInfo.imageSummaries.push(analysis);
             } else {
@@ -933,7 +980,7 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
         });
         if (bugInfo.imageSummaries.length > 0) {
             var imageText = bugInfo.imageSummaries.map(function(s, i) {
-                return '[截图' + (i + 1) + ']: ' + s;
+                return '[截图' + (i + 1) + ']: ' + (typeof s === 'string' ? s : (s.summary || ''));
             }).join('\n');
             // Inject image analysis into description so LLM sees it
             bugInfo.description = (bugInfo.description || '') + '\n\n**截图分析（AI提取）**:\n' + imageText;
@@ -951,8 +998,11 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
                     var summary = await visionAnalysis.analyzeImage(img.url, authHdr);
                     if (summary) {
                         realtimeResults.push(summary);
-                        bugInfo.imageSummaries.push(summary);
-                        console.log('[VisionRealtime] Source', bugInfo.key, 'image', ri + 1, 'analyzed:', summary.substring(0, 100));
+                        // After analysis, the result is cached — get the full structured data
+                        var structuredResult = visionAnalysis.getCachedImageAnalysis(img.url);
+                        if (structuredResult) {
+                            bugInfo.imageSummaries.push(structuredResult);
+                        }
                     }
                 } catch (e) {
                     console.error('[VisionRealtime] Failed to analyze image', img.filename, ':', e.message);
@@ -970,7 +1020,9 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
 
         var jiraCtx = {
             searchSimilarBugsFn: function(bug) {
-                return searchSimilarBugs(authHeader, bug);
+                // After Phase 1, bugInfo.imageSummaries contains structured image data
+                // Extract keywords from images to enhance search
+                return searchSimilarBugs(authHeader, bug, bugInfo.imageSummaries);
             }
         };
 
@@ -984,8 +1036,11 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
 
 /**
  * Search for similar CLOSED bugs across projects to learn from their solutions
+ * @param {string} authHeader - JIRA auth header
+ * @param {Object} bugInfo - source bug info
+ * @param {Array} sourceImageSummaries - optional: structured image analysis from Phase 1
  */
-function searchSimilarBugs(authHeader, bugInfo) {
+function searchSimilarBugs(authHeader, bugInfo, sourceImageSummaries) {
     return new Promise(function(resolve, reject) {
         // Include comments in text for reference extraction and keyword matching
         // This catches bug keys (e.g., BRHW110-1677) mentioned in comments like "same as BRHW110-1677"
@@ -994,7 +1049,52 @@ function searchSimilarBugs(authHeader, bugInfo) {
             commentsText = ' ' + bugInfo.comments.map(function(c) { return (c.body || '') + ' ' + (c.author || ''); }).join(' ');
         }
         var text = (bugInfo.summary || '') + ' ' + (bugInfo.description || '') + commentsText;
-        var keywordGroups = extractKeywords(text);
+        var keywordGroups = extractKeywords(text, bugInfo.components, bugInfo.labels);
+
+        // Break 2 Fix: Extract keywords from Phase 1 image analysis and add to search keywords
+        var imageKeywords = [];
+        if (sourceImageSummaries && sourceImageSummaries.length > 0) {
+            sourceImageSummaries.forEach(function(s) {
+                if (typeof s === 'object') {
+                    if (Array.isArray(s.keywords)) {
+                        s.keywords.forEach(function(kw) {
+                            var kwLower = kw.toLowerCase();
+                            if (imageKeywords.indexOf(kwLower) === -1) imageKeywords.push(kwLower);
+                        });
+                    }
+                    // Also extract from summary and technical_details
+                    ['summary', 'technical_details', 'key_data'].forEach(function(field) {
+                        if (s[field]) {
+                            var fieldText = Array.isArray(s[field]) ? s[field].join(' ') : s[field];
+                            fieldText.toLowerCase().split(/[\s,，|]+/).forEach(function(w) {
+                                if (w.length > 2 && imageKeywords.indexOf(w) === -1) {
+                                    // Filter out common non-technical words
+                                    var stopWords = {'this':1,'that':1,'with':1,'from':1,'the':1,'and':1,'for':1,'are':1,'but':1,'not':1,'you':1,'all':1,'can':1,'had':1,'her':1,'was':1,'one':1,'our':1,'out':1,'has':1,'have':1,'been':1,'show':1,'shown':1,'显示':1,'包含':1,'图中':1,'截图':1};
+                                    if (!stopWords[w]) imageKeywords.push(w);
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+            // Add image keywords to primary (they're technical terms from VLM)
+            if (imageKeywords.length > 0) {
+                console.log('[ImageKeywords] Extracted', imageKeywords.length, 'keywords from source images:', imageKeywords.slice(0, 8).join(', '));
+                // Add to keywordGroups, respecting the limit
+                imageKeywords.forEach(function(kw) {
+                    if (keywordGroups.primary.indexOf(kw) === -1 && keywordGroups.secondary.indexOf(kw) === -1) {
+                        // Prefer adding to primary if it looks like a hardware term
+                        var hardwareIndicators = ['pcie', 'i2c', 'spi', 'gpio', 'clock', 'pll', 'phy', 'serdes', 'ltssm', 'lane', 'link', 'gen', 'voltage', 'power', 'thermal', 'memory', 'dram', 'bios', 'firmware', 'register', 'oscilloscope'];
+                        var isHardware = hardwareIndicators.some(function(h) { return kw.indexOf(h) !== -1; });
+                        if (isHardware && keywordGroups.primary.length < 3) {
+                            keywordGroups.primary.push(kw);
+                        } else if (keywordGroups.secondary.length < 6) {
+                            keywordGroups.secondary.push(kw);
+                        }
+                    }
+                });
+            }
+        }
 
         if (keywordGroups.primary.length === 0) {
             return resolve([]);
@@ -1106,7 +1206,7 @@ function searchSimilarBugs(authHeader, bugInfo) {
                 // Pass 2: Score each unique bug uniformly
                 Object.keys(seen).forEach(function(key) {
                     var bug = seen[key];
-                    var contentScore = scoreBugRelevance(bug, keywordGroups, sourceText);
+                    var contentScore = scoreBugRelevance(bug, keywordGroups, sourceText, bugInfo.imageSummaries, {components: bugInfo.components, labels: bugInfo.labels});
                     if (bug.isExplicitReference) {
                         bug.relevanceScore = Math.min(90 + Math.round(contentScore / 10), 100);
                     } else {
@@ -1141,7 +1241,7 @@ function searchSimilarBugs(authHeader, bugInfo) {
                                 bug.summary = detail.summary || bug.summary;
 
                                 // Re-score with full details available, cap at 100
-                                var reContentScore = scoreBugRelevance(bug, keywordGroups, sourceText);
+                                var reContentScore = scoreBugRelevance(bug, keywordGroups, sourceText, bugInfo.imageSummaries, {components: bugInfo.components, labels: bugInfo.labels});
                                 var reBase;
                                 if (bug.isExplicitReference) {
                                     reBase = 90 + Math.round(reContentScore / 10);
@@ -1188,7 +1288,7 @@ function searchSimilarBugs(authHeader, bugInfo) {
 
                     console.log('[VisionCache] Found', imageUrls.length, 'images for', bug.bugId);
                     imageUrls.forEach(function(imageUrl) {
-                        var analysis = getCachedImageAnalysis(imageUrl);
+                        var analysis = visionAnalysis.getCachedImageAnalysis(imageUrl);
                         if (analysis) {
                             bug.imageSummaries.push(analysis);
                         } else {
@@ -1201,13 +1301,13 @@ function searchSimilarBugs(authHeader, bugInfo) {
 
                     if (bug.imageSummaries.length > 0) {
                         bug.imageText = bug.imageSummaries.map(function(s, i) {
-                            return '[截图' + (i + 1) + ']: ' + s;
+                            return '[截图' + (i + 1) + ']: ' + (typeof s === 'string' ? s : (s.summary || ''));
                         }).join('\n');
 
                         // Re-score with image text included
                         var originalDesc = bug.description || '';
                         bug.description = originalDesc + ' ' + bug.imageText;
-                        var reContentScore = scoreBugRelevance(bug, keywordGroups, sourceText);
+                        var reContentScore = scoreBugRelevance(bug, keywordGroups, sourceText, bugInfo.imageSummaries, {components: bugInfo.components, labels: bugInfo.labels});
                         var reBase;
                         if (bug.isExplicitReference) {
                             reBase = 90 + Math.round(reContentScore / 10);
@@ -1218,9 +1318,9 @@ function searchSimilarBugs(authHeader, bugInfo) {
                         bug.description = originalDesc;
                     }
 
-                    // Phase 2: Real-time analysis for high-score candidates (score >= 60)
-                    if (bug.unanalyzedImages.length > 0 && bug.relevanceScore >= 60) {
-                        console.log('[VisionRealtime] Phase 2 - High-score candidate', bug.bugId, '(score:', bug.relevanceScore + ') - analyzing', bug.unanalyzedImages.length, 'images in real-time');
+                    // Phase 2: Real-time analysis for Top candidates — always analyze images for re-scoring
+                    if (bug.unanalyzedImages.length > 0) {
+                        console.log('[VisionRealtime] Phase 2 - Top candidate', bug.bugId, '(score:', bug.relevanceScore + ') - analyzing', bug.unanalyzedImages.length, 'images in real-time');
                         var authHdr = getAuthHeader();
                         var analyzePromises = bug.unanalyzedImages.map(function(img, idx) {
                             return visionAnalysis.analyzeImage(img.url, authHdr)
@@ -1240,7 +1340,22 @@ function searchSimilarBugs(authHeader, bugInfo) {
                         return Promise.all(analyzePromises).then(function(summaries) {
                             var realtimeResults = summaries.filter(function(s) { return s; });
                             if (realtimeResults.length > 0) {
-                                realtimeResults.forEach(function(s) { bug.imageSummaries.push(s); });
+                                // After real-time analysis, get structured data from cache
+                                for (var ridx = 0; ridx < realtimeResults.length; ridx++) {
+                                    var rs = realtimeResults[ridx];
+                                    // Find the corresponding structured result from cache
+                                    var imgIdx = summaries.indexOf(rs);
+                                    if (imgIdx >= 0 && bug.unanalyzedImages[imgIdx]) {
+                                        var structuredResult = visionAnalysis.getCachedImageAnalysis(bug.unanalyzedImages[imgIdx].url);
+                                        if (structuredResult) {
+                                            bug.imageSummaries.push(structuredResult);
+                                        } else {
+                                            bug.imageSummaries.push(rs);
+                                        }
+                                    } else {
+                                        bug.imageSummaries.push(rs);
+                                    }
+                                }
                                 var imgText = realtimeResults.map(function(s, i) {
                                     return '[实时分析截图' + (i + 1) + ']: ' + s;
                                 }).join('\n');
@@ -1248,7 +1363,7 @@ function searchSimilarBugs(authHeader, bugInfo) {
                                 // Re-score with newly analyzed image text
                                 var originalDesc = bug.description || '';
                                 bug.description = originalDesc + ' ' + imgText;
-                                var reContentScore = scoreBugRelevance(bug, keywordGroups, sourceText);
+                                var reContentScore = scoreBugRelevance(bug, keywordGroups, sourceText, bugInfo.imageSummaries, {components: bugInfo.components, labels: bugInfo.labels});
                                 var reBase;
                                 if (bug.isExplicitReference) {
                                     reBase = 90 + Math.round(reContentScore / 10);
@@ -1262,10 +1377,7 @@ function searchSimilarBugs(authHeader, bugInfo) {
                             }
                             return bug;
                         });
-                    } else if (bug.unanalyzedImages.length > 0) {
-                        console.log('[VisionRealtime] Candidate', bug.bugId, '(score:', bug.relevanceScore + ') - skipped real-time analysis (score < 60)');
                     }
-
                     return Promise.resolve(bug);
                 });
 
@@ -1375,8 +1487,13 @@ function buildTargetedQueries(keywordGroups, excludeProject) {
 /**
  * Score a bug's relevance based on keyword overlap AND semantic similarity to source bug
  * Returns 0-100, normalized across all dimensions.
+ * @param {Object} bug - candidate bug with imageSummaries (structured objects)
+ * @param {Object} keywordGroups - {primary: [...], secondary: [...]}
+ * @param {Object} sourceText - {summary, description, fullText}
+ * @param {Object} sourceImages - optional: source bug's imageSummaries structured objects
+ * @param {Object} sourceMetadata - optional: {components: [...], labels: [...]} from source bug
  */
-function scoreBugRelevance(bug, keywordGroups, sourceText) {
+function scoreBugRelevance(bug, keywordGroups, sourceText, sourceImages, sourceMetadata) {
     var score = 0;
     var allKeywords = (keywordGroups.primary || []).concat(keywordGroups.secondary || []);
     var primaryKws = keywordGroups.primary || [];
@@ -1385,7 +1502,8 @@ function scoreBugRelevance(bug, keywordGroups, sourceText) {
     var allCommentsText = (bug.comments || []).map(function(c) { return c.body || ''; }).join(' ');
     var bugText = ((bug.summary || '') + ' ' + (bug.description || '') + ' ' + allCommentsText).toLowerCase();
 
-    // --- Dimension 1: Title keyword match (max 20 pts) ---
+    // --- Dimension 1: Full-text keyword + metadata match (max 51 pts) ---
+    // Part 1a: Title keyword match (max 20 pts)
     var titleMatches = 0;
     var summaryLower = (bug.summary || '').toLowerCase();
     allKeywords.forEach(function(kw) {
@@ -1394,35 +1512,67 @@ function scoreBugRelevance(bug, keywordGroups, sourceText) {
     if (allKeywords.length > 0) {
         score += Math.round(titleMatches / allKeywords.length * 20);
     }
-    // Primary keyword bonus in title (extra 10 pts)
+    // Part 1b: Primary keyword bonus in title (max 8 pts)
     var primaryTitleMatches = 0;
     primaryKws.forEach(function(kw) {
         if (summaryLower.indexOf(kw.toLowerCase()) !== -1) primaryTitleMatches++;
     });
     if (primaryKws.length > 0) {
-        score += Math.round(primaryTitleMatches / primaryKws.length * 10);
+        score += Math.round(primaryTitleMatches / primaryKws.length * 8);
     }
-
-    // --- Dimension 2: Description keyword match (max 15 pts) ---
+    // Part 1c: Description keyword match (max 11 pts)
     var descLower = (bug.description || '').toLowerCase();
     var descMatches = 0;
     allKeywords.forEach(function(kw) {
         if (descLower.indexOf(kw.toLowerCase()) !== -1) descMatches++;
     });
     if (allKeywords.length > 0) {
-        score += Math.round(descMatches / allKeywords.length * 15);
+        score += Math.round(descMatches / allKeywords.length * 11);
     }
-
-    // --- Dimension 3: Comment keyword match (max 10 pts) ---
+    // Part 1d: Comment keyword match (max 7 pts)
     var commentMatches = 0;
     allKeywords.forEach(function(kw) {
         if (allCommentsText.toLowerCase().indexOf(kw.toLowerCase()) !== -1) commentMatches++;
     });
     if (allKeywords.length > 0) {
-        score += Math.round(commentMatches / allKeywords.length * 10);
+        score += Math.round(commentMatches / allKeywords.length * 7);
+    }
+    // Part 1e: Metadata match - components/labels overlap (max 5 pts)
+    if (sourceMetadata && (sourceMetadata.components || sourceMetadata.labels)) {
+        var bugComponents = bug.components || [];
+        var bugLabels = bug.labels || [];
+        var metaMatches = 0;
+        var totalMeta = 0;
+
+        if (sourceMetadata.components && sourceMetadata.components.length > 0) {
+            var srcComp = sourceMetadata.components.map(function(c) { return (c.name || c).toLowerCase(); });
+            totalMeta += srcComp.length;
+            srcComp.forEach(function(c) {
+                var found = bugComponents.some(function(bc) {
+                    var bcName = (typeof bc === 'string' ? bc : (bc.name || '')).toLowerCase();
+                    return bcName === c || bcName.indexOf(c) !== -1 || c.indexOf(bcName) !== -1;
+                });
+                if (found) metaMatches++;
+            });
+        }
+
+        if (sourceMetadata.labels && sourceMetadata.labels.length > 0) {
+            var srcLabels = sourceMetadata.labels.map(function(l) { return l.toLowerCase(); });
+            totalMeta += srcLabels.length;
+            srcLabels.forEach(function(l) {
+                if (bugLabels.some(function(bl) { return bl.toLowerCase() === l || bl.toLowerCase().indexOf(l) !== -1; })) {
+                    metaMatches++;
+                }
+            });
+        }
+
+        if (metaMatches > 0 && totalMeta > 0) {
+            var metaRatio = Math.min(metaMatches / totalMeta, 1);
+            score += Math.round(metaRatio * 5);
+        }
     }
 
-    // --- Dimension 4: Problem pattern overlap (max 15 pts) ---
+    // --- Dimension 2: Problem pattern overlap (max 11 pts) ---
     if (sourceText && sourceText.summary) {
         var problemPatterns = [
             'init.*time', 'init.*long', 'init.*slow', 'init.*fail', 'init.*timeout',
@@ -1444,18 +1594,18 @@ function scoreBugRelevance(bug, keywordGroups, sourceText) {
             Object.keys(sourceMatches).forEach(function(pattern) {
                 if (new RegExp(pattern, 'i').test(bugText)) sharedPatterns++;
             });
-            score += Math.round(sharedPatterns / sourcePatCount * 15);
+            score += Math.round(sharedPatterns / sourcePatCount * 11);
         }
 
-        // --- Dimension 5: Summary N-gram overlap (max 10 pts) ---
+        // --- Dimension 3: Summary N-gram overlap (max 7 pts) ---
         var summaryOverlap = ngramOverlap(sourceText.summary.toLowerCase(), (bug.summary || '').toLowerCase());
-        score += Math.round(summaryOverlap * 10);
+        score += Math.round(summaryOverlap * 7);
 
-        // --- Dimension 6: Description Jaccard similarity (max 10 pts) ---
+        // --- Dimension 4: Description Jaccard similarity (max 7 pts) ---
         var descOverlap = wordJaccard(sourceText.fullText, bugText);
-        score += Math.round(descOverlap * 10);
+        score += Math.round(descOverlap * 7);
 
-        // --- Dimension 7: Error term co-occurrence (max 10 pts) ---
+        // --- Dimension 5: Error term co-occurrence (max 9 pts) ---
         var errorSignatures = ['link down', 'link training', 'gen1', 'gen2', 'gen3', 'gen4',
             'lane 0', 'lane 1', 'phy', 'serdes', 'retimer', 're-driver',
             'l0s', 'l1', 'ltssm', 'detect', 'config', 'configuration',
@@ -1466,9 +1616,69 @@ function scoreBugRelevance(bug, keywordGroups, sourceText) {
                 sigMatches++;
             }
         });
-        score += Math.min(sigMatches, 2) * 5; // Max 10 pts (2 signatures)
+        score += Math.min(sigMatches, 2) * 4.5; // Max 9 pts (2 signatures * 4.5)
 
-        // --- Dim9 (同族加分): 暂时移除，需进一步验证匹配逻辑 ---
+        // --- Dimension 6: Image type matching (max 5 pts) ---
+        if (sourceImages && sourceImages.length > 0) {
+            var candidateImages = bug.imageSummaries || [];
+            if (candidateImages.length > 0) {
+                var sourceTypes = {};
+                sourceImages.forEach(function(s) {
+                    if (typeof s === 'object' && s.type) sourceTypes[s.type] = true;
+                });
+                var typeMatches = 0;
+                candidateImages.forEach(function(s) {
+                    if (typeof s === 'object' && s.type && sourceTypes[s.type]) typeMatches++;
+                });
+                if (typeMatches > 0) {
+                    score += Math.min(typeMatches * 2, 5); // +2 per matching type, max 5
+                    console.log('[ScoreDim8] Image type match bonus:', Math.min(typeMatches * 2, 5), 'pts for', bug.bugId || bug.key);
+                }
+            }
+        }
+
+        // --- Dimension 7: Image keyword overlap (max 10 pts) ---
+        if (sourceImages && sourceImages.length > 0) {
+            var candidateImages = bug.imageSummaries || [];
+            if (candidateImages.length > 0) {
+                // Collect all keywords from source images
+                var sourceImgKws = {};
+                sourceImages.forEach(function(s) {
+                    if (typeof s === 'object' && Array.isArray(s.keywords)) {
+                        s.keywords.forEach(function(kw) { sourceImgKws[kw.toLowerCase()] = true; });
+                    }
+                    // Also extract keywords from summary text for legacy support
+                    if (typeof s === 'object' && s.summary) {
+                        s.summary.toLowerCase().split(/[\s,，|]+/).forEach(function(w) {
+                            if (w.length > 2) sourceImgKws[w] = true;
+                        });
+                    }
+                });
+                // Check overlap with candidate image keywords
+                var imgKwMatches = 0;
+                candidateImages.forEach(function(s) {
+                    if (typeof s === 'object' && Array.isArray(s.keywords)) {
+                        s.keywords.forEach(function(kw) {
+                            if (sourceImgKws[kw.toLowerCase()]) imgKwMatches++;
+                        });
+                    }
+                    if (typeof s === 'object' && s.summary) {
+                        s.summary.toLowerCase().split(/[\s,，|]+/).forEach(function(w) {
+                            if (w.length > 2 && sourceImgKws[w]) imgKwMatches++;
+                        });
+                    }
+                });
+                if (imgKwMatches > 0) {
+                    var totalSourceKws = Object.keys(sourceImgKws).length;
+                    var overlapRatio = Math.min(imgKwMatches / Math.max(totalSourceKws, 1), 1);
+                    var imgKwScore = Math.round(overlapRatio * 10);
+                    score += imgKwScore;
+                    console.log('[ScoreDim9] Image keyword match bonus:', imgKwScore, 'pts (' + imgKwMatches + ' overlaps) for', bug.bugId || bug.key);
+                }
+            }
+        }
+
+        // --- Dim10 (同族加分): 暂时移除，需进一步验证匹配逻辑 ---
     }
 
     // Cap at 100
@@ -1630,6 +1840,11 @@ function fetchJiraBugsWithDetails(authHeader, jql, maxResults) {
                             }).join('\n');
                         }
 
+                        // Extract components and labels
+                        var labels = f.labels || [];
+                        var components = f.components || [];
+                        var componentNames = components.map(function(c) { return c.name || ''; }).filter(function(n) { return n; });
+
                         return {
                             bugId: issue.key || '',
                             jiraKey: issue.key || '',
@@ -1643,6 +1858,8 @@ function fetchJiraBugsWithDetails(authHeader, jql, maxResults) {
                             comments: comments,
                             rootCauseComment: rootCauseComment,
                             attachments: f.attachment || [],
+                            labels: labels,
+                            components: componentNames,
                             created: created,
                             updated: updated
                         };
@@ -1665,7 +1882,7 @@ function fetchJiraBugsWithDetails(authHeader, jql, maxResults) {
  * Extract meaningful keywords from text for JIRA search
  * Returns { primary: [main hardware terms], secondary: [error/pattern terms] }
  */
-function extractKeywords(text) {
+function extractKeywords(text, components, labels) {
     if (!text) return { primary: [], secondary: [] };
 
     // Primary: hardware/software components and protocols
@@ -1699,6 +1916,22 @@ function extractKeywords(text) {
     errorTerms.forEach(function(term) {
         if (lowerText.indexOf(term) !== -1) secondary.push(term);
     });
+
+    // Inject metadata: components -> primary, labels -> secondary
+    if (Array.isArray(components)) {
+        components.forEach(function(c) {
+            if (c && typeof c === 'string' && primary.indexOf(c) === -1) {
+                primary.push(c.toLowerCase());
+            }
+        });
+    }
+    if (Array.isArray(labels)) {
+        labels.forEach(function(l) {
+            if (l && typeof l === 'string' && secondary.indexOf(l) === -1) {
+                secondary.push(l.toLowerCase());
+            }
+        });
+    }
 
     // Map common Chinese terms to English search keywords for JIRA
     var chineseMap = {
