@@ -100,32 +100,38 @@ var lineDataLabelPlugin = {
     }
 };
 
-// ============ Chart.js Plugin: Data Labels on Bar Charts ============
+// ============ Chart.js Plugin: Data Labels on Bar Charts (vertical + horizontal) ============
 
 var barDataLabelPlugin = {
     id: 'barDataLabel',
     afterDatasetsDraw: function(chart) {
         if (chart.config.type !== 'bar') return;
-        console.log('[barDataLabel] Drawing labels for bar chart');
 
         var ctx = chart.ctx;
         ctx.save();
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.font = 'bold 13px sans-serif';
+        ctx.textBaseline = 'middle';
 
-        var chartArea = chart.chartArea;
+        var isHorizontal = (chart.options.indexAxis === 'y');
 
         chart.data.datasets.forEach(function(dataset, di) {
             var meta = chart.getDatasetMeta(di);
+            if (meta.hidden) return;
+
             meta.data.forEach(function(bar, i) {
                 var value = dataset.data[i];
-                if (!value || value <= 0) return;
+                if (value === 0 || value === null || value === undefined) return;
+
                 ctx.fillStyle = '#333';
-                // Chart.js 4.x: bar.y = top edge of bar
-                var labelY = bar.y - 6;
-                if (labelY < chartArea.top + 14) labelY = chartArea.top + 14;
-                ctx.fillText(String(value), bar.x, labelY);
+                ctx.font = 'bold 10px sans-serif';
+
+                if (isHorizontal) {
+                    ctx.textAlign = 'left';
+                    ctx.fillText(value, bar.x + 4, bar.y);
+                } else {
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText(value, bar.x, bar.y - 5);
+                }
             });
         });
 
@@ -138,9 +144,6 @@ if (typeof Chart !== 'undefined' && Chart.register) {
     Chart.register(pieLabelPlugin);
     Chart.register(lineDataLabelPlugin);
     Chart.register(barDataLabelPlugin);
-    console.log('[Chart] Plugins registered: pieLabel, lineDataLabel, barDataLabel');
-} else {
-    console.warn('[Chart] Chart.js not loaded or Chart.register not available');
 }
 
 // ============ State ============
@@ -371,6 +374,8 @@ async function fetchDashboardData() {
             renderCharts(data.charts);
             renderBugTable(Dashboard.allBugs);
 
+            // Try to load historical trend (disabled - section removed)
+
             document.getElementById('kpi-grid').style.display = 'grid';
             document.getElementById('charts-grid').style.display = 'grid';
             document.getElementById('bug-table-section').style.display = 'block';
@@ -537,15 +542,12 @@ function renderSeverityChart(severityCount) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: { top: 18 } },
             plugins: {
                 legend: { display: false }
             },
             scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1 }, suggestedMax: function(ctx) {
-                    var max = 0;
-                    ctx.chart.data.datasets[0].data.forEach(function(v) { if (v > max) max = v; });
-                    return max + 2;
-                }}
+                y: { beginAtZero: true, ticks: { stepSize: 1 } }
             }
         }
     });
@@ -642,6 +644,7 @@ function renderOwnerChart(ownerCount) {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: { right: 20 } },
             plugins: {
                 legend: { display: false }
             },
@@ -705,15 +708,12 @@ function renderAgeChart(ageBuckets) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: { top: 18 } },
             plugins: {
                 legend: { display: false }
             },
             scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1 }, suggestedMax: function(ctx) {
-                    var max = 0;
-                    ctx.chart.data.datasets[0].data.forEach(function(v) { if (v > max) max = v; });
-                    return max + 2;
-                }}
+                y: { beginAtZero: true, ticks: { stepSize: 1 } }
             }
         }
     });
@@ -738,6 +738,9 @@ function generateBarColors(count) {
     }
     return colors;
 }
+
+// ============ History Trend ============
+// Removed - trend history section no longer displayed on the page.
 
 // ============ Bug Table ============
 
@@ -819,10 +822,10 @@ function renderBugRows(bugs) {
         tdKey.appendChild(keyLink);
         tr.appendChild(tdKey);
 
-        // Title
+        // Description
         var tdDesc = document.createElement('td');
-        tdDesc.textContent = bug.summary || bug.bugId;
-        tdDesc.title = bug.summary || bug.bugId;
+        tdDesc.textContent = bug.description;
+        tdDesc.title = bug.description;
         tdDesc.style.maxWidth = '300px';
         tdDesc.style.overflow = 'hidden';
         tdDesc.style.textOverflow = 'ellipsis';
@@ -952,7 +955,6 @@ function hideAllData() {
     document.getElementById('kpi-grid').style.display = 'none';
     document.getElementById('charts-grid').style.display = 'none';
     document.getElementById('bug-table-section').style.display = 'none';
-    document.getElementById('trend-history').style.display = 'none';
     document.getElementById('last-updated').style.display = 'none';
 }
 
@@ -994,18 +996,15 @@ function diagnoseBug(bugKey) {
         return;
     }
 
-    var bugKeyEl = document.getElementById('diag-bug-key');
-    var loadingEl = document.getElementById('diag-loading');
-    var resultEl = document.getElementById('diag-result');
-    var modalEl = document.getElementById('diag-modal');
-    if (!bugKeyEl || !loadingEl || !resultEl || !modalEl) {
-        alert('诊断模块加载失败，请刷新页面后重试');
-        return;
-    }
-    bugKeyEl.textContent = bugKey;
-    loadingEl.style.display = 'block';
-    resultEl.style.display = 'none';
-    modalEl.style.display = 'flex';
+    var diagKey = document.getElementById('diag-bug-key');
+    var diagLoading = document.getElementById('diag-loading');
+    var diagResult = document.getElementById('diag-result');
+    var diagModal = document.getElementById('diag-modal');
+
+    if (diagKey) diagKey.textContent = bugKey;
+    if (diagLoading) diagLoading.style.display = 'block';
+    if (diagResult) diagResult.style.display = 'none';
+    if (diagModal) diagModal.style.display = 'flex';
 
     fetch('/api/data/diagnose-bug', {
         method: 'POST',
@@ -1019,34 +1018,35 @@ function diagnoseBug(bugKey) {
             projectKey: bug.projectKey || '',
             description: bug.jiraDescription || '',
             comments: bug.jiraComments || [],
-            logContent: ''
+            logContent: '',
+            components: bug.components || [],
+            rootCause: bug.rootCause || '',
+            labels: bug.labels || []
         })
     })
     .then(function(resp) { return resp.json(); })
     .then(function(data) {
         if (data.success) {
-            showDiagnoseResult(data.data);
+            showDiagnoseResult(data.data, bug.status);
         } else {
-            var ldEl = document.getElementById('diag-loading');
-            if (ldEl) ldEl.style.display = 'none';
-            alert('诊断失败: ' + (data.error || data.message || '未知错误'));
+            if (diagLoading) diagLoading.style.display = 'none';
+            alert('诊断失败: ' + (data.error || '未知错误'));
         }
     })
     .catch(function(err) {
-        var ldEl = document.getElementById('diag-loading');
-        if (ldEl) ldEl.style.display = 'none';
+        if (diagLoading) diagLoading.style.display = 'none';
         alert('诊断请求失败: ' + err.message);
     });
 }
 
-function showDiagnoseResult(data) {
-    var ldEl = document.getElementById('diag-loading');
-    var rsEl = document.getElementById('diag-result');
-    if (ldEl) ldEl.style.display = 'none';
-    if (rsEl) rsEl.style.display = 'block';
+function showDiagnoseResult(data, bugStatus) {
+    var diagLoading = document.getElementById('diag-loading');
+    var diagResult = document.getElementById('diag-result');
+    if (diagLoading) diagLoading.style.display = 'none';
+    if (diagResult) diagResult.style.display = 'block';
 
-    var sumEl = document.getElementById('diag-summary');
-    if (sumEl) sumEl.textContent = data.summary || '无';
+    var summaryEl = document.getElementById('diag-summary');
+    if (summaryEl) summaryEl.textContent = data.summary || '无';
 
     // Confidence
     var confEl = document.getElementById('diag-confidence');
@@ -1067,29 +1067,47 @@ function showDiagnoseResult(data) {
         });
     }
 
-    // Actions
-    var actionsEl = document.getElementById('diag-actions');
-    if (actionsEl) {
-        actionsEl.innerHTML = '';
-        (data.suggested_actions || []).forEach(function(a) {
-            var li = document.createElement('li');
-            li.textContent = a;
-            actionsEl.appendChild(li);
-        });
+    // Check if bug is closed or rejected
+    var isClosed = (bugStatus === 'closed' || bugStatus === 'rejected');
+
+    // For closed/rejected bugs: show conclusion, hide actions and data
+    var actionsSection = document.getElementById('diag-actions-section');
+    var dataSection = document.getElementById('diag-data-section');
+    var conclusionSection = document.getElementById('diag-conclusion-section');
+    var conclusionEl = document.getElementById('diag-conclusion');
+
+    if (isClosed) {
+        if (actionsSection) actionsSection.style.display = 'none';
+        if (dataSection) dataSection.style.display = 'none';
+        if (conclusionSection) conclusionSection.style.display = 'block';
+        if (conclusionEl) conclusionEl.textContent = data.conclusion || '该Bug已解决，无进一步建议。';
+    } else {
+        if (actionsSection) actionsSection.style.display = 'block';
+        if (dataSection) dataSection.style.display = 'block';
+        if (conclusionSection) conclusionSection.style.display = 'none';
+
+        var actionsEl = document.getElementById('diag-actions');
+        if (actionsEl) {
+            actionsEl.innerHTML = '';
+            (data.suggested_actions || []).forEach(function(a) {
+                var li = document.createElement('li');
+                li.textContent = a;
+                actionsEl.appendChild(li);
+            });
+        }
+
+        var dataEl = document.getElementById('diag-data');
+        if (dataEl) {
+            dataEl.innerHTML = '';
+            (data.needed_data || []).forEach(function(d) {
+                var li = document.createElement('li');
+                li.textContent = d;
+                dataEl.appendChild(li);
+            });
+        }
     }
 
-    // Needed data
-    var dataEl = document.getElementById('diag-data');
-    if (dataEl) {
-        dataEl.innerHTML = '';
-        (data.needed_data || []).forEach(function(d) {
-            var li = document.createElement('li');
-            li.textContent = d;
-            dataEl.appendChild(li);
-        });
-    }
-
-    // Related bugs (cross-project) — header + score | key | summary
+    // Related bugs (cross-project) — score | key | summary
     var relatedSection = document.getElementById('diag-related-section');
     var relatedEl = document.getElementById('diag-related-bugs');
 
@@ -1097,15 +1115,6 @@ function showDiagnoseResult(data) {
 
     if (data.related_bugs && data.related_bugs.length > 0) {
         if (relatedSection) relatedSection.style.display = 'block';
-
-        // Header row
-        var header = document.createElement('div');
-        header.className = 'related-bug-item related-bug-header-row';
-        header.innerHTML = '<span class="related-bug-score">匹配度</span>' +
-            '<span class="related-bug-key">Key</span>' +
-            '<span class="related-bug-summary">标题</span>';
-        relatedEl.appendChild(header);
-
         data.related_bugs.forEach(function(b) {
             var row = document.createElement('div');
             row.className = 'related-bug-item';
@@ -1142,91 +1151,246 @@ function showDiagnoseResult(data) {
             relatedEl.appendChild(row);
         });
     } else {
-        relatedSection.style.display = 'none';
+        if (relatedSection) relatedSection.style.display = 'none';
     }
 
-    // Render screenshot analysis view
-    renderScreenshotAnalysis(data);
+    // ===== Screenshot Analysis Section =====
+    var screenshotSection = document.getElementById('diag-screenshot-section');
+    var screenshotContent = document.getElementById('diag-screenshot-content');
+    if (screenshotContent) screenshotContent.innerHTML = '';
+
+    var hasAnyScreenshots = false;
+
+    // Check for source bug screenshots
+    var sourceImages = data.source_image_summaries || [];
+    var sourcePending = data.source_unanalyzed_images || [];
+
+    // Check for related bug screenshots
+    var relatedBugImages = [];
+    if (data.related_bugs) {
+        data.related_bugs.forEach(function(rb) {
+            var imgs = rb.image_summaries || [];
+            var pend = rb.unanalyzed_images || [];
+            if (imgs.length > 0 || pend.length > 0) {
+                relatedBugImages.push({
+                    key: rb.key,
+                    url: rb.url,
+                    images: imgs,
+                    pending: pend
+                });
+            }
+        });
+    }
+
+    if (sourceImages.length > 0 || sourcePending.length > 0 || relatedBugImages.length > 0) {
+        hasAnyScreenshots = true;
+
+        // Source bug accordion group
+        if (sourceImages.length > 0 || sourcePending.length > 0) {
+            var sourceGroup = document.createElement('div');
+            sourceGroup.className = 'screenshot-section-group';
+
+            var analyzedCount = sourceImages.length;
+            var pendingCount = sourcePending.length;
+            var badgeHtml = '<span class="screenshot-badge badge-source">已分析' + analyzedCount + '张</span>';
+            if (pendingCount > 0) {
+                badgeHtml += '<span class="screenshot-pending">待分析' + pendingCount + '张</span>';
+            }
+
+            var headerHtml = '<span class="accordion-icon">&#9654;</span> 源Bug截图 ' + badgeHtml;
+            var headerEl = createAccordionHeader(headerHtml);
+            sourceGroup.appendChild(headerEl);
+
+            var contentEl = document.createElement('div');
+            contentEl.className = 'screenshot-group-content';
+            var gridEl = document.createElement('div');
+            gridEl.className = 'screenshot-grid';
+
+            // Render analyzed screenshots
+            sourceImages.forEach(function(img) {
+                gridEl.appendChild(createScreenshotCard(img, false));
+            });
+
+            // Render pending screenshots
+            sourcePending.forEach(function(img) {
+                gridEl.appendChild(createPendingCard(img));
+            });
+
+            contentEl.appendChild(gridEl);
+            sourceGroup.appendChild(contentEl);
+
+            // Toggle handler
+            headerEl.addEventListener('click', function() {
+                var isExpanded = headerEl.classList.contains('expanded');
+                if (isExpanded) {
+                    headerEl.classList.remove('expanded');
+                    contentEl.classList.remove('expanded');
+                } else {
+                    headerEl.classList.add('expanded');
+                    contentEl.classList.add('expanded');
+                }
+            });
+
+            screenshotContent.appendChild(sourceGroup);
+        }
+
+        // Related bug accordion groups
+        relatedBugImages.forEach(function(rb) {
+            var group = document.createElement('div');
+            group.className = 'screenshot-section-group';
+
+            var rAnalyzed = rb.images.length;
+            var rPending = rb.pending.length;
+            var rBadgeHtml = '<span class="screenshot-badge badge-related">' + rb.key + ' - 已分析' + rAnalyzed + '张</span>';
+            if (rPending > 0) {
+                rBadgeHtml += '<span class="screenshot-pending">待分析' + rPending + '张</span>';
+            }
+
+            var rHeaderHtml = '<span class="accordion-icon">&#9654;</span> 相关Bug ' + rb.key + ' 截图 ' + rBadgeHtml;
+            var rHeaderEl = createAccordionHeader(rHeaderHtml);
+            group.appendChild(rHeaderEl);
+
+            var rContentEl = document.createElement('div');
+            rContentEl.className = 'screenshot-group-content';
+            var rGridEl = document.createElement('div');
+            rGridEl.className = 'screenshot-grid';
+
+            rb.images.forEach(function(img) {
+                rGridEl.appendChild(createScreenshotCard(img, false));
+            });
+            rb.pending.forEach(function(img) {
+                rGridEl.appendChild(createPendingCard(img));
+            });
+
+            rContentEl.appendChild(rGridEl);
+            group.appendChild(rContentEl);
+
+            rHeaderEl.addEventListener('click', function() {
+                var isExpanded = rHeaderEl.classList.contains('expanded');
+                if (isExpanded) {
+                    rHeaderEl.classList.remove('expanded');
+                    rContentEl.classList.remove('expanded');
+                } else {
+                    rHeaderEl.classList.add('expanded');
+                    rContentEl.classList.add('expanded');
+                }
+            });
+
+            screenshotContent.appendChild(group);
+        });
+    }
+
+    if (hasAnyScreenshots && screenshotSection) {
+        screenshotSection.style.display = 'block';
+    } else if (screenshotSection) {
+        screenshotSection.style.display = 'none';
+    }
 }
 
-function renderScreenshotAnalysis(data) {
-    var container = document.getElementById('diag-screenshots');
-    var section = document.getElementById('diag-screenshot-section');
-    if (!container || !section) return;
-    container.innerHTML = '';
+// Helper: create accordion header element
+function createAccordionHeader(html) {
+    var el = document.createElement('div');
+    el.className = 'screenshot-group-header';
+    el.innerHTML = html;
+    return el;
+}
 
-    var hasContent = false;
+// Helper: create a screenshot card from structured data
+function createScreenshotCard(imgData) {
+    var card = document.createElement('div');
+    card.className = 'screenshot-card';
 
-    function addSection(title, images, badgeText, badgeClass) {
-        if (!images || images.length === 0) return;
-        hasContent = true;
-
-        var wrapper = document.createElement('div');
-        wrapper.className = 'screenshot-accordion';
-
-        // Header
-        var header = document.createElement('div');
-        header.className = 'screenshot-accordion-header';
-        header.innerHTML = '<span>' + title + '</span> ' +
-            '<span class="badge ' + badgeClass + '">' + images.length + ' ' + badgeText + '</span>';
-        
-        // Content (initially hidden)
-        var contentDiv = document.createElement('div');
-        contentDiv.className = 'screenshot-accordion-content';
-        contentDiv.style.display = 'none'; // Default collapsed
-
-        // Toggle logic
-        header.onclick = function() {
-            var isVisible = contentDiv.style.display === 'block';
-            contentDiv.style.display = isVisible ? 'none' : 'block';
-            var arrow = header.querySelector('.accordion-arrow');
-            if (arrow) arrow.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(90deg)';
-        };
-
-        var arrow = document.createElement('span');
-        arrow.className = 'accordion-arrow';
-        arrow.textContent = '▶';
-        header.appendChild(arrow);
-
-        wrapper.appendChild(header);
-
-        // Grid inside content
-        var grid = document.createElement('div');
-        grid.className = 'screenshot-grid';
-        images.forEach(function(s, idx) {
-            var card = document.createElement('div');
-            card.className = 'screenshot-card';
-            var safeText = s ? s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
-            card.innerHTML = '<div class="screenshot-card-title">截图 ' + (idx + 1) + '</div><div class="screenshot-card-text">' + safeText + '</div>';
-            grid.appendChild(card);
-        });
-        contentDiv.appendChild(grid);
-        wrapper.appendChild(contentDiv);
-
-        container.appendChild(wrapper);
-    }
-
-    // Source Bug
-    addSection('当前 Bug', data.source_image_summaries, '张已分析', 'badge-source');
-
-    // Related Bugs > 80
-    var relatedBugs = data.related_bugs || [];
-    var highScoreBugs = relatedBugs.filter(function(b) { return b.relevance_score > 80; });
-    
-    highScoreBugs.forEach(function(bug) {
-        if (bug.image_summaries && bug.image_summaries.length > 0) {
-            var title = bug.key + ' (匹配度 ' + bug.relevance_score + '%)';
-            addSection(title, bug.image_summaries, '张已分析', 'badge-related');
-        }
-    });
-
-    if (hasContent) {
-        section.style.display = 'block';
+    // Handle both structured objects and legacy strings
+    var summary, imgType, keyData, keywords;
+    if (typeof imgData === 'string') {
+        summary = imgData;
+        imgType = 'other';
+        keyData = [];
+        keywords = [];
     } else {
-        section.style.display = 'none';
+        summary = imgData.summary || '';
+        imgType = imgData.type || 'other';
+        keyData = imgData.key_data || [];
+        keywords = imgData.keywords || [];
     }
+
+    // Type badge
+    var typeEl = document.createElement('div');
+    typeEl.className = 'screenshot-card-type type-' + imgType;
+    typeEl.textContent = imgType.replace(/_/g, ' ');
+    card.appendChild(typeEl);
+
+    // Summary
+    if (summary) {
+        var summaryEl = document.createElement('div');
+        summaryEl.className = 'screenshot-card-summary';
+        summaryEl.textContent = summary;
+        card.appendChild(summaryEl);
+    }
+
+    // Key data
+    if (keyData && keyData.length > 0) {
+        var kdEl = document.createElement('div');
+        kdEl.className = 'screenshot-card-key-data';
+        var kdTitle = document.createElement('strong');
+        kdTitle.textContent = '关键数据:';
+        kdEl.appendChild(kdTitle);
+        var kdUl = document.createElement('ul');
+        keyData.forEach(function(kd) {
+            var li = document.createElement('li');
+            li.textContent = kd;
+            kdUl.appendChild(li);
+        });
+        kdEl.appendChild(kdUl);
+        card.appendChild(kdEl);
+    }
+
+    // Keywords
+    if (keywords && keywords.length > 0) {
+        var kwEl = document.createElement('div');
+        kwEl.className = 'screenshot-card-keywords';
+        keywords.slice(0, 8).forEach(function(kw) {
+            var tag = document.createElement('span');
+            tag.className = 'screenshot-keyword-tag';
+            tag.textContent = kw;
+            kwEl.appendChild(tag);
+        });
+        card.appendChild(kwEl);
+    }
+
+    return card;
+}
+
+// Helper: create a pending screenshot card
+function createPendingCard(imgData) {
+    var card = document.createElement('div');
+    card.className = 'screenshot-card screenshot-card-pending';
+
+    var typeEl = document.createElement('div');
+    typeEl.className = 'screenshot-card-type';
+    typeEl.textContent = '待分析';
+    card.appendChild(typeEl);
+
+    var summaryEl = document.createElement('div');
+    summaryEl.className = 'screenshot-card-summary';
+    summaryEl.textContent = imgData.filename || imgData.url || '未知截图';
+    summaryEl.title = imgData.url || '';
+    card.appendChild(summaryEl);
+
+    if (imgData.url) {
+        var linkEl = document.createElement('a');
+        linkEl.href = imgData.url;
+        linkEl.target = '_blank';
+        linkEl.style.fontSize = '11px';
+        linkEl.style.color = '#e65100';
+        linkEl.textContent = '查看原图 →';
+        card.appendChild(linkEl);
+    }
+
+    return card;
 }
 
 function closeDiagModal() {
-    document.getElementById('diag-modal').style.display = 'none';
+    var modal = document.getElementById('diag-modal');
+    if (modal) modal.style.display = 'none';
 }
