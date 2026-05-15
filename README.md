@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
-![Version](https://img.shields.io/badge/version-v5.0-purple)
+![Version](https://img.shields.io/badge/version-v5.1-purple)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -179,6 +179,76 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v5.1 (2026-05-15)
+**匹配度评分引擎优化 — 6项核心修复提升准确率与公平性**
+
+#### 核心改动概述
+v5.1 聚焦于相关历史 Bug 匹配度评分引擎的底层逻辑优化，修复了 6 个导致分数不准确、不公平的缺陷，使评分更真实反映文本相似度。
+
+#### 1. 修复评分函数崩溃缺陷（`descLower` 未定义）
+**问题**：`scoreBugRelevance()` 函数中 `descLower` 变量在第 1581 行被使用但从未声明，导致每次评分抛出 `ReferenceError`，异常被 Promise 链 catch 捕获后返回空数组，前端显示 "0 related bugs"。
+**修复**：在函数开头补充 `var descLower = (bug.description || '').toLowerCase();`。
+**影响**：修复后相关历史 Bug 列表恢复正常显示。
+
+#### 2. 新增词边界检查（防止子串误匹配）
+**问题**：原 `indexOf` 子串匹配导致误判。例如关键词 "voltage" 会匹配到 "voltageRegulator"，"time" 会匹配到 "sometimes"。
+**修复**：新增 `hasWordBoundary(text, kw)` 函数，使用正则表达式 `(^|[^a-z0-9])keyword($|[^a-z0-9])` 进行词边界匹配。仅当关键词前后为单词边界（字符串首尾或非字母数字字符）时才视为匹配。短关键词（< 3 字符）仍使用 `indexOf` 以保证性能。
+**影响范围**：Dim1（标题）、Dim2（描述）、Dim3（评论）、Dim9（覆盖率）全部改用词边界检查。
+**示例**：
+- 修复前：`"voltageRegulator".indexOf("voltage")` → 匹配（误判）
+- 修复后：`hasWordBoundary("voltageRegulator", "voltage")` → 不匹配
+- 修复后：`hasWordBoundary("the voltage is unstable", "voltage")` → 匹配（正确）
+
+#### 3. 修复 queryBonus 被覆盖问题
+**问题**：当候选 Bug 被多个 JQL 查询同时命中时，`b.queryBonus = q.bonus` 会被后执行的查询覆盖。例如先被 Query 1 命中（+10 bonus），后被 Query 3 命中（+3 bonus），最终只保留 +3。
+**修复**：改为取最大值逻辑：`if (b.queryBonus === undefined || q.bonus > b.queryBonus) { b.queryBonus = q.bonus; }`。
+**影响**：候选 Bug 保留最高查询 bonus，不再因查询执行顺序丢失高分。
+
+#### 4. Dim3 评论匹配加入 Primary 关键词
+**问题**：Dim3（评论关键词匹配）只匹配 Secondary 关键词（如 fail, error, hang），忽略了评论中经常出现的 Primary 硬件关键词（如 "这个和BRxxx一样是voltage问题"）。
+**修复**：Primary 和 Secondary 关键词都参与评论匹配，各 +2 分/词，上限从 12 提升至 16。
+**影响**：评论中包含关键硬件术语的候选 Bug 能获得更高匹配度。
+
+#### 5. Dim5 错误签名列表精简
+**问题**：原错误签名列表包含大量通用技术词汇（`config`、`configuration`、`detect`、`enumeration`、`gen1-4`、`lane 0/1`、`phy`），几乎任何技术文档都会出现这些词，导致大量误匹配。
+**修复**：移除通用词，只保留 GPU/PCIe 链路状态特定术语：
+- 保留：`link down`、`link training`、`l0s`、`l1`、`ltssm`、`serdes`、`retimer`、`re-driver`、`rc`、`root complex`、`endpoint`
+- 移除：`gen1-4`、`lane 0/1`、`phy`、`detect`、`config`、`configuration`、`enumeration`
+**影响**：Dim5 分数更准确地反映 GPU/PCIe 特定错误共现，减少噪声。
+
+#### 6. Dim9 覆盖率奖励重构
+**问题**：原 Dim9 采用固定阈值（100%: +20, 75%: +12, 50%: +6），导致 2 个关键词的源 Bug 只需 2 词全中即可拿 +20，而 6 个关键词的源 Bug 需要 6 词全中才能拿 +20，对多关键词场景不公平。
+**修复**：改为 `matchedCount × 4 + 覆盖率额外加成` 的动态计分：
+- 基础分：每个匹配的关键词 +4 分（鼓励多词匹配）
+- 100% 覆盖率额外 +8 分
+- 75%+ 覆盖率额外 +4 分
+- 上限 30 分
+- 匹配阈值从 6 词扩展至 8 词
+- 同样使用 `hasWordBoundary` 词边界检查
+**影响**：绝对匹配数量优先，4 词全中 (4×4+8=24) 显著高于 2 词全中 (2×4+8=16)，评分更公平。
+
+#### 匹配度评分引擎总览（v5.1）
+
+| 维度 | 内容 | 权重 | 检查方式 |
+|------|------|------|----------|
+| **Dim1** | 标题匹配 | pri +8/词, sec +3/词 | 词边界 ✅ |
+| **Dim2** | 描述匹配 | pri +4/词, sec +3/词 | 词边界 ✅ |
+| **Dim3** | 评论匹配 | pri +2/词, sec +2/词，上限16 | 词边界 ✅ |
+| **Dim4** | 元数据重叠 | 比例 ×8，最高8 | 模糊匹配 |
+| **Dim5** | 错误签名共现 | 每词 +5，最高15 | 子串匹配（已精简词表） |
+| **Dim6** | 图片类型匹配 | 最高10 | VLM 结构化数据 |
+| **Dim7** | 图片关键词重叠 | 最高10 | VLM 结构化数据 |
+| **Dim9** | 覆盖率奖励 | matched×4 + 覆盖率加成，上限30 | 词边界 ✅ |
+| **Dim8** | 时间奖励 | <30天: +5, <90天: +3 | — |
+| **queryBonus** | 搜索查询加成 | 取多查询最大值 +3~+10 | — |
+
+**最终分数** = min(Dim1 + Dim2 + Dim3 + Dim4 + Dim5 + Dim6 + Dim7 + Dim8 + Dim9 + queryBonus, 100)
+
+#### 文件改动
+- `routes/jira.js`: 新增 `hasWordBoundary()` 函数，修复 `descLower` 未定义，Dim1/2/3/9 改用词边界，queryBonus 取最大值，Dim5 精简词表，Dim9 重构计分逻辑
+
+---
 
 ### v5.0 (2026-05-14)
 **智能诊断全面重构 — 语义匹配度引擎升级 + 三断裂点修复 + 前端截图分析展示**
