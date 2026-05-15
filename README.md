@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
-![Version](https://img.shields.io/badge/version-v5.1-purple)
+![Version](https://img.shields.io/badge/version-v5.1.1-purple)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -179,6 +179,14 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v5.1.1 (2026-05-15)
+**LLM 身份定义增强 — 新增"芯片硬件测试调试专家"角色**
+
+- `SYSTEM_PROMPT`（开放 Bug 诊断）和 `CLOSED_BUG_PROMPT`（已关闭 Bug 结论）的身份定义从"GPU芯片Bring-up调试专家"扩展为"GPU芯片Bring-up调试专家和芯片硬件测试调试专家"
+- 目的：增强 LLM 在硬件层面（示波器波形、信号完整性、电源完整性、PCB 走线、时钟抖动等）的分析能力
+
+---
 
 ### v5.1 (2026-05-15)
 **匹配度评分引擎优化 — 6项核心修复提升准确率与公平性**
