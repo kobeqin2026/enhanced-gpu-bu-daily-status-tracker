@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
-![Version](https://img.shields.io/badge/version-v5.1.1-purple)
+![Version](https://img.shields.io/badge/version-v5.2-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -179,6 +179,27 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v5.2 (2026-05-18)
+**快速诊断入口 & 元数据增强 & 图片识别**
+
+- **快速诊断入口 (Quick Diagnosis)**：
+  - JIRA Dashboard 页面顶部新增「⚡ 快速诊断」卡片
+  - 直接输入任意 JIRA Bug Key 即可进行 AI 诊断，无需先同步项目数据
+  - 后端自动从 JIRA 拉取 Bug 详情（描述、评论、附件、元数据）
+  - 支持回车键快速触发诊断
+- **元数据增强 (Metadata Enhancement)**：
+  - 智能诊断时自动注入 JIRA 元数据：`rootCause`（根因分析）、`components`（组件）、`labels`（标签）
+  - LLM 利用完整元数据进行更精准的诊断分析
+- **图片识别 (Image Recognition)**：
+  - JIRA Bug 附件截图自动调用 VLM (`qwen3.6-plus`) 进行视觉分析
+  - 支持识别 LTSSM 状态机日志、示波器波形、寄存器 dump、终端 log 等技术截图
+  - 分析结果结构化存储（类型、摘要、关键数据、关键词），24 小时缓存
+  - 诊断弹窗新增「📷 截图分析」手风琴区域，展示源 Bug 和相关 Bug 的截图分析结果
+  - 未缓存截图在诊断时实时分析，已缓存截图直接加载
+  - 截图分析数据同时注入到相似 Bug 检索和 LLM 诊断 prompt 中
+
+---
 
 ### v5.1.1 (2026-05-15)
 **LLM 身份定义增强 — 新增"芯片硬件测试调试专家"角色**
@@ -1085,5 +1106,5 @@ MIT License
 
 ---
 
-**最后更新**: 2026年4月27日  
-**版本**: 4.0
+**最后更新**: 2026年5月18日  
+**版本**: 5.2
