@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JIRA Bug Dashboard - GPU Tracker</title>
     <link rel="stylesheet" href="/css/base.css">
-    <link rel="stylesheet" href="/css/jira-dashboard.css?v=8">
+    <link rel="stylesheet" href="/css/jira-dashboard.css?v=7">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
@@ -23,18 +23,6 @@
             <span id="login-status"></span>
             <button id="login-btn" class="login-btn" onclick="showLoginModal()">登录</button>
             <button id="logout-btn" class="logout-btn" onclick="doLogout()" style="display:none;">退出</button>
-        </div>
-
-        <!-- Quick Diagnosis Section -->
-        <div class="quick-diag-section" id="quick-diag-section">
-            <div class="quick-diag-card">
-                <h3>⚡ 快速诊断</h3>
-                <p class="quick-diag-desc">输入任意 JIRA Bug Key，直接进行 AI 智能诊断（无需同步项目数据）</p>
-                <div class="quick-diag-input-row">
-                    <input type="text" id="quick-diag-key" class="quick-diag-input" placeholder="输入 Bug Key，如 BRHW-1234" onkeydown="if(event.key==='Enter')diagnoseByKey()" />
-                    <button class="quick-diag-btn" onclick="diagnoseByKey()">开始诊断</button>
-                </div>
-            </div>
         </div>
 
         <!-- Login Modal -->
@@ -265,10 +253,6 @@
                         <h4>🔗 相关历史Bug</h4>
                         <div id="diag-related-bugs"></div>
                     </div>
-                    <div class="diag-section diag-screenshot-section" id="diag-screenshot-section" style="display:none;">
-                        <h4>📷 截图分析</h4>
-                        <div id="diag-screenshot-content"></div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -281,6 +265,6 @@
         </div>
     </div>
 
-    <script src="/js/jira-dashboard.js?v=22"></script>
+    <script src="/js/jira-dashboard.js?v=21"></script>
 </body>
 </html>

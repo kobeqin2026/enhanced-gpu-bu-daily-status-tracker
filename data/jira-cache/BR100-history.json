@@ -1,0 +1,31 @@
+[
+  {
+    "date": "2026-05-08T09:16:57.415Z",
+    "project": "BR100",
+    "total": 158,
+    "stats": {
+      "total": 158,
+      "open": 8,
+      "closed": 150,
+      "rejected": 0,
+      "todayNew": 0,
+      "weekClosed": 0,
+      "avgResolutionDays": 54,
+      "overdue": 8
+    },
+    "statusCount": {
+      "open": 2,
+      "triage": 6,
+      "implement": 0,
+      "closed": 150,
+      "rejected": 0
+    },
+    "severityCount": {
+      "highest": 16,
+      "high": 43,
+      "medium": 97,
+      "low": 2,
+      "lowest": 0
+    }
+  }
+]

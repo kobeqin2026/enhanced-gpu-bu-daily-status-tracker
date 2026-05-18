@@ -1039,6 +1039,48 @@ function diagnoseBug(bugKey) {
     });
 }
 
+// Quick diagnosis: diagnose by bug key only (backend auto-fetches from JIRA)
+function diagnoseByKey() {
+    var input = document.getElementById('quick-diag-key');
+    if (!input) return;
+    var bugKey = input.value.trim();
+    if (!bugKey) {
+        alert('请输入 Bug Key');
+        return;
+    }
+
+    var diagKey = document.getElementById('diag-bug-key');
+    var diagLoading = document.getElementById('diag-loading');
+    var diagResult = document.getElementById('diag-result');
+    var diagModal = document.getElementById('diag-modal');
+
+    if (diagKey) diagKey.textContent = bugKey;
+    if (diagLoading) diagLoading.style.display = 'block';
+    if (diagResult) diagResult.style.display = 'none';
+    if (diagModal) diagModal.style.display = 'flex';
+
+    // Only send key — backend auto-fetches comments, attachments, metadata from JIRA
+    fetch('/api/data/diagnose-bug', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ key: bugKey })
+    })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        if (data.success) {
+            showDiagnoseResult(data.data, '');
+        } else {
+            if (diagLoading) diagLoading.style.display = 'none';
+            alert('诊断失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(function(err) {
+        if (diagLoading) diagLoading.style.display = 'none';
+        alert('诊断请求失败: ' + err.message);
+    });
+}
+
 function showDiagnoseResult(data, bugStatus) {
     var diagLoading = document.getElementById('diag-loading');
     var diagResult = document.getElementById('diag-result');
