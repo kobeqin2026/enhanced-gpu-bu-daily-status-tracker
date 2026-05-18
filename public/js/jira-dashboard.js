@@ -1041,6 +1041,13 @@ function diagnoseBug(bugKey) {
 
 // Quick diagnosis: diagnose by bug key only (backend auto-fetches from JIRA)
 function diagnoseByKey() {
+    // Check if user is logged in
+    if (!Dashboard.authToken) {
+        alert('请先登录再进行智能诊断');
+        showLoginModal();
+        return;
+    }
+
     var input = document.getElementById('quick-diag-key');
     if (!input) return;
     var bugKey = input.value.trim();
@@ -1068,11 +1075,13 @@ function diagnoseByKey() {
     })
     .then(function(resp) { return resp.json(); })
     .then(function(data) {
+        console.log('[DiagByKey] Response:', JSON.stringify(data).substring(0, 300));
         if (data.success) {
             showDiagnoseResult(data.data, '');
         } else {
             if (diagLoading) diagLoading.style.display = 'none';
-            alert('诊断失败: ' + (data.error || '未知错误'));
+            var errMsg = data.error || data.message || '未知错误';
+            alert('诊断失败: ' + errMsg);
         }
     })
     .catch(function(err) {
