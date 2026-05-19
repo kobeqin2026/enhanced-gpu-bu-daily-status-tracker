@@ -1041,6 +1041,8 @@ function diagnoseBug(bugKey) {
 
 // Quick diagnosis: diagnose by bug key only (backend auto-fetches from JIRA)
 function diagnoseByKey() {
+    console.log('[DiagByKey] Function called');
+
     // Check if user is logged in
     if (!Dashboard.authToken) {
         alert('请先登录再进行智能诊断');
@@ -1049,8 +1051,9 @@ function diagnoseByKey() {
     }
 
     var input = document.getElementById('quick-diag-key');
-    if (!input) return;
+    if (!input) { alert('找不到输入框'); return; }
     var bugKey = input.value.trim();
+    console.log('[DiagByKey] Bug key:', bugKey);
     if (!bugKey) {
         alert('请输入 Bug Key');
         return;
@@ -1061,10 +1064,13 @@ function diagnoseByKey() {
     var diagResult = document.getElementById('diag-result');
     var diagModal = document.getElementById('diag-modal');
 
+    console.log('[DiagByKey] Elements:', diagKey ? 'OK' : 'NULL', diagLoading ? 'OK' : 'NULL', diagModal ? 'OK' : 'NULL');
+
     if (diagKey) diagKey.textContent = bugKey;
     if (diagLoading) diagLoading.style.display = 'block';
     if (diagResult) diagResult.style.display = 'none';
     if (diagModal) diagModal.style.display = 'flex';
+    console.log('[DiagByKey] Modal display set to flex');
 
     // Only send key — backend auto-fetches comments, attachments, metadata from JIRA
     fetch('/api/data/diagnose-bug', {
@@ -1077,7 +1083,8 @@ function diagnoseByKey() {
     .then(function(data) {
         console.log('[DiagByKey] Response:', JSON.stringify(data).substring(0, 300));
         if (data.success) {
-            showDiagnoseResult(data.data, '');
+            var bugStatus = data.data.bug_status || '';
+            showDiagnoseResult(data.data, bugStatus);
         } else {
             if (diagLoading) diagLoading.style.display = 'none';
             var errMsg = data.error || data.message || '未知错误';

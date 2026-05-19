@@ -181,7 +181,7 @@ enhanced-gpu-bu-daily-status-tracker/
 ## 版本历史
 
 ### v5.2 (2026-05-18)
-**快速诊断入口 & 元数据增强 & 图片识别**
+**快速诊断入口 & 元数据增强 & 图片识别 & 弹窗修复**
 
 - **快速诊断入口 (Quick Diagnosis)**：
   - JIRA Dashboard 页面顶部新增「⚡ 快速诊断」卡片
@@ -198,6 +198,10 @@ enhanced-gpu-bu-daily-status-tracker/
   - 诊断弹窗新增「📷 截图分析」手风琴区域，展示源 Bug 和相关 Bug 的截图分析结果
   - 未缓存截图在诊断时实时分析，已缓存截图直接加载
   - 截图分析数据同时注入到相似 Bug 检索和 LLM 诊断 prompt 中
+- **关键 Bug 修复 (Critical Fixes)**：
+  - **弹窗不显示**: `diag-modal` 原先被嵌套在 `display:none` 的 `bug-table-section` 内部，导致无论如何设置 `display:flex` 都被父元素隐藏。已移至 `container` 直接子元素，独立于表格显示状态
+  - **已关闭 Bug 显示错误区块**: `diagnoseByKey()` 未将 `bug_status` 传给前端，导致 closed/rejected 的 Bug 也显示"建议操作"而非"诊断结论"。后端响应新增 `bug_status` 字段，前端正确切换显示区块
+  - **auto-fetch 字段缺失**: 后端自动获取 JIRA 数据时只提取了 comments/description/attachments，遗漏了 `status`、`summary`、`components`、`labels`、`rootCause`，导致诊断质量下降和状态判断失败
 
 ---
 

@@ -1007,7 +1007,13 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
                     bugInfo.comments = details[0].comments || [];
                     bugInfo.description = details[0].description || bugInfo.description || '';
                     bugInfo.attachments = details[0].attachments || [];
-                    console.log('[Diagnosis] Auto-fetched', bugInfo.comments.length, 'comments and', bugInfo.attachments.length, 'attachments for', bugInfo.key);
+                    // Also capture status, summary, components, labels for full diagnosis
+                    bugInfo.status = details[0].status || bugInfo.status || '';
+                    bugInfo.summary = details[0].summary || bugInfo.summary || details[0].description || '';
+                    bugInfo.components = details[0].components || bugInfo.components || [];
+                    bugInfo.labels = details[0].labels || bugInfo.labels || [];
+                    bugInfo.rootCause = details[0].rootCauseComment || bugInfo.rootCause || '';
+                    console.log('[Diagnosis] Auto-fetched', bugInfo.comments.length, 'comments,', bugInfo.attachments.length, 'attachments, status=' + bugInfo.status, 'for', bugInfo.key);
                 }
             } catch (e) {
                 console.log('[Diagnosis] Failed to auto-fetch:', e.message);
@@ -1083,8 +1089,10 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
         // Fixes the issue where frontend shows "待分析" even after backend analyzed them
         result.source_image_summaries = bugInfo.imageSummaries || [];
         result.source_unanalyzed_images = bugInfo.unanalyzedImages || [];
-        
-        console.log('[Diagnosis] Returning to frontend: source_image_summaries=' + result.source_image_summaries.length + ', source_unanalyzed_images=' + result.source_unanalyzed_images.length);
+        // Attach bug status so frontend can show correct sections (结论 vs 建议操作)
+        result.bug_status = bugInfo.status || '';
+
+        console.log('[Diagnosis] Returning to frontend: status=' + result.bug_status + ', source_image_summaries=' + result.source_image_summaries.length + ', source_unanalyzed_images=' + result.source_unanalyzed_images.length);
 
         res.json({ success: true, data: result });
     } catch (error) {
