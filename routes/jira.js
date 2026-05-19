@@ -1285,15 +1285,12 @@ function searchSimilarBugs(authHeader, bugInfo, sourceImageSummaries) {
                     });
                 });
 
-                // Pass 2: Score each unique bug uniformly
+                // Pass 2: Score each unique bug uniformly (all dimensions including Dim10 explicit reference)
                 Object.keys(seen).forEach(function(key) {
                     var bug = seen[key];
                     var contentScore = scoreBugRelevance(bug, keywordGroups, sourceText, bugInfo.imageSummaries, {components: bugInfo.components, labels: bugInfo.labels}, true);
-                    // No 0.85 penalty — raw score directly used (capped at 100)
+                    // Uniform scoring: contentScore includes all dimensions (Dim1-10), capped at 100
                     bug.relevanceScore = Math.min(contentScore + (bug.queryBonus || 0), 100);
-                    if (bug.isExplicitReference) {
-                        bug.relevanceScore = Math.min(90 + Math.round(contentScore / 10), 100);
-                    }
                     scored.push(bug);
                 });
 
@@ -1747,6 +1744,15 @@ function scoreBugRelevance(bug, keywordGroups, sourceText, sourceImages, sourceM
         score += dim9;
     }
 
+    // --- Dim10: Explicit reference — bug was specifically mentioned in source bug's comments/description ---
+    var dim10 = 0;
+    if (bug.isExplicitReference) {
+        dim10 = 20; // meaningful bonus but doesn't override content quality
+        score += dim10;
+    }
+
+    if (debug) console.log('[Score]', bugKey, 'Dim10-RefBonus: +' + dim10);
+
     // --- Dim8: Age bonus — newer bugs slightly more relevant ---
     var dim8 = 0;
     if (bug.createdTimestamp) {
@@ -1757,7 +1763,7 @@ function scoreBugRelevance(bug, keywordGroups, sourceText, sourceImages, sourceM
         score += dim8;
     }
 
-    if (debug) console.log('[Score]', bugKey, 'Dim9-Coverage: +' + dim9 + ' | Dim8-Age: +' + dim8 + ' | TOTAL raw=' + score);
+    if (debug) console.log('[Score]', bugKey, 'Dim9-Coverage: +' + dim9 + ' | Dim10-Ref: +' + dim10 + ' | Dim8-Age: +' + dim8 + ' | TOTAL raw=' + score);
 
     // Cap at 100
     return Math.min(score, 100);
