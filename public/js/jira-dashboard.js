@@ -194,6 +194,7 @@ async function doLogin() {
             closeLoginModal();
             updateLoginUI();
             document.getElementById('control-bar').style.display = 'flex';
+            document.getElementById('quick-diag-section').style.display = 'flex';
             loadJiraProjects();
         } else {
             alert('登录失败: ' + (data.message || '未知错误'));
@@ -212,6 +213,7 @@ async function doLogout() {
     Dashboard.userRole = null;
     updateLoginUI();
     document.getElementById('control-bar').style.display = 'none';
+    document.getElementById('quick-diag-section').style.display = 'none';
     hideAllData();
 }
 
@@ -241,6 +243,7 @@ async function verifyAuth() {
             Dashboard.userRole = data.user ? data.user.role : null;
             updateLoginUI();
             document.getElementById('control-bar').style.display = 'flex';
+            document.getElementById('quick-diag-section').style.display = 'flex';
             loadJiraProjects();
             return true;
         }
@@ -1042,13 +1045,6 @@ function diagnoseBug(bugKey) {
 // Quick diagnosis: diagnose by bug key only (backend auto-fetches from JIRA)
 function diagnoseByKey() {
     console.log('[DiagByKey] Function called');
-
-    // Check if user is logged in
-    if (!Dashboard.authToken) {
-        alert('请先登录再进行智能诊断');
-        showLoginModal();
-        return;
-    }
 
     var input = document.getElementById('quick-diag-key');
     if (!input) { alert('找不到输入框'); return; }
