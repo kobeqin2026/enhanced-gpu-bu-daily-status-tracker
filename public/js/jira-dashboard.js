@@ -194,6 +194,7 @@ async function doLogin() {
             closeLoginModal();
             updateLoginUI();
             document.getElementById('control-bar').style.display = 'flex';
+            document.getElementById('quick-actions-section').style.display = 'flex';
             loadJiraProjects();
         } else {
             alert('登录失败: ' + (data.message || '未知错误'));
@@ -212,6 +213,7 @@ async function doLogout() {
     Dashboard.userRole = null;
     updateLoginUI();
     document.getElementById('control-bar').style.display = 'none';
+    document.getElementById('quick-actions-section').style.display = 'none';
     hideAllData();
 }
 
@@ -241,6 +243,7 @@ async function verifyAuth() {
             Dashboard.userRole = data.user ? data.user.role : null;
             updateLoginUI();
             document.getElementById('control-bar').style.display = 'flex';
+            document.getElementById('quick-actions-section').style.display = 'flex';
             loadJiraProjects();
             return true;
         }
@@ -1041,9 +1044,12 @@ function diagnoseBug(bugKey) {
 
 // Quick diagnosis: diagnose by bug key only (backend auto-fetches from JIRA)
 function diagnoseByKey() {
+    console.log('[DiagByKey] Function called');
+
     var input = document.getElementById('quick-diag-key');
-    if (!input) return;
+    if (!input) { alert('找不到输入框'); return; }
     var bugKey = input.value.trim();
+    console.log('[DiagByKey] Bug key:', bugKey);
     if (!bugKey) {
         alert('请输入 Bug Key');
         return;
@@ -1054,10 +1060,13 @@ function diagnoseByKey() {
     var diagResult = document.getElementById('diag-result');
     var diagModal = document.getElementById('diag-modal');
 
+    console.log('[DiagByKey] Elements:', diagKey ? 'OK' : 'NULL', diagLoading ? 'OK' : 'NULL', diagModal ? 'OK' : 'NULL');
+
     if (diagKey) diagKey.textContent = bugKey;
     if (diagLoading) diagLoading.style.display = 'block';
     if (diagResult) diagResult.style.display = 'none';
     if (diagModal) diagModal.style.display = 'flex';
+    console.log('[DiagByKey] Modal display set to flex');
 
     // Only send key — backend auto-fetches comments, attachments, metadata from JIRA
     fetch('/api/data/diagnose-bug', {
@@ -1068,11 +1077,14 @@ function diagnoseByKey() {
     })
     .then(function(resp) { return resp.json(); })
     .then(function(data) {
+        console.log('[DiagByKey] Response:', JSON.stringify(data).substring(0, 300));
         if (data.success) {
-            showDiagnoseResult(data.data, '');
+            var bugStatus = data.data.bug_status || '';
+            showDiagnoseResult(data.data, bugStatus);
         } else {
             if (diagLoading) diagLoading.style.display = 'none';
-            alert('诊断失败: ' + (data.error || '未知错误'));
+            var errMsg = data.error || data.message || '未知错误';
+            alert('诊断失败: ' + errMsg);
         }
     })
     .catch(function(err) {
@@ -1430,6 +1442,225 @@ function createPendingCard(imgData) {
     }
 
     return card;
+}
+
+// ============ Quick Keyword Search ============
+
+var searchDebounceTimer = null;
+
+function onSearchInput() {
+    // Debounce: wait 300ms before searching
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(function() {
+        searchBugsByKey();
+    }, 300);
+}
+
+function searchBugsByKey() {
+    var keyword = document.getElementById('quick-search-keyword').value.trim().toLowerCase();
+    var resultsContainer = document.getElementById('quick-search-results');
+
+    console.log('[Search] keyword:', keyword, 'allBugs.length:', Dashboard.allBugs.length);
+    if (Dashboard.allBugs.length > 0) {
+        console.log('[Search] Sample bug keys:', Dashboard.allBugs.slice(0, 3).map(function(b) { return b.bugId; }));
+        console.log('[Search] Sample bug fields:', Object.keys(Dashboard.allBugs[0]));
+    }
+
+    if (!keyword) {
+        resultsContainer.style.display = 'none';
+        resultsContainer.innerHTML = '';
+        return;
+    }
+
+    // Auto-sync if data hasn't been loaded yet
+    if (Dashboard.allBugs.length === 0) {
+        resultsContainer.innerHTML = '<div class="search-no-results">正在加载 JIRA 数据，请稍候...</div>';
+        resultsContainer.style.display = 'block';
+
+        fetchDashboardData().then(function() {
+            setTimeout(function() {
+                console.log('[Search] Auto-sync complete, allBugs.length:', Dashboard.allBugs.length);
+                if (Dashboard.allBugs.length === 0) {
+                    resultsContainer.innerHTML = '<div class="search-no-results">数据加载失败，请手动点击 <strong>同步JIRA数据</strong> 后重试</div>';
+                    return;
+                }
+                searchBugsByKey();
+            }, 500);
+        }).catch(function() {
+            resultsContainer.innerHTML = '<div class="search-no-results">数据同步失败，请手动点击 <strong>同步JIRA数据</strong> 后重试</div>';
+        });
+        return;
+    }
+
+    // Debug: log first bug's field names and values
+    if (Dashboard.allBugs.length > 0) {
+        var sampleBug = Dashboard.allBugs[0];
+        var sampleFields = {};
+        for (var key in sampleBug) {
+            sampleFields[key] = sampleBug[key];
+        }
+        console.log('[Search] First bug fields:', JSON.stringify(sampleFields, null, 2));
+
+        // Also check if keyword matches a known bug
+        var testBug = Dashboard.allBugs[0];
+        console.log('[Search] Test - bugId:', testBug.bugId, '| desc:', (testBug.description || '').substring(0, 50), '| domain:', testBug.domain, '| owner:', testBug.owner);
+    }
+
+    // Search across all bugs
+    var searchFields = ['bugId', 'description', 'domain', 'owner', 'status', 'severity'];
+    var matchCount = 0;
+    var results = Dashboard.allBugs.filter(function(bug) {
+        for (var i = 0; i < searchFields.length; i++) {
+            var field = searchFields[i];
+            var value = bug[field] || '';
+            if (value.toLowerCase().indexOf(keyword) !== -1) {
+                if (matchCount < 3) {
+                    console.log('[Search] Match on field "' + field + '":', value.substring(0, 80));
+                }
+                matchCount++;
+                return true;
+            }
+        }
+        // Also search components and labels arrays
+        if (bug.components && Array.isArray(bug.components)) {
+            for (var j = 0; j < bug.components.length; j++) {
+                if (bug.components[j].toLowerCase().indexOf(keyword) !== -1) {
+                    return true;
+                }
+            }
+        }
+        if (bug.labels && Array.isArray(bug.labels)) {
+            for (var k = 0; k < bug.labels.length; k++) {
+                if (bug.labels[k].toLowerCase().indexOf(keyword) !== -1) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    });
+
+    console.log('[Search] Found', results.length, 'matches out of', Dashboard.allBugs.length);
+
+    // Sort by relevance: exact key match first, then description contains, then others
+    results.sort(function(a, b) {
+        var aExact = a.bugId.toLowerCase() === keyword ? 1 : 0;
+        var bExact = b.bugId.toLowerCase() === keyword ? 1 : 0;
+        if (aExact !== bExact) return bExact - aExact;
+
+        var aKeyStart = a.bugId.toLowerCase().indexOf(keyword) === 0 ? 1 : 0;
+        var bKeyStart = b.bugId.toLowerCase().indexOf(keyword) === 0 ? 1 : 0;
+        if (aKeyStart !== bKeyStart) return bKeyStart - aKeyStart;
+
+        // Prefer open bugs over closed
+        var aOpen = (a.status !== 'closed' && a.status !== 'rejected') ? 1 : 0;
+        var bOpen = (b.status !== 'closed' && b.status !== 'rejected') ? 1 : 0;
+        if (aOpen !== bOpen) return bOpen - aOpen;
+
+        return 0;
+    });
+
+    // Limit to 50 results
+    var maxResults = 50;
+    var displayResults = results.slice(0, maxResults);
+
+    renderSearchResults(displayResults, results.length, keyword);
+}
+
+function renderSearchResults(bugs, totalCount, keyword) {
+    var container = document.getElementById('quick-search-results');
+    container.innerHTML = '';
+    container.style.display = 'block';
+
+    if (bugs.length === 0) {
+        container.innerHTML = '<div class="search-no-results">未找到匹配 "<strong>' + escapeHtml(keyword) + '</strong>" 的 Bug</div>';
+        return;
+    }
+
+    var header = document.createElement('div');
+    header.className = 'search-results-header';
+    header.textContent = '找到 ' + bugs.length + (totalCount > bugs.length ? '+' : '') + ' 条结果（共 ' + totalCount + ' 条）';
+    container.appendChild(header);
+
+    var list = document.createElement('div');
+    list.className = 'search-results-list';
+
+    bugs.forEach(function(bug) {
+        var item = document.createElement('div');
+        item.className = 'search-result-item';
+
+        // Row 1: Key + Status + Severity
+        var row1 = document.createElement('div');
+        row1.className = 'search-result-row1';
+
+        var keyLink = document.createElement('a');
+        keyLink.href = bug.jiraUrl || ('https://jira01.birentech.com/browse/' + bug.bugId);
+        keyLink.target = '_blank';
+        keyLink.className = 'search-result-key';
+        keyLink.innerHTML = highlightText(bug.bugId, keyword);
+        row1.appendChild(keyLink);
+
+        var statusBadge = document.createElement('span');
+        statusBadge.className = 'status-badge status-' + bug.status;
+        statusBadge.textContent = bug.status.charAt(0).toUpperCase() + bug.status.slice(1);
+        row1.appendChild(statusBadge);
+
+        var severityBadge = document.createElement('span');
+        severityBadge.className = 'severity-badge severity-' + bug.severity;
+        severityBadge.textContent = bug.severity.charAt(0).toUpperCase() + bug.severity.slice(1);
+        row1.appendChild(severityBadge);
+
+        item.appendChild(row1);
+
+        // Row 2: Description
+        var row2 = document.createElement('div');
+        row2.className = 'search-result-desc';
+        row2.innerHTML = highlightText(bug.description, keyword);
+        row2.title = bug.description;
+        item.appendChild(row2);
+
+        // Row 3: Owner + Domain + Date
+        var row3 = document.createElement('div');
+        row3.className = 'search-result-meta';
+        row3.innerHTML = '<span>负责人: ' + highlightText(bug.owner, keyword) + '</span>' +
+                         '<span>Domain: ' + highlightText(bug.domain, keyword) + '</span>' +
+                         '<span>' + bug.reportDate + '</span>';
+        item.appendChild(row3);
+
+        // Row 4: Action buttons
+        var row4 = document.createElement('div');
+        row4.className = 'search-result-actions';
+
+        var diagBtn = document.createElement('button');
+        diagBtn.className = 'search-result-diag-btn';
+        diagBtn.textContent = '🔍 诊断';
+        diagBtn.onclick = (function(key) {
+            return function() { diagnoseBug(key); };
+        })(bug.bugId);
+        row4.appendChild(diagBtn);
+
+        item.appendChild(row4);
+
+        list.appendChild(item);
+    });
+
+    container.appendChild(list);
+}
+
+function highlightText(text, keyword) {
+    if (!keyword || !text) return escapeHtml(text || '');
+    var escaped = escapeHtml(text);
+    var regex = new RegExp('(' + escapeRegex(keyword) + ')', 'gi');
+    return escaped.replace(regex, '<mark class="search-highlight">$1</mark>');
+}
+
+function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+}
+
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function closeDiagModal() {

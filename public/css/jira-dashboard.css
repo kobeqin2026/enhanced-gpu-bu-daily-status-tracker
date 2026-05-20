@@ -964,7 +964,15 @@
     color: #e65100;
 }
 
-/* Quick Diagnosis Section */
+/* Quick Actions Section (Diagnosis + Search) */
+.quick-actions-section {
+    display: flex;
+    gap: 16px;
+    padding: 0 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
 .quick-diag-section {
     padding: 16px 20px;
     display: flex;
@@ -976,9 +984,205 @@
     border-radius: 10px;
     padding: 18px 24px;
     color: white;
-    width: 100%;
-    max-width: 680px;
+    flex: 1;
+    min-width: 280px;
+    max-width: 520px;
     box-shadow: 0 3px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Quick Search Card */
+.quick-search-card {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    border-radius: 10px;
+    padding: 18px 24px;
+    color: white;
+    flex: 1;
+    min-width: 280px;
+    max-width: 520px;
+    box-shadow: 0 3px 12px rgba(17, 153, 142, 0.3);
+    position: relative;
+}
+
+.quick-search-card h3 {
+    margin: 0 0 6px 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.quick-search-desc {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+.quick-search-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.quick-search-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    font-size: 14px;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.quick-search-input::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.quick-search-input:focus {
+    border-color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.quick-search-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    background: white;
+    color: #11998e;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+}
+
+.quick-search-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.quick-search-btn:active {
+    transform: translateY(0);
+}
+
+/* Search Results Dropdown */
+.quick-search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 8px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    max-height: 480px;
+    overflow-y: auto;
+    z-index: 100;
+    color: #333;
+}
+
+.search-results-header {
+    padding: 10px 16px;
+    font-size: 12px;
+    color: #888;
+    border-bottom: 1px solid #eee;
+    background: #fafafa;
+    border-radius: 10px 10px 0 0;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.search-results-list {
+    padding: 4px 0;
+}
+
+.search-result-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: default;
+    transition: background 0.15s;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background: #f5f9ff;
+}
+
+.search-result-row1 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.search-result-key {
+    font-weight: 700;
+    font-size: 13px;
+    color: #3498db;
+    text-decoration: none;
+}
+
+.search-result-key:hover {
+    text-decoration: underline;
+}
+
+.search-result-desc {
+    font-size: 12px;
+    color: #555;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.search-result-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 11px;
+    color: #999;
+    margin-bottom: 4px;
+}
+
+.search-result-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.search-result-diag-btn {
+    padding: 3px 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: white;
+    color: #555;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.search-result-diag-btn:hover {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.search-no-results {
+    padding: 20px 16px;
+    text-align: center;
+    color: #999;
+    font-size: 13px;
+}
+
+/* Search highlight */
+.search-highlight {
+    background: #fff3cd;
+    color: #333;
+    padding: 0 2px;
+    border-radius: 2px;
+    font-weight: 600;
 }
 
 .quick-diag-card h3 {
@@ -1048,5 +1252,18 @@
     }
     .quick-diag-btn {
         width: 100%;
+    }
+    .quick-search-input-row {
+        flex-direction: column;
+    }
+    .quick-search-btn {
+        width: 100%;
+    }
+    .quick-actions-section {
+        flex-direction: column;
+        align-items: center;
+    }
+    .quick-diag-card, .quick-search-card {
+        max-width: 100%;
     }
 }
