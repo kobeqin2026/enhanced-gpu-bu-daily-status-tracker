@@ -1007,7 +1007,13 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
                     bugInfo.comments = details[0].comments || [];
                     bugInfo.description = details[0].description || bugInfo.description || '';
                     bugInfo.attachments = details[0].attachments || [];
-                    console.log('[Diagnosis] Auto-fetched', bugInfo.comments.length, 'comments and', bugInfo.attachments.length, 'attachments for', bugInfo.key);
+                    // Also capture status, summary, components, labels for full diagnosis
+                    bugInfo.status = details[0].status || bugInfo.status || '';
+                    bugInfo.summary = details[0].summary || bugInfo.summary || details[0].description || '';
+                    bugInfo.components = details[0].components || bugInfo.components || [];
+                    bugInfo.labels = details[0].labels || bugInfo.labels || [];
+                    bugInfo.rootCause = details[0].rootCauseComment || bugInfo.rootCause || '';
+                    console.log('[Diagnosis] Auto-fetched', bugInfo.comments.length, 'comments,', bugInfo.attachments.length, 'attachments, status=' + bugInfo.status, 'for', bugInfo.key);
                 }
             } catch (e) {
                 console.log('[Diagnosis] Failed to auto-fetch:', e.message);
@@ -1083,8 +1089,10 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
         // Fixes the issue where frontend shows "待分析" even after backend analyzed them
         result.source_image_summaries = bugInfo.imageSummaries || [];
         result.source_unanalyzed_images = bugInfo.unanalyzedImages || [];
-        
-        console.log('[Diagnosis] Returning to frontend: source_image_summaries=' + result.source_image_summaries.length + ', source_unanalyzed_images=' + result.source_unanalyzed_images.length);
+        // Attach bug status so frontend can show correct sections (结论 vs 建议操作)
+        result.bug_status = bugInfo.status || '';
+
+        console.log('[Diagnosis] Returning to frontend: status=' + result.bug_status + ', source_image_summaries=' + result.source_image_summaries.length + ', source_unanalyzed_images=' + result.source_unanalyzed_images.length);
 
         res.json({ success: true, data: result });
     } catch (error) {
@@ -1277,15 +1285,12 @@ function searchSimilarBugs(authHeader, bugInfo, sourceImageSummaries) {
                     });
                 });
 
-                // Pass 2: Score each unique bug uniformly
+                // Pass 2: Score each unique bug uniformly (all dimensions including Dim10 explicit reference)
                 Object.keys(seen).forEach(function(key) {
                     var bug = seen[key];
                     var contentScore = scoreBugRelevance(bug, keywordGroups, sourceText, bugInfo.imageSummaries, {components: bugInfo.components, labels: bugInfo.labels}, true);
-                    // No 0.85 penalty — raw score directly used (capped at 100)
+                    // Uniform scoring: contentScore includes all dimensions (Dim1-10), capped at 100
                     bug.relevanceScore = Math.min(contentScore + (bug.queryBonus || 0), 100);
-                    if (bug.isExplicitReference) {
-                        bug.relevanceScore = Math.min(90 + Math.round(contentScore / 10), 100);
-                    }
                     scored.push(bug);
                 });
 
@@ -1497,11 +1502,11 @@ function buildTargetedQueries(keywordGroups, excludeProject) {
         });
         parts1.push('(' + secParts.join(' OR ') + ')');
         var jql1 = parts1.join(' AND ') + ' AND statusCategory = Done';
-        queries.push({ jql: jql1, maxResults: 30, bonus: 10 });
+        queries.push({ jql: jql1, maxResults: 30, bonus: 6 });
 
         // Query 1b: Same query but ORDER BY created (to catch old bugs)
         var jql1b = jql1 + ' ORDER BY created DESC';
-        queries.push({ jql: jql1b, maxResults: 20, bonus: 10 });
+        queries.push({ jql: jql1b, maxResults: 20, bonus: 6 });
     }
 
     // Query 2: Just main primary keywords (WIDE NET) — MEDIUM bonus
@@ -1509,7 +1514,7 @@ function buildTargetedQueries(keywordGroups, excludeProject) {
     if (mainPrimary.length > 0) {
         var primaryJql = mainPrimary.map(function(kw) { return 'text ~ "' + jqlStr(kw) + '"'; }).join(' AND ');
         var jql2 = primaryJql + ' AND statusCategory = Done ORDER BY created DESC';
-        queries.push({ jql: jql2, maxResults: 40, bonus: 8 });
+        queries.push({ jql: jql2, maxResults: 40, bonus: 5 });
     }
 
     // Query 3: OR query for all primary keywords (widest possible net) — LOW bonus
@@ -1517,13 +1522,13 @@ function buildTargetedQueries(keywordGroups, excludeProject) {
     if (primary.length > 0) {
         var orJql = primary.map(function(kw) { return 'text ~ "' + jqlStr(kw) + '"'; }).join(' OR ');
         var jql3 = '(' + orJql + ') AND statusCategory = Done ORDER BY created DESC';
-        queries.push({ jql: jql3, maxResults: 50, bonus: 3 });
+        queries.push({ jql: jql3, maxResults: 50, bonus: 2 });
     }
 
-    // Query 4: Most specific pair - first primary + first secondary — HIGH bonus
+    // Query 4: Most specific pair - first primary + first secondary — MEDIUM-HIGH bonus
     if (mainPrimary.length > 0 && secondary.length > 0) {
         var jql4 = 'text ~ "' + jqlStr(mainPrimary[0]) + '" AND text ~ "' + jqlStr(secondary[0]) + '" AND statusCategory = Done ORDER BY created DESC';
-        queries.push({ jql: jql4, maxResults: 20, bonus: 6 });
+        queries.push({ jql: jql4, maxResults: 20, bonus: 4 });
     }
 
     // Query 5: Explicit comment search - keywords mentioned in comments — MEDIUM bonus
@@ -1531,7 +1536,7 @@ function buildTargetedQueries(keywordGroups, excludeProject) {
     if (primary.length > 0) {
         var commentOrJql = primary.map(function(kw) { return 'comment ~ "' + jqlStr(kw) + '"'; }).join(' OR ');
         var jql5 = '(' + commentOrJql + ') AND statusCategory = Done ORDER BY created DESC';
-        queries.push({ jql: jql5, maxResults: 50, bonus: 5 });
+        queries.push({ jql: jql5, maxResults: 50, bonus: 3 });
     }
 
     // Query 6: Comment search with secondary keywords too — MEDIUM-HIGH bonus
@@ -1539,7 +1544,7 @@ function buildTargetedQueries(keywordGroups, excludeProject) {
         var commentOrJql = mainPrimary.map(function(kw) { return 'comment ~ "' + jqlStr(kw) + '"'; }).join(' OR ');
         var secCommentJql = secondary.slice(0, 4).map(function(kw) { return 'comment ~ "' + jqlStr(kw) + '"'; }).join(' OR ');
         var jql6 = '(' + commentOrJql + ') AND (' + secCommentJql + ') AND statusCategory = Done ORDER BY created DESC';
-        queries.push({ jql: jql6, maxResults: 40, bonus: 7 });
+        queries.push({ jql: jql6, maxResults: 40, bonus: 4 });
     }
 
     // Max 8 queries (was 5, expanded for better comment coverage)
@@ -1581,21 +1586,25 @@ function scoreBugRelevance(bug, keywordGroups, sourceText, sourceImages, sourceM
 
     // === PHASE A: Keyword matching (core signal) ===
 
-    // --- Dim1: Title match (per-keyword, no dilution) ---
-    // Each primary in title = 8pts, each secondary in title = 3pts. Max ~39
+    // --- Dim1: Title match (per-keyword) ---
+    // Primary: +8/word, Secondary: +3/word. Hard cap at 32.
     var dim1_pri = 0;
     var dim1_sec = 0;
     primaryKws.forEach(function(kw) { if (hasWordBoundary(summaryLower, kw)) dim1_pri += 8; });
     secondaryKws.forEach(function(kw) { if (hasWordBoundary(summaryLower, kw)) dim1_sec += 3; });
-    score += dim1_pri + dim1_sec;
+    var dim1 = dim1_pri + dim1_sec;
+    if (dim1 > 32) dim1 = 32;
+    score += dim1;
 
     // --- Dim2: Description keyword match (per-keyword) ---
-    // Primary: 4pts each. Secondary: 3pts each (boosted for better coverage)
+    // Primary: +4/word, Secondary: +3/word. Hard cap at 24.
     var dim2_pri = 0;
     var dim2_sec = 0;
     primaryKws.forEach(function(kw) { if (hasWordBoundary(descLower, kw)) dim2_pri += 4; });
     secondaryKws.forEach(function(kw) { if (hasWordBoundary(descLower, kw)) dim2_sec += 3; });
-    score += dim2_pri + dim2_sec;
+    var dim2 = dim2_pri + dim2_sec;
+    if (dim2 > 24) dim2 = 24;
+    score += dim2;
 
     // --- Dim3: Comment keyword match (per-keyword) ---
     // Primary: 2pts each. Secondary: 2pts each. Cap at 16
@@ -1606,7 +1615,7 @@ function scoreBugRelevance(bug, keywordGroups, sourceText, sourceImages, sourceM
     if (dim3 > 16) dim3 = 16; // cap at 16
     score += dim3;
 
-    if (debug) console.log('[Score]', bugKey, 'Dim1-Title: pri+' + dim1_pri + ' sec+' + dim1_sec + ' | Dim2-Desc: pri+' + dim2_pri + ' sec+' + dim2_sec + ' | Dim3-Comment: +' + dim3);
+    if (debug) console.log('[Score]', bugKey, 'Dim1-Title: ' + dim1 + ' (pri+' + dim1_pri + ' sec+' + dim1_sec + ') | Dim2-Desc: ' + dim2 + ' (pri+' + dim2_pri + ' sec+' + dim2_sec + ') | Dim3-Comment: ' + dim3);
 
     // === PHASE B: Context signals ===
 
@@ -1648,12 +1657,11 @@ function scoreBugRelevance(bug, keywordGroups, sourceText, sourceImages, sourceM
     if (debug) console.log('[Score]', bugKey, 'Dim4-Metadata: +' + dim4);
 
     // --- Dim5: Error signature co-occurrence (both bugs share same GPU error term) ---
-    // Only include GPU/PCIe-specific error terms, not generic words like "config", "rc"
+    // Only include GPU/PCIe-specific error terms, not generic words
     var dim5 = 0;
     if (sourceText && sourceText.fullText) {
         var errorSignatures = ['link down', 'link training',
-            'l0s', 'l1', 'ltssm', 'serdes', 'retimer', 're-driver',
-            'rc', 'root complex', 'endpoint'];
+            'l0s', 'l1', 'ltssm', 'serdes', 'retimer', 're-driver'];
         var sigMatches = 0;
         errorSignatures.forEach(function(sig) {
             if (sourceText.fullText.indexOf(sig) !== -1 && bugText.indexOf(sig) !== -1) {
@@ -1722,11 +1730,11 @@ function scoreBugRelevance(bug, keywordGroups, sourceText, sourceImages, sourceM
     }
     if (debug) console.log('[Score]', bugKey, 'Dim6-ImgType: +' + dim6 + ' | Dim7-ImgKw: +' + dim7);
 
-    // --- Coverage bonus: rewards bugs that match ALL source keywords (when source has few) ---
+    // --- Dim9: Coverage bonus — rewards bugs that match ALL source keywords ---
     // Base bonus = matched count * 4 (favors more matches)
     // + extra bonus for high coverage ratio (100% = +8, 75% = +4)
     var dim9 = 0;
-    if (allKeywords.length > 0 && allKeywords.length <= 8) {
+    if (allKeywords.length > 0 && allKeywords.length <= 15) {
         var matchedCount = 0;
         allKeywords.forEach(function(kw) {
             if (hasWordBoundary(bugText, kw)) matchedCount++;
@@ -1739,6 +1747,15 @@ function scoreBugRelevance(bug, keywordGroups, sourceText, sourceImages, sourceM
         score += dim9;
     }
 
+    // --- Dim10: Explicit reference — bug was specifically mentioned in source bug's comments/description ---
+    var dim10 = 0;
+    if (bug.isExplicitReference) {
+        dim10 = 20; // meaningful bonus but doesn't override content quality
+        score += dim10;
+    }
+
+    if (debug) console.log('[Score]', bugKey, 'Dim10-RefBonus: +' + dim10);
+
     // --- Dim8: Age bonus — newer bugs slightly more relevant ---
     var dim8 = 0;
     if (bug.createdTimestamp) {
@@ -1749,7 +1766,7 @@ function scoreBugRelevance(bug, keywordGroups, sourceText, sourceImages, sourceM
         score += dim8;
     }
 
-    if (debug) console.log('[Score]', bugKey, 'Dim9-Coverage: +' + dim9 + ' | Dim8-Age: +' + dim8 + ' | TOTAL raw=' + score);
+    if (debug) console.log('[Score]', bugKey, 'Dim1-Title: ' + dim1 + ' | Dim2-Desc: ' + dim2 + ' | Dim3-Comment: ' + dim3 + ' | Dim4-Meta: ' + dim4 + ' | Dim5-ErrSig: ' + dim5 + ' | Dim6-ImgType: ' + dim6 + ' | Dim7-ImgKw: ' + dim7 + ' | Dim9-Cover: ' + dim9 + ' | Dim10-Ref: ' + dim10 + ' | Dim8-Age: ' + dim8 + ' | TOTAL raw=' + score);
 
     // Cap at 100
     return Math.min(score, 100);
