@@ -324,6 +324,65 @@ function renderProjectChips() {
 
 // ============ Dashboard Data Fetch ============
 
+function clearDashboard() {
+    if (!confirm('确定要清空所有已加载的 JIRA 数据吗？\n（清空后需重新同步才能查看数据）')) return;
+
+    // Clear data
+    Dashboard.allBugs = [];
+    Dashboard.selectedProjects = [];
+
+    // Reset UI - hide all data sections
+    document.getElementById('kpi-grid').style.display = 'none';
+    document.getElementById('charts-grid').style.display = 'none';
+    var bugTable = document.getElementById('bug-table-container');
+    if (bugTable) bugTable.style.display = 'none';
+    var trendSection = document.getElementById('trend-section');
+    if (trendSection) trendSection.style.display = 'none';
+
+    // Clear KPI values
+    ['kpi-total', 'kpi-open', 'kpi-closed', 'kpi-today', 'kpi-week', 'kpi-avg', 'kpi-overdue'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = '0';
+    });
+
+    // Clear chart canvases
+    ['chart-status', 'chart-severity', 'chart-owner', 'chart-domain', 'chart-age', 'chart-trend'].forEach(function(id) {
+        var canvas = document.getElementById(id);
+        if (canvas) {
+            var ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    });
+
+    // Clear bug table body
+    var bugTbody = document.getElementById('bug-table-body');
+    if (bugTbody) bugTbody.innerHTML = '';
+
+    // Clear search results
+    var searchResults = document.getElementById('quick-search-results');
+    if (searchResults) {
+        searchResults.style.display = 'none';
+        searchResults.innerHTML = '';
+    }
+
+    // Clear search input
+    var searchInput = document.getElementById('quick-search-keyword');
+    if (searchInput) searchInput.value = '';
+
+    // Reset project selectors
+    document.getElementById('project-select').value = '';
+    document.getElementById('multi-project-chips').innerHTML = '';
+
+    // Reset auto-refresh
+    document.getElementById('auto-refresh').value = '0';
+    if (Dashboard._autoRefreshTimer) {
+        clearInterval(Dashboard._autoRefreshTimer);
+        Dashboard._autoRefreshTimer = null;
+    }
+
+    showSyncStatus('✓ 数据已清空', 'success');
+}
+
 async function fetchDashboardData() {
     showLoading(true);
     hideError();
