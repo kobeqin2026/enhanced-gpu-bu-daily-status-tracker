@@ -334,7 +334,7 @@ function clearDashboard() {
     // Reset UI - hide all data sections
     document.getElementById('kpi-grid').style.display = 'none';
     document.getElementById('charts-grid').style.display = 'none';
-    var bugTable = document.getElementById('bug-table-container');
+    var bugTable = document.getElementById('bug-table-section');
     if (bugTable) bugTable.style.display = 'none';
     var trendSection = document.getElementById('trend-section');
     if (trendSection) trendSection.style.display = 'none';

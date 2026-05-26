@@ -218,6 +218,23 @@
     background: #219a52;
 }
 
+.clear-btn {
+    padding: 8px 18px;
+    border: none;
+    border-radius: 4px;
+    background: #e74c3c;
+    color: white;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.clear-btn:hover {
+    background: #c0392b;
+}
+
 /* Loading Overlay */
 .loading-overlay {
     position: fixed;
