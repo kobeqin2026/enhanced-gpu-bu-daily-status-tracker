@@ -981,7 +981,7 @@ function buildTrendData(history) {
  * POST /api/data/diagnose-bug
  * Analyzes a JIRA bug using Bailian LLM with cross-project similar bug search
  */
-router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
+router.post('/diagnose-bug', async function(req, res) {
     try {
         var bugInfo = req.body;
         if (!bugInfo || !bugInfo.key) {
