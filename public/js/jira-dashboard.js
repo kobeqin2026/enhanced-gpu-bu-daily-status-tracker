@@ -1506,8 +1506,8 @@ function searchBugsByKey() {
         console.log('[Search] Test - bugId:', testBug.bugId, '| desc:', (testBug.description || '').substring(0, 50), '| domain:', testBug.domain, '| owner:', testBug.owner);
     }
 
-    // Search across all bugs
-    var searchFields = ['bugId', 'description', 'domain', 'owner', 'status', 'severity'];
+    // Search across all bugs (include summary & rootCause for full coverage)
+    var searchFields = ['bugId', 'description', 'summary', 'domain', 'owner', 'status', 'severity', 'rootCause'];
     var matchCount = 0;
     var results = Dashboard.allBugs.filter(function(bug) {
         for (var i = 0; i < searchFields.length; i++) {
