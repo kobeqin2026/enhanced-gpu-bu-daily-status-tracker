@@ -146,20 +146,24 @@ function renderBUExitCriteria(criteriaList) {
 }
 
 function updateBUSuccessBanner(criteriaList) {
+    console.log('[BU-SUCCESS] called with', criteriaList.length, 'criteria');
     var banner = document.getElementById('bu-success-banner');
-    if (!banner) return;
+    if (!banner) { console.log('[BU-SUCCESS] banner element NOT found'); return; }
 
     if (criteriaList.length > 0 && criteriaList.every(function(c) { return c.status === 'pass'; })) {
         // Get project name from projectsList
         var projectName = App.currentProject;
+        console.log('[BU-SUCCESS] all pass, project:', projectName, 'projectsList:', App.projectsList.length);
         if (App.projectsList && App.projectsList.length > 0) {
             var proj = App.projectsList.find(function(p) { return p.id === App.currentProject; });
             if (proj) projectName = proj.name;
         }
         banner.textContent = '🎉 ' + projectName + ' 项目顺利 Bringup 成功！';
         banner.style.display = 'block';
+        console.log('[BU-SUCCESS] banner SHOWN:', banner.textContent);
     } else {
         banner.style.display = 'none';
+        console.log('[BU-SUCCESS] banner HIDDEN (not all pass)');
     }
 }
 

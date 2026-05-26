@@ -222,6 +222,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     await initProjects();
     await loadDataFromAPI();
     
+    // Safety: ensure BU success banner is checked after all data loaded
+    if (typeof updateBUSuccessBanner === 'function') {
+        updateBUSuccessBanner(App.data.buExitCriteria || []);
+    }
+    
     document.querySelectorAll('.bug-table th[data-sort]').forEach(function(th) {
         th.addEventListener('click', function() {
             var field = th.getAttribute('data-sort');
