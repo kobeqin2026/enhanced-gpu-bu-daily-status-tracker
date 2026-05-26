@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
-![Version](https://img.shields.io/badge/version-v5.3-blue)
+![Version](https://img.shields.io/badge/version-v5.3.1-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -179,6 +179,16 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v5.3.1 (2026-05-26)
+**Bringup准出标准全通过提示 — 当所有标准Pass时显示成功Banner**
+
+- **成功横幅**：Bringup准出标准表格下方新增绿色渐变成功横幅，当所有标准 Sign-off status 均为 Pass 时自动显示
+- **项目名称展示**：横幅内容动态显示当前项目名称，格式为「🎉 xxx项目顺利 Bringup 成功！」
+- **实时联动**：每次状态变更后自动检测是否全部通过，未全部通过时横幅自动隐藏
+- **视觉效果**：绿色渐变背景 + 呼吸灯动画，醒目且美观
+
+---
 
 ### v5.3 (2026-05-20)
 **关键字快速搜索功能 — 全局搜索 + 实时匹配 + 高亮展示**
