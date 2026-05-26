@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
-![Version](https://img.shields.io/badge/version-v5.3.2-blue)
+![Version](https://img.shields.io/badge/version-v5.3.3-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -179,6 +179,29 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v5.3.3 (2026-05-26)
+**Bringup准出成功横幅 + 关键字搜索增强 + JIRA Dashboard一键清空**
+
+Bringup准出标准全通过成功横幅 (v5.3.1)：
+- **成功横幅**：Bringup准出标准表格下方新增绿色渐变成功横幅，当所有标准 Sign-off status 均为 Pass 时自动显示
+- **项目名称展示**：横幅内容动态显示当前项目名称，格式为「🎉 xxx项目顺利 Bringup 成功！」
+- **实时联动**：每次状态变更后自动检测是否全部通过，未全部通过时横幅自动隐藏
+- **视觉效果**：绿色渐变背景 + 呼吸灯动画，醒目且美观
+
+关键字搜索增强 (v5.3.2)：
+- **搜索字段扩展**：关键字搜索新增 `summary`（JIRA标题）和 `rootCause`（根因）两个搜索字段
+- **问题修复**：修复搜索不到 Bug 的问题 — 之前 `description` 字段优先使用 JIRA description，若 description 有内容则 summary 不会被搜索到；现在 summary 作为独立字段参与搜索
+- **搜索覆盖范围**：bugId, description, summary, domain, owner, status, severity, rootCause + components + labels
+
+JIRA Dashboard 一键清空 (v5.3.3)：
+- **一键清空按钮**：控制栏新增红色「🗑️ 一键清空」按钮，与「同步JIRA数据」并排显示
+- **清空范围**：清空 Dashboard 所有 Bug 数据、KPI 卡片、图表、Bug 明细表格、趋势图、搜索结果
+- **重置操作**：重置项目选择器、自动刷新定时器、搜索输入框
+- **安全确认**：点击后弹出确认弹窗，防止误操作
+- **按钮样式**：新增 `.clear-btn` CSS 样式，与 sync-btn 高度一致，红色背景 + hover 深色过渡
+
+---
 
 ### v5.3.2 (2026-05-26)
 **关键字搜索增强 — 新增 summary 和 rootCause 字段搜索**
