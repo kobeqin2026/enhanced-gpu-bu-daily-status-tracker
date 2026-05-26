@@ -140,6 +140,27 @@ function renderBUExitCriteria(criteriaList) {
         row.appendChild(actionsCell);
         tbody.appendChild(row);
     });
+
+    // Check if all criteria pass → show success banner
+    updateBUSuccessBanner(criteriaList);
+}
+
+function updateBUSuccessBanner(criteriaList) {
+    var banner = document.getElementById('bu-success-banner');
+    if (!banner) return;
+
+    if (criteriaList.length > 0 && criteriaList.every(function(c) { return c.status === 'pass'; })) {
+        // Get project name from projectsList
+        var projectName = App.currentProject;
+        if (App.projectsList && App.projectsList.length > 0) {
+            var proj = App.projectsList.find(function(p) { return p.id === App.currentProject; });
+            if (proj) projectName = proj.name;
+        }
+        banner.textContent = '🎉 ' + projectName + ' 项目顺利 Bringup 成功！';
+        banner.style.display = 'block';
+    } else {
+        banner.style.display = 'none';
+    }
 }
 
 function editBUExitCriteria(criteriaId) {
