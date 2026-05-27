@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
-![Version](https://img.shields.io/badge/version-v5.3.3-blue)
+![Version](https://img.shields.io/badge/version-v5.4-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -33,6 +33,8 @@
 - **模块化后端架构**: 后端拆分为 lib/（共享库）、middleware/（中间件）、routes/（路由），职责清晰
 - **模块化前端架构**: JS/CSS按功能模块拆分为独立文件，便于维护和协作
 - **XSS防护**: 全面使用 DOM API 构建元素，所有用户输入通过 textContent 安全渲染
+- **JQL注入防护**: 所有 JIRA key 参数经正则校验，JQL 字符串字面量经转义
+- **速率限制**: express-rate-limit 中间件，通用 120次/分钟/IP，诊断接口 10次/分钟/IP
 - **全局变量封装**: 前端状态统一封装到 App 命名空间，减少全局污染
 - **并发安全**: 文件锁机制、自动备份（含旧备份清理）、数据校验，支持10-20人并发
 - **混合数据架构**: 优先从服务器加载数据，API失败时自动使用本地缓存
@@ -179,6 +181,69 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v5.4 (2026-05-27)
+**安全加固6项修复 — JQL注入防护、XSS修复、认证修复、速率限制、免认证诊断、定时器修复**
+
+本次版本是一次重要的安全加固更新，修复了安全审计中发现的6个关键问题，涵盖后端注入防护、前端XSS修复、认证机制修正和速率限制。
+
+#### 1. JQL注入防护 (routes/jira.js)
+
+- **新增校验函数**：`sanitizeJiraKey(val)` — 使用正则 `/^[A-Za-z0-9][A-Za-z0-9\-]*$/` 严格校验 JIRA issue key 和 project key，拒绝所有非法字符
+- **新增转义函数**：`escapeJqlString(val)` — 对 JQL 字符串字面量中的反斜杠和双引号进行转义
+- **5个注入点全部修复**：
+  - `POST /api/data/import-jira`：`req.body.project` 经 `sanitizeJiraKey()` 校验
+  - `POST /api/data/sync-jira-status`：`jiraKeys` 数组每个元素经 `sanitizeJiraKey()` 校验
+  - `POST /api/data/jira-dashboard`：`projects` 数组和单个 `project` 参数均经校验
+  - `POST /api/data/diagnose-bug`：bug key 经 `sanitizeJiraKey()` + `escapeJqlString()` 双重处理
+- **攻击场景**：恶意用户可通过构造 `project` 参数注入任意 JQL 语句（如 `project = X; DROP TABLE`），此修复完全封堵该路径
+
+#### 2. XSS修复 (public/js/jira-dashboard.js)
+
+- **`showDiagnoseResult()` 置信度显示**：从 `innerHTML` 拼接改为 `createElement('strong')` + `textContent`，修复置信度数值处的 XSS 漏洞
+- **`showDiagnoseResult()` related bug key**：从 `innerHTML` 拼接改为 `escapeHtml(rb.key)`，修复相关 Bug 编号处的 XSS 漏洞（2处）
+- **`renderProjectChips()` 项目 chip**：从 `innerHTML` 拼接改为 `escapeHtml(p)`，修复项目选择 chip 处的 XSS 漏洞
+- **攻击场景**：若 JIRA Bug key 或项目 key 包含 `<script>` 标签等恶意内容，旧代码会直接在页面执行
+
+#### 3. 定时器属性名一致性修复 (public/js/jira-dashboard.js)
+
+- **问题**：`setInterval` 使用 `Dashboard.autoRefreshTimer` 存储定时器 ID，但 `clearDashboard()` 中使用 `Dashboard._autoRefreshTimer`（多了下划线前缀）尝试清除，导致清空操作后定时器永远无法被清除，持续在后台运行
+- **修复**：统一使用 `Dashboard.autoRefreshTimer`，确保 `clearInterval()` 能正确停止自动刷新
+- **影响**：修复了清空 Dashboard 后自动刷新仍在运行的内存泄漏和无效请求问题
+
+#### 4. JIRA API认证方式修复 (public/js/import.js)
+
+- **问题**：JIRA导入相关API调用（`loadJiraProjects`、`importBugsFromJIRA`、`syncJiraStatus`）手动从 `localStorage` 读取 token 并通过 `Authorization: Bearer` Header 发送，但系统已迁移到 httpOnly Cookie 认证，`localStorage` 中不再存储 token，导致这些接口始终返回 401
+- **修复**：3个 API 调用全部移除手动 `Authorization` Header，改用 `credentials: 'same-origin'` 让浏览器自动携带 httpOnly Cookie
+- **影响**：JIRA 项目加载、Bug 导入、状态同步功能恢复正常
+
+#### 5. 诊断接口免认证 (routes/jira.js)
+
+- **问题**：`POST /api/data/diagnose-bug` 路由原本要求 `auth.authenticateToken` 认证，但快捷诊断功能设计为无需登录即可使用
+- **修复**：移除 `auth.authenticateToken` 中间件，改为开放访问
+- **影响**：用户无需登录即可使用 JIRA Dashboard 上的快捷诊断功能
+
+#### 6. 速率限制 (server.js)
+
+- **新增依赖**：`express-rate-limit` 中间件
+- **通用 API 限流**：120 次/分钟/IP，覆盖所有 `/api/` 路由
+- **诊断接口限流**：10 次/分钟/IP，专门应用于 `/api/data/diagnose-bug`（LLM 调用开销大）
+- **JSON body 限制**：`express.json({ limit: '1mb' })`，防止超大请求体攻击
+- **错误响应**：返回 `{ success: false, error: '请求过于频繁，请稍后再试' }`
+
+#### 7. LLM模型统一 (lib/)
+
+- **diagnosis.js**：默认模型从 `qwen3.6-plus` 更改为 `mimo-v2.5`
+- **vision-analysis.js**：默认模型从 `qwen3.6-plus` 更改为 `mimo-v2.5`
+- **auto-analyze.js**：硬编码模型从 `qwen3.6-plus` 更改为 `mimo-v2.5`
+- **analyze_all.js**：硬编码模型从 `qwen3.6-plus` 更改为 `mimo-v2.5`
+
+#### 8. 浏览器缓存控制 (public/index.html)
+
+- **新增 meta 标签**：`Cache-Control: no-cache, no-store, must-revalidate` + `Pragma: no-cache` + `Expires: 0`
+- **影响**：防止浏览器缓存旧版本前端文件，确保部署后用户立即获取最新代码
+
+---
 
 ### v5.3.3 (2026-05-26)
 **Bringup准出成功横幅 + 关键字搜索增强 + JIRA Dashboard一键清空**
@@ -1194,5 +1259,5 @@ MIT License
 
 ---
 
-**最后更新**: 2026年5月18日  
-**版本**: 5.2
+**最后更新**: 2026年5月27日  
+**版本**: 5.4

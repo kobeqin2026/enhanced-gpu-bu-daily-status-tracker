@@ -13,6 +13,18 @@ var fs = require('fs');
 var os = require('os');
 var path = require('path');
 
+// ---- JQL injection prevention ----
+var JIRA_KEY_RE = /^[A-Za-z0-9][A-Za-z0-9\-]*$/;
+function sanitizeJiraKey(val) {
+    if (typeof val !== 'string' || !JIRA_KEY_RE.test(val)) {
+        throw new Error('Invalid JIRA key: ' + val);
+    }
+    return val;
+}
+function escapeJqlString(val) {
+    return String(val).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 // Image analysis cache path — populated by the AI agent via vision_analyze
 var visionAnalysis = require('../lib/vision-analysis');
 var IMAGE_CACHE_DIR = path.join(os.homedir(), '.hermes', 'gpu-tracker', 'image-cache');
@@ -234,9 +246,9 @@ router.post('/import-jira', auth.authenticateToken, async function(req, res) {
         }
 
         // Support custom JQL from request body, or build from project
-        var jql, maxResults, selectedProject;
+var selectedProject;
         if (req.body && req.body.project) {
-            var project = req.body.project;
+            var project = sanitizeJiraKey(req.body.project);
             var includeClosed = req.body && req.body.includeClosed === true;
             selectedProject = project;
             if (includeClosed) {
@@ -429,7 +441,7 @@ router.post('/sync-jira-status', auth.authenticateToken, async function(req, res
         var parsedUrl = url.parse(jiraUrl);
 
         // Build JQL to fetch all matching JIRA keys
-        var jql = 'issueKey in (' + jiraKeys.join(',') + ')';
+        var jql = 'issueKey in (' + jiraKeys.map(sanitizeJiraKey).join(',') + ')';
         var queryParams = 'jql=' + encodeURIComponent(jql) +
             '&fields=status,assignee' +
             '&maxResults=' + jiraKeys.length;
@@ -512,16 +524,18 @@ router.post('/jira-dashboard', auth.authenticateToken, async function(req, res) 
         var jql;
 
         if (projects.length > 0) {
-            var projectClause = projects.length === 1
-                ? 'project = ' + projects[0]
-                : 'project in (' + projects.join(',') + ')';
+            var safeProjects = projects.map(sanitizeJiraKey);
+            var projectClause = safeProjects.length === 1
+                ? 'project = ' + safeProjects[0]
+                : 'project in (' + safeProjects.join(',') + ')';
             jql = projectClause + ' AND issuetype = Bug';
             if (!includeClosed) {
                 jql += ' AND status not in (Done, Closed, Rejected)';
             }
             jql += ' ORDER BY created DESC';
         } else if (project) {
-            jql = 'project = ' + project + ' AND issuetype = Bug';
+            var safeProject = sanitizeJiraKey(project);
+            jql = 'project = ' + safeProject + ' AND issuetype = Bug';
             if (!includeClosed) {
                 jql += ' AND status not in (Done, Closed, Rejected)';
             }
@@ -1002,7 +1016,8 @@ router.post('/diagnose-bug', async function(req, res) {
         // Auto-fetch comments and attachments for the source bug if not already provided
         if (!bugInfo.comments || !Array.isArray(bugInfo.comments) || bugInfo.comments.length === 0) {
             try {
-                var details = await fetchJiraBugsWithDetails(authHeader, 'key = "' + bugInfo.key + '"', 1);
+                var safeKey = escapeJqlString(sanitizeJiraKey(bugInfo.key));
+                var details = await fetchJiraBugsWithDetails(authHeader, 'key = "' + safeKey + '"', 1);
                 if (details && details.length > 0) {
                     bugInfo.comments = details[0].comments || [];
                     bugInfo.description = details[0].description || bugInfo.description || '';

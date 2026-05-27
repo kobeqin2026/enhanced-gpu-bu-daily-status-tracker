@@ -697,13 +697,10 @@ function closeJiraProjectModal() {
 
 async function loadJiraProjects() {
     try {
-        var token = localStorage.getItem('token');
         var response = await fetch('/api/data/jira-projects', {
             method: 'GET',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
-            }
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' }
         });
         var result = await response.json();
 
@@ -793,13 +790,10 @@ async function importBugsFromJIRA(projectKey, projectName, includeClosed) {
     }
 
     try {
-        var token = localStorage.getItem('token');
         var response = await fetch('/api/data/import-jira', {
             method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
-            },
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ project: projectKey, includeClosed: includeClosed })
         });
 
@@ -903,13 +897,10 @@ async function syncJiraStatus() {
     var jiraKeys = jiraBugs.map(function(b) { return b.jiraKey; });
 
     try {
-        var token = localStorage.getItem('token');
         var response = await fetch('/api/data/sync-jira-status', {
             method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
-            },
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ jiraKeys: jiraKeys })
         });
 

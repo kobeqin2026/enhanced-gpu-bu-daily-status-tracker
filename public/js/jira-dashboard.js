@@ -317,7 +317,8 @@ function renderProjectChips() {
     Dashboard.selectedProjects.forEach(function(p) {
         var chip = document.createElement('span');
         chip.className = 'project-chip';
-        chip.innerHTML = p + ' <span class="chip-remove" onclick="removeProjectChip(\'' + p + '\')">&times;</span>';
+        var safeP = escapeHtml(p);
+        chip.innerHTML = safeP + ' <span class="chip-remove" onclick="removeProjectChip(\'' + safeP.replace(/'/g, '&#39;') + '\')">&times;</span>';
         container.appendChild(chip);
     });
 }
@@ -375,9 +376,9 @@ function clearDashboard() {
 
     // Reset auto-refresh
     document.getElementById('auto-refresh').value = '0';
-    if (Dashboard._autoRefreshTimer) {
-        clearInterval(Dashboard._autoRefreshTimer);
-        Dashboard._autoRefreshTimer = null;
+    if (Dashboard.autoRefreshTimer) {
+        clearInterval(Dashboard.autoRefreshTimer);
+        Dashboard.autoRefreshTimer = null;
     }
 
     showSyncStatus('✓ 数据已清空', 'success');
@@ -1166,7 +1167,12 @@ function showDiagnoseResult(data, bugStatus) {
     if (confEl) {
         var conf = data.confidence || 0;
         var confColor = conf >= 70 ? '#27ae60' : (conf >= 40 ? '#f39c12' : '#e74c3c');
-        confEl.innerHTML = '置信度: <strong style="color:' + confColor + '">' + conf + '%</strong>';
+        confEl.textContent = '';
+        var confStrong = document.createElement('strong');
+        confStrong.style.color = confColor;
+        confStrong.textContent = conf + '%';
+        confEl.appendChild(document.createTextNode('置信度: '));
+        confEl.appendChild(confStrong);
     }
 
     // Causes
@@ -1354,12 +1360,12 @@ function showDiagnoseResult(data, bugStatus) {
 
             var rAnalyzed = rb.images.length;
             var rPending = rb.pending.length;
-            var rBadgeHtml = '<span class="screenshot-badge badge-related">' + rb.key + ' - 已分析' + rAnalyzed + '张</span>';
+            var rBadgeHtml = '<span class="screenshot-badge badge-related">' + escapeHtml(rb.key) + ' - 已分析' + rAnalyzed + '张</span>';
             if (rPending > 0) {
                 rBadgeHtml += '<span class="screenshot-pending">待分析' + rPending + '张</span>';
             }
 
-            var rHeaderHtml = '<span class="accordion-icon">&#9654;</span> 相关Bug ' + rb.key + ' 截图 ' + rBadgeHtml;
+            var rHeaderHtml = '<span class="accordion-icon">&#9654;</span> 相关Bug ' + escapeHtml(rb.key) + ' 截图 ' + rBadgeHtml;
             var rHeaderEl = createAccordionHeader(rHeaderHtml);
             group.appendChild(rHeaderEl);
 
