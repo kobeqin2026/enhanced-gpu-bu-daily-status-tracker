@@ -4,6 +4,7 @@
 var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
+var rateLimit = require('express-rate-limit');
 
 var sessions = require('./lib/sessions');
 var dataStore = require('./lib/dataStore');
@@ -20,9 +21,22 @@ var app = express();
 var PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Rate limiting
+var generalLimiter = rateLimit({
+    windowMs: 60 * 1000,   // 1 minute
+    max: 120,               // 120 requests per minute per IP
+    message: { success: false, error: '请求过于频繁，请稍后再试' }
+});
+var diagnoseLimiter = rateLimit({
+    windowMs: 60 * 1000,   // 1 minute
+    max: 10,                // 10 diagnosis requests per minute per IP
+    message: { success: false, error: '诊断请求过于频繁，请稍后再试' }
+});
+app.use('/api/', generalLimiter);
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -30,6 +44,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/projects', require('./routes/projects'));
 app.use('/api/data', require('./routes/data'));
 app.use('/api/data', require('./routes/jira'));
+app.use('/api/data/diagnose-bug', diagnoseLimiter);
 
 // Logs route (admin only)
 app.get('/api/logs/:date?', require('./middleware/auth').authenticateToken, require('./middleware/auth').requireAdmin, async function(req, res) {

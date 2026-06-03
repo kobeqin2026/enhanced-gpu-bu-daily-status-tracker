@@ -27,7 +27,7 @@ router.post('/login', async function(req, res) {
         var allUsers = await loadUsers();
         var user = allUsers.find(function(u) { return u.username === username; });
         
-        if (!user || !verifyPassword(password, user.password)) {
+        if (!user || !(await verifyPassword(password, user.password))) {
             logOperation(username, 'LOGIN_FAILED', 'users', { reason: 'invalid-credentials' });
             return res.status(401).json({ success: false, message: '用户名或密码错误' });
         }

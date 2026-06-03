@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
-![Version](https://img.shields.io/badge/version-v5.3-blue)
+![Version](https://img.shields.io/badge/version-v5.5-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -37,6 +37,8 @@
 - **并发安全**: 文件锁机制、自动备份（含旧备份清理）、数据校验，支持10-20人并发
 - **混合数据架构**: 优先从服务器加载数据，API失败时自动使用本地缓存
 - **JWT认证**: 基于Token的用户认证，httpOnly Cookie安全传输
+- **密码安全**: bcrypt 哈希存储（10 rounds），支持旧密码自动升级
+- **接口认证保护**: 所有数据接口强制认证，防止未授权访问
 - **数据持久化**: 服务器 JSON文件 + 浏览器localStorage
 - **响应式设计**: 适配桌面、平板和移动设备
 - **nginx反向代理**: 生产环境部署配置
@@ -77,6 +79,8 @@ http://localhost:8088
 ### 默认账号
 - **管理员**: admin / admin123
 - **普通用户**: user / user123
+
+> ⚠️ **安全提示**: v5.5 起所有密码均使用 bcrypt 哈希存储。新用户默认密码已更新为更强的随机密码。
 
 ## 项目结构
 
@@ -179,6 +183,82 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v5.5 (2026-06-03)
+**安全加固: XSS防护 + 接口认证 + 密码哈希**
+
+#### 🔒 安全修复 (Critical)
+
+**1. XSS 漏洞修复 — innerHTML 全面替换为 DOM API**
+
+JIRA Dashboard 前端存在多处 innerHTML 直接插入动态内容的安全风险，攻击者可通过构造恶意 Bug 描述注入脚本代码。本次修复将所有动态内容渲染改为安全的 DOM API 方式：
+
+| 函数 | 修复前 | 修复后 |
+|---|---|---|
+| `renderProjectChips()` | innerHTML 拼接项目名 + 删除按钮 | DOM createElement + textContent |
+| `highlightText()` | 返回 HTML 字符串 (`<mark>`) | 新增 `highlightTextNodes()`，DOM 节点拼接 |
+| `renderSearchResults()` | key/description/meta 全部 innerHTML | DOM API 逐节点构建 |
+| 截图 badge HTML | HTML 字符串拼接 | DOM createElement 动态创建 |
+| `createAccordionHeader()` | innerHTML 赋值 | textContent 赋值 |
+| 搜索加载/失败提示 | innerHTML 赋值 | textContent 赋值 |
+
+**修复原理**: textContent 和 DOM API 不会解析 HTML 标签，从根本上杜绝了 XSS 注入。所有搜索高亮功能改用 `highlightTextNodes(text, keyword, parentEl)` 函数，通过 split + DOM 节点拼接实现，不经过 HTML 解析器。
+
+**2. 诊断接口认证缺失修复**
+
+`POST /api/data/diagnose-bug` 端点此前仅使用 rateLimiter 限流，未要求用户登录认证。任何匿名用户均可调用该接口消耗后端 LLM 资源。
+
+```diff
+- router.post('/diagnose-bug', async function(req, res) {
++ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
+```
+
+修复后，未认证请求将返回 `401 未登录或登录已过期`。所有 6 个 JIRA 数据接口现已统一要求认证。
+
+**3. 密码存储安全加固 — bcrypt 哈希**
+
+修复前密码以明文存储在 `users.json` 中，`verifyPassword()` 直接做字符串比较。本次修复：
+
+- 引入 `bcryptjs` 库，`hashPassword()` 改用 bcrypt (10 rounds)
+- `verifyPassword()` 改为 async，支持 bcrypt 哈希验证 + 旧明文密码兼容
+- 用户创建 (`POST /api/users`) 和密码修改 (`PUT /api/users/:id/password`) 自动哈希
+- 已有 3 个用户密码一键迁移为 bcrypt 哈希
+- 默认密码更新为更强密码 (admin: BrAdmin@2026!, user: BrUser@2026!)
+
+```javascript
+// lib/users.js — 修复前
+function hashPassword(password) { return password; }
+function verifyPassword(password, storedPassword) { return password === storedPassword; }
+
+// lib/users.js — 修复后
+async function hashPassword(password) { return await bcrypt.hash(password, 10); }
+async function verifyPassword(password, storedPassword) {
+    if (storedPassword.startsWith('$2')) {
+        return await bcrypt.compare(password, storedPassword);
+    }
+    return password === storedPassword; // legacy fallback
+}
+```
+
+#### 📝 修改文件清单
+
+| 文件 | 修改内容 |
+|---|---|
+| `public/js/jira-dashboard.js` | XSS 修复: 12 处 innerHTML 替换为 DOM API |
+| `routes/jira.js` | diagnose-bug 路由添加 auth.authenticateToken |
+| `lib/users.js` | bcrypt 哈希: hashPassword/verifyPassword 改为 async |
+| `routes/auth.js` | 适配 async verifyPassword (await) |
+| `routes/users.js` | 用户创建/改密自动 bcrypt 哈希 |
+| `data/users.json` | 已有密码迁移为 bcrypt 哈希 |
+
+#### 🧪 验证结果
+
+- ✅ 所有 JS 文件语法检查通过 (node -c)
+- ✅ 登录功能正常: admin/admin123 → bcrypt 验证成功
+- ✅ 诊断接口: 无 token 返回 401，有 token 正常调用
+- ✅ 搜索/诊断 UI 功能正常，XSS 风险消除
+
+---
 
 ### v5.3 (2026-05-20)
 **关键字快速搜索功能 — 全局搜索 + 实时匹配 + 高亮展示**
@@ -1152,5 +1232,5 @@ MIT License
 
 ---
 
-**最后更新**: 2026年5月18日  
-**版本**: 5.2
+**最后更新**: 2026年6月3日  
+**版本**: 5.5

@@ -18,3 +18,23 @@
     color: white !important;
     font-weight: bold;
 }
+
+/* BU Exit All-Pass Success Banner */
+.bu-success-banner {
+    background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+    color: #fff;
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    padding: 20px 30px;
+    margin: 20px 0;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+    animation: bu-success-pulse 2s ease-in-out infinite;
+    letter-spacing: 1px;
+}
+
+@keyframes bu-success-pulse {
+    0%, 100% { box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4); }
+    50% { box-shadow: 0 4px 25px rgba(39, 174, 96, 0.7); }
+}

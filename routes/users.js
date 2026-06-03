@@ -53,10 +53,11 @@ router.post('/', auth.authenticateToken, auth.requireAdmin, async function(req, 
             return res.status(400).json({ success: false, message: '用户名已存在' });
         }
         
+        var hashedPassword = await users.hashPassword(password);
         var newUser = {
             id: username,
             username: username,
-            password: password,
+            password: hashedPassword,
             role: role,
             name: name,
             createdAt: new Date().toISOString()
@@ -100,7 +101,7 @@ router.put('/:id/password', auth.authenticateToken, async function(req, res) {
             return res.status(404).json({ success: false, message: '用户不存在' });
         }
         
-        allUsers[userIndex].password = newPassword;
+        allUsers[userIndex].password = await users.hashPassword(newPassword);
         await saveUsers(allUsers);
         
         logOperation(req.user.username, 'PASSWORD_CHANGE', 'users', { targetUser: userId });

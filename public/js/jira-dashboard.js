@@ -317,12 +317,78 @@ function renderProjectChips() {
     Dashboard.selectedProjects.forEach(function(p) {
         var chip = document.createElement('span');
         chip.className = 'project-chip';
-        chip.innerHTML = p + ' <span class="chip-remove" onclick="removeProjectChip(\'' + p + '\')">&times;</span>';
+        chip.appendChild(document.createTextNode(p));
+        var removeBtn = document.createElement('span');
+        removeBtn.className = 'chip-remove';
+        removeBtn.textContent = '\u00d7';
+        removeBtn.onclick = (function(projectKey) {
+            return function() { removeProjectChip(projectKey); };
+        })(p);
+        chip.appendChild(removeBtn);
         container.appendChild(chip);
     });
 }
 
 // ============ Dashboard Data Fetch ============
+
+function clearDashboard() {
+    if (!confirm('确定要清空所有已加载的 JIRA 数据吗？\n（清空后需重新同步才能查看数据）')) return;
+
+    // Clear data
+    Dashboard.allBugs = [];
+    Dashboard.selectedProjects = [];
+
+    // Reset UI - hide all data sections
+    document.getElementById('kpi-grid').style.display = 'none';
+    document.getElementById('charts-grid').style.display = 'none';
+    var bugTable = document.getElementById('bug-table-section');
+    if (bugTable) bugTable.style.display = 'none';
+    var trendSection = document.getElementById('trend-section');
+    if (trendSection) trendSection.style.display = 'none';
+
+    // Clear KPI values
+    ['kpi-total', 'kpi-open', 'kpi-closed', 'kpi-today', 'kpi-week', 'kpi-avg', 'kpi-overdue'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = '0';
+    });
+
+    // Clear chart canvases
+    ['chart-status', 'chart-severity', 'chart-owner', 'chart-domain', 'chart-age', 'chart-trend'].forEach(function(id) {
+        var canvas = document.getElementById(id);
+        if (canvas) {
+            var ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    });
+
+    // Clear bug table body
+    var bugTbody = document.getElementById('bug-table-body');
+    if (bugTbody) bugTbody.innerHTML = '';
+
+    // Clear search results
+    var searchResults = document.getElementById('quick-search-results');
+    if (searchResults) {
+        searchResults.style.display = 'none';
+        searchResults.innerHTML = '';
+    }
+
+    // Clear search input
+    var searchInput = document.getElementById('quick-search-keyword');
+    if (searchInput) searchInput.value = '';
+
+    // Reset project selectors
+    document.getElementById('project-select').value = '';
+    document.getElementById('multi-project-chips').innerHTML = '';
+
+    // Reset auto-refresh
+    document.getElementById('auto-refresh').value = '0';
+    if (Dashboard.autoRefreshTimer) {
+        clearInterval(Dashboard.autoRefreshTimer);
+        Dashboard.autoRefreshTimer = null;
+    }
+
+    showSyncStatus('✓ 数据已清空', 'success');
+}
 
 async function fetchDashboardData() {
     showLoading(true);
@@ -1107,7 +1173,12 @@ function showDiagnoseResult(data, bugStatus) {
     if (confEl) {
         var conf = data.confidence || 0;
         var confColor = conf >= 70 ? '#27ae60' : (conf >= 40 ? '#f39c12' : '#e74c3c');
-        confEl.innerHTML = '置信度: <strong style="color:' + confColor + '">' + conf + '%</strong>';
+        confEl.textContent = '';
+        var confStrong = document.createElement('strong');
+        confStrong.style.color = confColor;
+        confStrong.textContent = conf + '%';
+        confEl.appendChild(document.createTextNode('置信度: '));
+        confEl.appendChild(confStrong);
     }
 
     // Causes
@@ -1246,13 +1317,23 @@ function showDiagnoseResult(data, bugStatus) {
 
             var analyzedCount = sourceImages.length;
             var pendingCount = sourcePending.length;
-            var badgeHtml = '<span class="screenshot-badge badge-source">已分析' + analyzedCount + '张</span>';
+            var headerEl = document.createElement('div');
+            headerEl.className = 'screenshot-group-header';
+            var iconSpan = document.createElement('span');
+            iconSpan.className = 'accordion-icon';
+            iconSpan.textContent = '\u25b6';
+            headerEl.appendChild(iconSpan);
+            headerEl.appendChild(document.createTextNode(' 源Bug截图 '));
+            var sourceBadge = document.createElement('span');
+            sourceBadge.className = 'screenshot-badge badge-source';
+            sourceBadge.textContent = '已分析' + analyzedCount + '张';
+            headerEl.appendChild(sourceBadge);
             if (pendingCount > 0) {
-                badgeHtml += '<span class="screenshot-pending">待分析' + pendingCount + '张</span>';
+                var pendingBadge = document.createElement('span');
+                pendingBadge.className = 'screenshot-pending';
+                pendingBadge.textContent = '待分析' + pendingCount + '张';
+                headerEl.appendChild(pendingBadge);
             }
-
-            var headerHtml = '<span class="accordion-icon">&#9654;</span> 源Bug截图 ' + badgeHtml;
-            var headerEl = createAccordionHeader(headerHtml);
             sourceGroup.appendChild(headerEl);
 
             var contentEl = document.createElement('div');
@@ -1295,13 +1376,23 @@ function showDiagnoseResult(data, bugStatus) {
 
             var rAnalyzed = rb.images.length;
             var rPending = rb.pending.length;
-            var rBadgeHtml = '<span class="screenshot-badge badge-related">' + rb.key + ' - 已分析' + rAnalyzed + '张</span>';
+            var rHeaderEl = document.createElement('div');
+            rHeaderEl.className = 'screenshot-group-header';
+            var rIcon = document.createElement('span');
+            rIcon.className = 'accordion-icon';
+            rIcon.textContent = '\u25b6';
+            rHeaderEl.appendChild(rIcon);
+            rHeaderEl.appendChild(document.createTextNode(' 相关Bug ' + rb.key + ' 截图 '));
+            var rBadge = document.createElement('span');
+            rBadge.className = 'screenshot-badge badge-related';
+            rBadge.textContent = rb.key + ' - 已分析' + rAnalyzed + '张';
+            rHeaderEl.appendChild(rBadge);
             if (rPending > 0) {
-                rBadgeHtml += '<span class="screenshot-pending">待分析' + rPending + '张</span>';
+                var rPendingBadge = document.createElement('span');
+                rPendingBadge.className = 'screenshot-pending';
+                rPendingBadge.textContent = '待分析' + rPending + '张';
+                rHeaderEl.appendChild(rPendingBadge);
             }
-
-            var rHeaderHtml = '<span class="accordion-icon">&#9654;</span> 相关Bug ' + rb.key + ' 截图 ' + rBadgeHtml;
-            var rHeaderEl = createAccordionHeader(rHeaderHtml);
             group.appendChild(rHeaderEl);
 
             var rContentEl = document.createElement('div');
@@ -1342,10 +1433,10 @@ function showDiagnoseResult(data, bugStatus) {
 }
 
 // Helper: create accordion header element
-function createAccordionHeader(html) {
+function createAccordionHeader(label) {
     var el = document.createElement('div');
     el.className = 'screenshot-group-header';
-    el.innerHTML = html;
+    el.textContent = label;
     return el;
 }
 
@@ -1474,20 +1565,20 @@ function searchBugsByKey() {
 
     // Auto-sync if data hasn't been loaded yet
     if (Dashboard.allBugs.length === 0) {
-        resultsContainer.innerHTML = '<div class="search-no-results">正在加载 JIRA 数据，请稍候...</div>';
+        resultsContainer.textContent = '正在加载 JIRA 数据，请稍候...';
         resultsContainer.style.display = 'block';
 
         fetchDashboardData().then(function() {
             setTimeout(function() {
                 console.log('[Search] Auto-sync complete, allBugs.length:', Dashboard.allBugs.length);
                 if (Dashboard.allBugs.length === 0) {
-                    resultsContainer.innerHTML = '<div class="search-no-results">数据加载失败，请手动点击 <strong>同步JIRA数据</strong> 后重试</div>';
+                    resultsContainer.textContent = '数据加载失败，请手动点击"同步JIRA数据"后重试';
                     return;
                 }
                 searchBugsByKey();
             }, 500);
         }).catch(function() {
-            resultsContainer.innerHTML = '<div class="search-no-results">数据同步失败，请手动点击 <strong>同步JIRA数据</strong> 后重试</div>';
+            resultsContainer.textContent = '数据同步失败，请手动点击"同步JIRA数据"后重试';
         });
         return;
     }
@@ -1506,8 +1597,8 @@ function searchBugsByKey() {
         console.log('[Search] Test - bugId:', testBug.bugId, '| desc:', (testBug.description || '').substring(0, 50), '| domain:', testBug.domain, '| owner:', testBug.owner);
     }
 
-    // Search across all bugs
-    var searchFields = ['bugId', 'description', 'domain', 'owner', 'status', 'severity'];
+    // Search across all bugs (include summary & rootCause for full coverage)
+    var searchFields = ['bugId', 'description', 'summary', 'domain', 'owner', 'status', 'severity', 'rootCause'];
     var matchCount = 0;
     var results = Dashboard.allBugs.filter(function(bug) {
         for (var i = 0; i < searchFields.length; i++) {
@@ -1572,7 +1663,14 @@ function renderSearchResults(bugs, totalCount, keyword) {
     container.style.display = 'block';
 
     if (bugs.length === 0) {
-        container.innerHTML = '<div class="search-no-results">未找到匹配 "<strong>' + escapeHtml(keyword) + '</strong>" 的 Bug</div>';
+        var noResultDiv = document.createElement('div');
+        noResultDiv.className = 'search-no-results';
+        noResultDiv.appendChild(document.createTextNode('未找到匹配 "'));
+        var strongEl = document.createElement('strong');
+        strongEl.textContent = keyword;
+        noResultDiv.appendChild(strongEl);
+        noResultDiv.appendChild(document.createTextNode('" 的 Bug'));
+        container.appendChild(noResultDiv);
         return;
     }
 
@@ -1596,7 +1694,7 @@ function renderSearchResults(bugs, totalCount, keyword) {
         keyLink.href = bug.jiraUrl || ('https://jira01.birentech.com/browse/' + bug.bugId);
         keyLink.target = '_blank';
         keyLink.className = 'search-result-key';
-        keyLink.innerHTML = highlightText(bug.bugId, keyword);
+        highlightTextNodes(bug.bugId, keyword, keyLink);
         row1.appendChild(keyLink);
 
         var statusBadge = document.createElement('span');
@@ -1614,16 +1712,24 @@ function renderSearchResults(bugs, totalCount, keyword) {
         // Row 2: Description
         var row2 = document.createElement('div');
         row2.className = 'search-result-desc';
-        row2.innerHTML = highlightText(bug.description, keyword);
+        highlightTextNodes(bug.description, keyword, row2);
         row2.title = bug.description;
         item.appendChild(row2);
 
         // Row 3: Owner + Domain + Date
         var row3 = document.createElement('div');
         row3.className = 'search-result-meta';
-        row3.innerHTML = '<span>负责人: ' + highlightText(bug.owner, keyword) + '</span>' +
-                         '<span>Domain: ' + highlightText(bug.domain, keyword) + '</span>' +
-                         '<span>' + bug.reportDate + '</span>';
+        var metaOwner = document.createElement('span');
+        metaOwner.appendChild(document.createTextNode('负责人: '));
+        highlightTextNodes(bug.owner, keyword, metaOwner);
+        row3.appendChild(metaOwner);
+        var metaDomain = document.createElement('span');
+        metaDomain.appendChild(document.createTextNode('Domain: '));
+        highlightTextNodes(bug.domain, keyword, metaDomain);
+        row3.appendChild(metaDomain);
+        var metaDate = document.createElement('span');
+        metaDate.textContent = bug.reportDate;
+        row3.appendChild(metaDate);
         item.appendChild(row3);
 
         // Row 4: Action buttons
@@ -1646,11 +1752,24 @@ function renderSearchResults(bugs, totalCount, keyword) {
     container.appendChild(list);
 }
 
-function highlightText(text, keyword) {
-    if (!keyword || !text) return escapeHtml(text || '');
-    var escaped = escapeHtml(text);
+function highlightTextNodes(text, keyword, parentEl) {
+    if (!text) return;
+    if (!keyword) {
+        parentEl.appendChild(document.createTextNode(text));
+        return;
+    }
     var regex = new RegExp('(' + escapeRegex(keyword) + ')', 'gi');
-    return escaped.replace(regex, '<mark class="search-highlight">$1</mark>');
+    var parts = text.split(regex);
+    parts.forEach(function(part) {
+        if (part.toLowerCase() === keyword.toLowerCase()) {
+            var mark = document.createElement('mark');
+            mark.className = 'search-highlight';
+            mark.textContent = part;
+            parentEl.appendChild(mark);
+        } else {
+            parentEl.appendChild(document.createTextNode(part));
+        }
+    });
 }
 
 function escapeHtml(str) {
