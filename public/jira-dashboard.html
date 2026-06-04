@@ -201,7 +201,7 @@
             <!-- Table Filters -->
             <div class="table-filters">
                 <input type="text" id="filter-key" placeholder="Key" class="filter-input" oninput="filterBugs()">
-                <input type="text" id="filter-summary" placeholder="描述" class="filter-input" oninput="filterBugs()">
+                <input type="text" id="filter-summary" placeholder="标题" class="filter-input" oninput="filterBugs()">
                 <select id="filter-status" class="filter-select" onchange="filterBugs()">
                     <option value="">全部状态</option>
                     <option value="open">Open</option>
@@ -228,7 +228,7 @@
                     <thead>
                         <tr>
                             <th data-sort="bugId" onclick="sortBugs('bugId')">Key</th>
-                            <th data-sort="description" onclick="sortBugs('description')">描述</th>
+                            <th data-sort="description" onclick="sortBugs('description')">标题</th>
                             <th data-sort="status" onclick="sortBugs('status')">状态</th>
                             <th data-sort="severity" onclick="sortBugs('severity')">严重性</th>
                             <th data-sort="owner" onclick="sortBugs('owner')">负责人</th>
