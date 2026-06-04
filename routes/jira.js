@@ -660,6 +660,15 @@ function fetchJiraBugs(authHeader, jql, maxResults) {
         };
 
         var req = client.request(options, function(resp) {
+            if (resp.statusCode < 200 || resp.statusCode >= 300) {
+                var errData = '';
+                resp.on('data', function(c) { errData += c; });
+                resp.on('end', function() {
+                    console.error('[FetchBugs] HTTP', resp.statusCode, 'for JQL:', jql.substring(0, 150));
+                    resolve([]);
+                });
+                return;
+            }
             var data = '';
             resp.on('data', function(chunk) { data += chunk; });
             resp.on('end', function() {
@@ -760,6 +769,11 @@ function fetchJiraBugs(authHeader, jql, maxResults) {
                     reject(new Error('解析JIRA响应失败: ' + data.substring(0, 200)));
                 }
             });
+        });
+        req.setTimeout(30000, function() {
+            console.error('[FetchBugs] Timeout (30s) for JQL:', jql.substring(0, 150));
+            req.destroy();
+            resolve([]);
         });
         req.on('error', function(e) { reject(e); });
         req.end();
@@ -1005,9 +1019,13 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
         console.log('[Diagnosis] Request for bug:', bugInfo.key, 'project:', bugInfo.projectKey || 'unknown');
 
         // Early cache check — skip ALL expensive operations if result is cached
-        var earlyCached = diagnosis.getCachedResult(bugInfo.key);
-        if (earlyCached) {
-            return res.json({ success: true, data: earlyCached, bug_status: bugInfo.status || '' });
+        if (!bugInfo.force) {
+            var earlyCached = diagnosis.getCachedResult(bugInfo.key);
+            if (earlyCached) {
+                return res.json({ success: true, data: earlyCached, bug_status: bugInfo.status || '' });
+            }
+        } else {
+            console.log('[Diagnosis] Force refresh for', bugInfo.key, '— bypassing cache');
         }
 
         // Build cross-project search function
@@ -1065,24 +1083,23 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
             console.log('[VisionCache] Source bug', bugInfo.key + ':', bugInfo.imageSummaries.length, 'images analyzed,', bugInfo.unanalyzedImages.length, 'pending');
         }
 
-        // Phase 1: Real-time analysis of source bug's uncached images
+        // Phase 1: Real-time analysis of source bug's uncached images (parallel)
         if (bugInfo.unanalyzedImages.length > 0) {
             console.log('[VisionRealtime] Phase 1 - Analyzing', bugInfo.unanalyzedImages.length, 'uncached source images for', bugInfo.key);
             var authHdr = getAuthHeader();
-            var realtimeResults = [];
-            for (var ri = 0; ri < bugInfo.unanalyzedImages.length; ri++) {
-                var img = bugInfo.unanalyzedImages[ri];
-                try {
-                    var summary = await visionAnalysis.analyzeImage(img.url, authHdr);
+            var imagePromises = bugInfo.unanalyzedImages.map(function(img, ri) {
+                return visionAnalysis.analyzeImage(img.url, authHdr).then(function(summary) {
                     if (summary) {
-                        realtimeResults.push(summary);
-                        bugInfo.imageSummaries.push(summary);
                         console.log('[VisionRealtime] Source', bugInfo.key, 'image', ri + 1, 'analyzed:', summary.substring(0, 100));
                     }
-                } catch (e) {
+                    return summary;
+                }).catch(function(e) {
                     console.error('[VisionRealtime] Failed to analyze image', img.filename, ':', e.message);
-                }
-            }
+                    return null;
+                });
+            });
+            var realtimeResults = (await Promise.all(imagePromises)).filter(function(s) { return s; });
+            bugInfo.imageSummaries = bugInfo.imageSummaries.concat(realtimeResults);
             // Update description with newly analyzed images
             if (realtimeResults.length > 0) {
                 var newText = realtimeResults.map(function(s, i) {

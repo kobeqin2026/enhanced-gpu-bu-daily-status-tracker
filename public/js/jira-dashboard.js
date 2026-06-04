@@ -871,18 +871,18 @@ function renderBugRows(bugs) {
     var tbody = document.getElementById('bug-table-body');
     tbody.innerHTML = '';
 
-    var maxRows = 200; // limit rendering
+    var maxRows = 200;
     var displayBugs = bugs.slice(0, maxRows);
+    var fragment = document.createDocumentFragment();
 
-    displayBugs.forEach(function(bug) {
+    for (var i = 0; i < displayBugs.length; i++) {
+        var bug = displayBugs[i];
         var tr = document.createElement('tr');
 
-        // Highlight overdue open bugs
         if ((bug.status === 'open' || bug.status === 'triage') && bug.ageDays > 14) {
             tr.classList.add('row-overdue');
         }
 
-        // Key
         var tdKey = document.createElement('td');
         var keyLink = document.createElement('a');
         keyLink.href = bug.jiraUrl || ('https://jira01.birentech.com/browse/' + bug.bugId);
@@ -892,7 +892,6 @@ function renderBugRows(bugs) {
         tdKey.appendChild(keyLink);
         tr.appendChild(tdKey);
 
-        // Title (JIRA summary)
         var tdDesc = document.createElement('td');
         tdDesc.textContent = bug.summary || bug.description;
         tdDesc.title = bug.summary || bug.description;
@@ -902,7 +901,6 @@ function renderBugRows(bugs) {
         tdDesc.style.whiteSpace = 'nowrap';
         tr.appendChild(tdDesc);
 
-        // Status
         var tdStatus = document.createElement('td');
         var statusBadge = document.createElement('span');
         statusBadge.className = 'status-badge status-' + bug.status;
@@ -910,7 +908,6 @@ function renderBugRows(bugs) {
         tdStatus.appendChild(statusBadge);
         tr.appendChild(tdStatus);
 
-        // Severity
         var tdSeverity = document.createElement('td');
         var severityBadge = document.createElement('span');
         severityBadge.className = 'severity-badge severity-' + bug.severity;
@@ -918,22 +915,18 @@ function renderBugRows(bugs) {
         tdSeverity.appendChild(severityBadge);
         tr.appendChild(tdSeverity);
 
-        // Owner
         var tdOwner = document.createElement('td');
         tdOwner.textContent = bug.owner;
         tr.appendChild(tdOwner);
 
-        // Domain
         var tdDomain = document.createElement('td');
         tdDomain.textContent = bug.domain;
         tr.appendChild(tdDomain);
 
-        // Report Date
         var tdDate = document.createElement('td');
         tdDate.textContent = bug.reportDate;
         tr.appendChild(tdDate);
 
-        // Age
         var tdAge = document.createElement('td');
         if (bug.ageDays !== undefined) {
             tdAge.textContent = bug.ageDays;
@@ -945,11 +938,10 @@ function renderBugRows(bugs) {
         }
         tr.appendChild(tdAge);
 
-        // Diagnosis button
         var tdDiag = document.createElement('td');
         var diagBtn = document.createElement('button');
         diagBtn.className = 'diag-btn';
-        diagBtn.textContent = '🔍';
+        diagBtn.textContent = '\ud83d\udd0d';
         diagBtn.title = '智能诊断';
         diagBtn.onclick = (function(key) {
             return function() { diagnoseBug(key); };
@@ -957,15 +949,19 @@ function renderBugRows(bugs) {
         tdDiag.appendChild(diagBtn);
         tr.appendChild(tdDiag);
 
-        tbody.appendChild(tr);
-    });
+        fragment.appendChild(tr);
+    }
 
-    // Update count
+    tbody.appendChild(fragment);
     document.getElementById('bug-count').textContent = '显示 ' + displayBugs.length + ' / ' + bugs.length + ' 条';
 }
 
+var _filterBugsTimer = null;
 function filterBugs() {
-    applyTableFilters();
+    if (_filterBugsTimer) clearTimeout(_filterBugsTimer);
+    _filterBugsTimer = setTimeout(function() {
+        applyTableFilters();
+    }, 200);
 }
 
 function sortBugs(field) {
