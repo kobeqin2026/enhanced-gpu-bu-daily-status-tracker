@@ -1004,6 +1004,12 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
 
         console.log('[Diagnosis] Request for bug:', bugInfo.key, 'project:', bugInfo.projectKey || 'unknown');
 
+        // Early cache check — skip ALL expensive operations if result is cached
+        var earlyCached = diagnosis.getCachedResult(bugInfo.key);
+        if (earlyCached) {
+            return res.json({ success: true, data: earlyCached, bug_status: bugInfo.status || '' });
+        }
+
         // Build cross-project search function
         var authHeader = getAuthHeader();
         if (!authHeader) {
