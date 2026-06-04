@@ -833,7 +833,8 @@ function applyTableFilters() {
         if (!showClosed && !isFilteringForClosed && isClosedStatus) return false;
 
         if (keyFilter && bug.bugId.toLowerCase().indexOf(keyFilter) === -1) return false;
-        if (summaryFilter && bug.description.toLowerCase().indexOf(summaryFilter) === -1) return false;
+
+        if (summaryFilter && (bug.summary || bug.description).toLowerCase().indexOf(summaryFilter) === -1) return false;
         if (statusFilter && bug.status !== statusFilter) return false;
         if (severityFilter && bug.severity !== severityFilter) return false;
         if (ownerFilter && bug.owner.toLowerCase().indexOf(ownerFilter) === -1) return false;
@@ -891,10 +892,10 @@ function renderBugRows(bugs) {
         tdKey.appendChild(keyLink);
         tr.appendChild(tdKey);
 
-        // Description
+        // Title (JIRA summary)
         var tdDesc = document.createElement('td');
-        tdDesc.textContent = bug.description;
-        tdDesc.title = bug.description;
+        tdDesc.textContent = bug.summary || bug.description;
+        tdDesc.title = bug.summary || bug.description;
         tdDesc.style.maxWidth = '300px';
         tdDesc.style.overflow = 'hidden';
         tdDesc.style.textOverflow = 'ellipsis';
@@ -1712,8 +1713,8 @@ function renderSearchResults(bugs, totalCount, keyword) {
         // Row 2: Description
         var row2 = document.createElement('div');
         row2.className = 'search-result-desc';
-        highlightTextNodes(bug.description, keyword, row2);
-        row2.title = bug.description;
+        highlightTextNodes(bug.summary || bug.description, keyword, row2);
+        row2.title = bug.summary || bug.description;
         item.appendChild(row2);
 
         // Row 3: Owner + Domain + Date
