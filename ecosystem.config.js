@@ -30,7 +30,10 @@ module.exports = {
       JIRA_PAT: process.env.JIRA_PAT || '',
       BAILIAN_API_KEY: process.env.BAILIAN_API_KEY || '',
       BAILIAN_BASE_URL: process.env.BAILIAN_BASE_URL || 'https://token-plan-cn.xiaomimimo.com/v1',
-      BAILIAN_MODEL: process.env.BAILIAN_MODEL || 'mimo-v2.5'
+      BAILIAN_MODEL: process.env.BAILIAN_MODEL || 'mimo-v2.5',
+      DASHSCOPE_API_KEY: process.env.DASHSCOPE_API_KEY || '',
+      DEFAULT_ADMIN_PASSWORD: process.env.DEFAULT_ADMIN_PASSWORD || '',
+      DEFAULT_USER_PASSWORD: process.env.DEFAULT_USER_PASSWORD || ''
     }
   }]
 };

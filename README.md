@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
-![Version](https://img.shields.io/badge/version-v5.5.1-blue)
+![Version](https://img.shields.io/badge/version-v5.5.2-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -82,7 +82,7 @@ http://localhost:8088
 - **管理员**: admin / admin123
 - **普通用户**: user / user123
 
-> ⚠️ **安全提示**: v5.5 起所有密码均使用 bcrypt 哈希存储。新用户默认密码已更新为更强的随机密码。
+> ⚠️ **安全提示**: v5.5.2 起所有密码均使用 bcrypt 哈希存储，硬编码凭据已移至环境变量。请在 `.env` 中设置 `DASHSCOPE_API_KEY`、`DEFAULT_ADMIN_PASSWORD`、`DEFAULT_USER_PASSWORD`。
 
 ## 项目结构
 
@@ -185,6 +185,56 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v5.5.2 (2026-06-09)
+**安全审计修复: 明文密码哈希化 + 硬编码凭据迁移至环境变量**
+
+#### 🔒 严重漏洞修复 (Critical)
+
+**1. 明文密码 → bcrypt 哈希存储**
+- `data/users.json` 中所有用户密码已从明文升级为 bcrypt 哈希（10 rounds）
+- `routes/auth.js` 新增登录时自动升级逻辑：检测到遗留明文密码时，验证成功后自动哈希并保存
+- 即使管理员手动修改了 `users.json`，系统也能自动修复明文密码
+
+**2. 硬编码默认密码 → 环境变量**
+- `lib/users.js` 的 `getDefaultUsers()` 从 `process.env.DEFAULT_ADMIN_PASSWORD` / `DEFAULT_USER_PASSWORD` 读取默认密码
+- 未设置环境变量时自动生成随机密码并打印到控制台
+- 不再在源码中硬编码任何密码（移除 `BrAdmin@2026!` / `BrUser@2026!`）
+
+**3. 硬编码 API 密钥 → 环境变量**
+- `lib/analyze_all.js` 的 DashScope API 密钥从 `process.env.DASHSCOPE_API_KEY` 读取
+- 未设置时终止启动并打印错误提示
+- 不再在源码中硬编码 API 密钥（移除 `sk-sp-...`）
+
+#### ⚙️ 配置变更
+
+**新增环境变量**（需在 `.env` 或 `ecosystem.config.js` 中设置）：
+| 变量 | 说明 |
+|---|---|
+| `DASHSCOPE_API_KEY` | DashScope/Vision 分析 API 密钥 |
+| `DEFAULT_ADMIN_PASSWORD` | 首次启动时管理员账号的默认密码 |
+| `DEFAULT_USER_PASSWORD` | 首次启动时普通用户的默认密码 |
+
+#### 📝 修改文件清单
+
+| 文件 | 修改内容 |
+|---|---|
+| `data/users.json` | 3 个用户密码从明文升级为 bcrypt 哈希 |
+| `routes/auth.js` | 登录时自动检测并升级遗留明文密码 |
+| `lib/users.js` | 默认密码从硬编码改为环境变量 + 随机生成 |
+| `lib/analyze_all.js` | API 密钥从硬编码改为环境变量 |
+| `ecosystem.config.js` | 新增 3 个环境变量到 PM2 配置 |
+| `.env.example` | 新增环境变量说明文档 |
+
+#### 🧪 验证结果
+
+- ✅ 所有 JS 文件语法检查通过
+- ✅ users.json 中所有密码均为 bcrypt 哈希（`$2b$10...` 开头）
+- ✅ 源码中无残留硬编码密钥（`grep "sk-sp-\|BrAdmin\|BrUser" *.js` 无匹配）
+- ✅ 模块加载正常（`lib/users.js`、`routes/auth.js` 加载成功）
+- ✅ 三个仓库同步推送
+
+---
 
 ### v5.5.1 (2026-06-03)
 **性能优化: 表格渲染加速 + 诊断并行化 + 缓存增强**
@@ -1388,5 +1438,5 @@ MIT License
 
 ---
 
-**最后更新**: 2026年6月3日  
-**版本**: 5.5.1
+**最后更新**: 2026年6月9日  
+**版本**: 5.5.2

@@ -11,6 +11,8 @@ var generateToken = sessions.generateToken;
 var saveSessions = sessions.saveSessions;
 var getSessions = sessions.getSessions;
 var loadUsers = users.loadUsers;
+var saveUsers = users.saveUsers;
+var hashPassword = users.hashPassword;
 var verifyPassword = users.verifyPassword;
 var logOperation = logger.logOperation;
 
@@ -30,6 +32,17 @@ router.post('/login', async function(req, res) {
         if (!user || !(await verifyPassword(password, user.password))) {
             logOperation(username, 'LOGIN_FAILED', 'users', { reason: 'invalid-credentials' });
             return res.status(401).json({ success: false, message: '用户名或密码错误' });
+        }
+        
+        // Security fix C1: auto-upgrade legacy plaintext passwords to bcrypt
+        if (!user.password.startsWith('$2')) {
+            var allUsers = await loadUsers();
+            var upgradeIdx = allUsers.findIndex(function(u) { return u.username === username; });
+            if (upgradeIdx !== -1) {
+                allUsers[upgradeIdx].password = await hashPassword(password);
+                await saveUsers(allUsers);
+                console.log('[SECURITY] Auto-upgraded plaintext password for user: ' + username);
+            }
         }
         
         var token = generateToken(username);
