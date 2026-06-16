@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
-![Version](https://img.shields.io/badge/version-v5.5.3-blue)
+![Version](https://img.shields.io/badge/version-v5.5.4-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -185,6 +185,58 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v5.5.4 (2026-06-16)
+**VLM图片识别启用 + LLM响应解析增强**
+
+#### 🔧 VLM图片识别配置修复
+
+**1. VLM模型切换: mimo-v2.5 → qwen-vl**
+- `lib/vision-analysis.js` 默认VLM模型从 `mimo-v2.5` 改为 `qwen-vl`
+- 原因: aiapiidc.birentech.com API上 `mimo-v2.5` 不可用，`qwen-vl` 已验证可正常工作
+- 测试验证: 使用1x1白色PNG测试，`qwen-vl` 返回 "The image is a plain, uniform white square" — 确认视觉能力正常
+- 环境变量优先级: `VLM_MODEL` > `BAILIAN_API_KEY`(fallback) > 默认值 `qwen-vl`
+
+**2. VLM图片识别对诊断效果的量化评估**
+
+VLM通过3个环节影响诊断质量:
+
+| 环节 | 机制 | 最大提升 |
+|------|------|----------|
+| Dim6: 图片类型匹配 | 源Bug与候选Bug有相同类型截图(如LTSSM日志)加分 | +10分 |
+| Dim7: 图片关键词重叠 | VLM提取的技术关键词(ltssm, recovery, gen3等)匹配加分 | +10分 |
+| LLM诊断Prompt注入 | 截图分析结果注入诊断prompt，让LLM看到图片数据 | 提升诊断准确性 |
+
+搜索关键词扩展: VLM从截图提取的术语注入JQL搜索池，覆盖更多相关Bug
+
+#### 🛡 LLM响应JSON解析增强 (3-strategy fallback)
+
+**3. callBailian() JSON解析容错**
+- 问题: LLM API(特别是MiMo/qwen)偶尔返回非标准JSON — markdown代码块包裹、前后有多余文本
+- 修复: 实现3层解析策略:
+  - Strategy 1: 直接 `JSON.parse(content)` — 处理干净响应
+  - Strategy 2: 去除 ` ```json ` / ` ``` ` 代码块后解析 — 处理markdown格式
+  - Strategy 3: 正则提取第一个 `{...}` 块后解析 — 处理前后有多余文本
+- 调试增强: 解析失败时记录完整内容(1000字符)到服务器日志，便于排查
+
+**4. 错误处理优化**
+- 移除外层try-catch的原始数据dump(避免敏感信息泄露)
+- 简化错误消息，保留关键调试信息
+
+#### 📊 VLM图片识别效果总结
+
+**前提条件**: 源Bug和候选Bug都需要有附件截图才能发挥VLM作用
+
+**实际影响**:
+- 最大贡献: 相关Bug匹配准确度提升(+20分上限)
+- 次要贡献: 扩展搜索关键词、丰富LLM诊断上下文
+- 限制: 仅对有附件的Bug有效，无附件Bug不受影响
+
+**当前配置**:
+- VLM模型: `qwen-vl` (aiapiidc.birentech.com)
+- 超时: 30秒/张(可优化到8秒)
+- 并发: 最多3张/批
+- 缓存: 24小时
 
 ### v5.5.3 (2026-06-16)
 **JIRA Dashboard UI 统一 + Bug 标题列修复**
