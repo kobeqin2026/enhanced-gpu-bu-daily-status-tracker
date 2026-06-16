@@ -316,4 +316,164 @@ router.get('/issuetypes/:project', auth.authenticateToken, async function(req, r
     }
 });
 
+/**
+ * GET /api/testcase/search?project=XXX&startAt=0&maxResults=50&query=xxx
+ * Search issues in a project via JQL
+ */
+router.get('/search', auth.authenticateToken, async function(req, res) {
+    try {
+        var projectKey = sanitizeKey(req.query.project);
+        if (!projectKey) {
+            return res.status(400).json({ success: false, error: '项目Key为必填项' });
+        }
+
+        var startAt = parseInt(req.query.startAt) || 0;
+        var maxResults = Math.min(parseInt(req.query.maxResults) || 20, 100);
+        var searchText = req.query.query || '';
+        var issueType = req.query.issuetype || '';
+        var status = req.query.status || '';
+
+        // Build JQL
+        var jqlParts = ['project = ' + projectKey];
+        if (searchText) {
+            var safeText = searchText.replace(/"/g, '\\"');
+            jqlParts.push('(summary ~ "' + safeText + '" OR description ~ "' + safeText + '" OR key = "' + safeText + '")');
+        }
+        if (issueType) {
+            jqlParts.push('issuetype = "' + issueType.replace(/"/g, '\\"') + '"');
+        }
+        if (status) {
+            jqlParts.push('status = "' + status.replace(/"/g, '\\"') + '"');
+        }
+        jqlParts.push('ORDER BY created DESC');
+
+        var jql = jqlParts.join(' AND ');
+        var apiPath = '/rest/api/2/search?jql=' + encodeURIComponent(jql)
+            + '&startAt=' + startAt
+            + '&maxResults=' + maxResults
+            + '&fields=summary,status,assignee,priority,issuetype,created,updated,labels,description';
+
+        var result = await jiraRequest('GET', apiPath);
+        var issues = result.issues.map(function(issue) {
+            return {
+                key: issue.key,
+                id: issue.id,
+                summary: issue.fields.summary,
+                description: issue.fields.description || '',
+                status: issue.fields.status ? issue.fields.status.name : '',
+                assignee: issue.fields.assignee ? issue.fields.assignee.displayName || issue.fields.assignee.name : '',
+                priority: issue.fields.priority ? issue.fields.priority.name : '',
+                issuetype: issue.fields.issuetype ? issue.fields.issuetype.name : '',
+                labels: issue.fields.labels || [],
+                created: issue.fields.created,
+                updated: issue.fields.updated,
+                url: jiraConfig.baseUrl + '/browse/' + issue.key,
+                parent: issue.fields.parent ? { key: issue.fields.parent.key, summary: issue.fields.parent.fields ? issue.fields.parent.fields.summary : '' } : null
+            };
+        });
+
+        res.json({
+            success: true,
+            data: {
+                total: result.total,
+                startAt: result.startAt,
+                maxResults: result.maxResults,
+                issues: issues
+            }
+        });
+    } catch (error) {
+        console.error('[TestCase] Search error:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * GET /api/testcase/testplans?project=XXX
+ * List test plans (Epics) from a JIRA project
+ */
+router.get('/testplans', auth.authenticateToken, async function(req, res) {
+    try {
+        var projectKey = sanitizeKey(req.query.project);
+        if (!projectKey) {
+            return res.status(400).json({ success: false, error: '项目Key为必填项' });
+        }
+
+        // Fetch Epics from the project
+        var jql = 'project = ' + projectKey + ' AND issuetype = Epic ORDER BY created DESC';
+        var apiPath = '/rest/api/2/search?jql=' + encodeURIComponent(jql)
+            + '&startAt=0&maxResults=100'
+            + '&fields=summary,status,description,assignee,created';
+
+        var result = await jiraRequest('GET', apiPath);
+        var plans = result.issues.map(function(issue) {
+            return {
+                key: issue.key,
+                id: issue.id,
+                summary: issue.fields.summary,
+                description: issue.fields.description || '',
+                status: issue.fields.status ? issue.fields.status.name : '',
+                assignee: issue.fields.assignee ? issue.fields.assignee.displayName || issue.fields.assignee.name : '',
+                created: issue.fields.created,
+                url: jiraConfig.baseUrl + '/browse/' + issue.key
+            };
+        });
+
+        res.json({
+            success: true,
+            data: {
+                total: result.total,
+                plans: plans
+            }
+        });
+    } catch (error) {
+        console.error('[TestCase] Get test plans error:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * POST /api/testcase/testplan
+ * Create a new test plan (Epic)
+ * Body: { project, summary, description }
+ */
+router.post('/testplan', auth.authenticateToken, async function(req, res) {
+    try {
+        var body = req.body;
+        if (!body.project || !body.summary) {
+            return res.status(400).json({ success: false, error: 'project和summary为必填项' });
+        }
+
+        var projectKey = sanitizeKey(body.project);
+        if (!projectKey) {
+            return res.status(400).json({ success: false, error: '无效的项目Key' });
+        }
+
+        var issueBody = {
+            fields: {
+                project: { key: projectKey },
+                issuetype: { name: 'Epic' },
+                summary: body.summary
+            }
+        };
+
+        if (body.description) {
+            issueBody.fields.description = body.description;
+        }
+
+        var result = await jiraRequest('POST', '/rest/api/2/issue', issueBody);
+        res.json({
+            success: true,
+            data: {
+                key: result.key,
+                id: result.id,
+                summary: body.summary,
+                url: jiraConfig.baseUrl + '/browse/' + result.key
+            }
+        });
+    } catch (error) {
+        console.error('[TestCase] Create test plan error:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 module.exports = router;

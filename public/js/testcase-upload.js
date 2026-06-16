@@ -1,9 +1,14 @@
-// Test Case Upload to JIRA — Frontend Logic
+// JIRA Test Case Management — Frontend Logic
+// Tab 1: Browse/Search test cases from JIRA project
+// Tab 2: Upload test cases (with Test Plan support)
 
 var authToken = localStorage.getItem('authToken') || '';
 var parsedData = []; // Parsed CSV rows
 var headers = [];    // CSV column headers
 var uploadResults = []; // Results from batch upload
+var currentPlans = []; // Current loaded test plans
+var selectedPlanKey = ''; // Selected test plan key
+var browsePage = { startAt: 0, total: 0, maxResults: 20 };
 
 // ============ Auth ============
 
@@ -49,10 +54,21 @@ function showLoginError(msg) {
     el.style.display = 'block';
 }
 
-// Enter key login
 document.getElementById('login-pass').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') doLogin();
 });
+
+// ============ Tab Switching ============
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(function(btn, i) {
+        btn.classList.toggle('active', (tab === 'browse' && i === 0) || (tab === 'upload' && i === 1));
+    });
+    document.querySelectorAll('.tab-content').forEach(function(el) {
+        el.classList.remove('active');
+    });
+    document.getElementById('tab-' + tab).classList.add('active');
+}
 
 // ============ Projects ============
 
@@ -63,26 +79,330 @@ function loadProjects() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.success && data.data) {
-            var sel = document.getElementById('tc-project');
-            sel.innerHTML = '<option value="">-- 选择项目 --</option>';
-            data.data.forEach(function(p) {
-                var opt = document.createElement('option');
-                opt.value = p.key;
-                opt.textContent = p.key + ' — ' + p.name;
-                sel.appendChild(opt);
+            var projects = data.data;
+            // Populate both project dropdowns
+            ['browse-project', 'tc-project'].forEach(function(id) {
+                var sel = document.getElementById(id);
+                sel.innerHTML = '<option value="">-- 选择项目 --</option>';
+                projects.forEach(function(p) {
+                    var opt = document.createElement('option');
+                    opt.value = p.key;
+                    opt.textContent = p.key + ' — ' + p.name;
+                    sel.appendChild(opt);
+                });
             });
         }
     })
     .catch(function(e) {
         console.error('Load projects failed:', e);
-        // Add common project options as fallback
-        var sel = document.getElementById('tc-project');
-        ['BR166', 'BR188', 'BR200', 'BRHW110', 'GPU1', 'MPW2'].forEach(function(k) {
-            var opt = document.createElement('option');
-            opt.value = k;
-            opt.textContent = k;
-            sel.appendChild(opt);
+        var fallback = ['BR166', 'BR188', 'BR200', 'BRHW110', 'GPU1', 'MPW2'];
+        ['browse-project', 'tc-project'].forEach(function(id) {
+            var sel = document.getElementById(id);
+            sel.innerHTML = '<option value="">-- 选择项目 --</option>';
+            fallback.forEach(function(k) {
+                var opt = document.createElement('option');
+                opt.value = k;
+                opt.textContent = k;
+                sel.appendChild(opt);
+            });
         });
+    });
+}
+
+// ============ Tab 1: Browse Test Cases ============
+
+function onBrowseProjectChange() {
+    var project = document.getElementById('browse-project').value;
+    if (project) {
+        searchIssues();
+    } else {
+        document.getElementById('browse-results').innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>选择项目后点击搜索，查看所有 Test Cases</p></div>';
+        document.getElementById('browse-total').style.display = 'none';
+    }
+}
+
+function searchIssues(startAt) {
+    startAt = startAt || 0;
+    var project = document.getElementById('browse-project').value;
+    if (!project) {
+        alert('请先选择项目');
+        return;
+    }
+
+    var query = document.getElementById('browse-search').value.trim();
+    var issuetype = document.getElementById('browse-type').value;
+    var status = document.getElementById('browse-status').value;
+
+    var params = new URLSearchParams({
+        project: project,
+        startAt: startAt,
+        maxResults: browsePage.maxResults
+    });
+    if (query) params.set('query', query);
+    if (issuetype) params.set('issuetype', issuetype);
+    if (status) params.set('status', status);
+
+    var container = document.getElementById('browse-results');
+    container.innerHTML = '<div class="loading">加载中...</div>';
+
+    fetch('/api/testcase/search?' + params.toString(), {
+        headers: { 'Authorization': 'Bearer ' + authToken }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success && data.data) {
+            browsePage.startAt = data.data.startAt;
+            browsePage.total = data.data.total;
+            renderBrowseResults(data.data.issues, data.data.total, data.data.startAt);
+        } else {
+            container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>' + (data.error || '加载失败') + '</p></div>';
+        }
+    })
+    .catch(function(e) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>网络错误: ' + e.message + '</p></div>';
+    });
+}
+
+function renderBrowseResults(issues, total, startAt) {
+    var container = document.getElementById('browse-results');
+    var totalBadge = document.getElementById('browse-total');
+
+    if (total > 0) {
+        totalBadge.textContent = '共 ' + total + ' 条';
+        totalBadge.style.display = 'inline';
+    } else {
+        totalBadge.style.display = 'none';
+    }
+
+    if (issues.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>没有找到匹配的 Test Cases</p></div>';
+        return;
+    }
+
+    var html = '<div class="table-wrap"><table class="data-table"><thead><tr>';
+    html += '<th style="width:120px;">Key</th>';
+    html += '<th>标题</th>';
+    html += '<th style="width:90px;">类型</th>';
+    html += '<th style="width:100px;">状态</th>';
+    html += '<th style="width:100px;">负责人</th>';
+    html += '<th style="width:80px;">优先级</th>';
+    html += '<th style="width:80px;">标签</th>';
+    html += '<th style="width:140px;">创建时间</th>';
+    html += '</tr></thead><tbody>';
+
+    issues.forEach(function(issue) {
+        html += '<tr>';
+        html += '<td><a href="' + issue.url + '" target="_blank">' + issue.key + '</a></td>';
+
+        // Summary with tooltip
+        var summary = escapeHtml(issue.summary || '');
+        var desc = escapeHtml(issue.description || '').substring(0, 500);
+        if (desc) {
+            html += '<td class="desc-tooltip">' + summary;
+            html += '<div class="tooltip-content">' + desc + '</div>';
+            html += '</td>';
+        } else {
+            html += '<td>' + summary + '</td>';
+        }
+
+        html += '<td>' + escapeHtml(issue.issuetype) + '</td>';
+        html += '<td>' + getStatusBadge(issue.status) + '</td>';
+        html += '<td>' + escapeHtml(issue.assignee || '-') + '</td>';
+        html += '<td>' + getPriorityHtml(issue.priority) + '</td>';
+        html += '<td>' + (issue.labels.length > 0 ? '<span style="color:#3498db;">' + issue.labels.length + '个</span>' : '-') + '</td>';
+        html += '<td>' + formatDate(issue.created) + '</td>';
+        html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+
+    // Pagination
+    var endAt = Math.min(startAt + issues.length, total);
+    html += '<div class="pagination">';
+    html += '<span class="page-info">显示 ' + (startAt + 1) + '–' + endAt + '，共 ' + total + ' 条</span>';
+    html += '<div class="page-btns">';
+    if (startAt > 0) {
+        html += '<button class="page-btn" onclick="searchIssues(' + (startAt - browsePage.maxResults) + ')">← 上一页</button>';
+    }
+    var currentPage = Math.floor(startAt / browsePage.maxResults) + 1;
+    var totalPages = Math.ceil(total / browsePage.maxResults);
+    for (var i = 1; i <= totalPages && i <= 7; i++) {
+        var pageStart = (i - 1) * browsePage.maxResults;
+        html += '<button class="page-btn' + (i === currentPage ? ' active' : '') + '" onclick="searchIssues(' + pageStart + ')">' + i + '</button>';
+    }
+    if (totalPages > 7) {
+        html += '<button class="page-btn" disabled>...</button>';
+    }
+    if (endAt < total) {
+        html += '<button class="page-btn" onclick="searchIssues(' + (startAt + browsePage.maxResults) + ')">下一页 →</button>';
+    }
+    html += '</div></div>';
+
+    container.innerHTML = html;
+}
+
+function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function getStatusBadge(status) {
+    if (!status) return '<span class="badge-status badge-default">未知</span>';
+    var s = status.toLowerCase();
+    if (s === 'to do' || s === 'open' || s === 'new') {
+        return '<span class="badge-status badge-todo">' + status + '</span>';
+    } else if (s === 'in progress' || s === 'in review' || s === 'reopened') {
+        return '<span class="badge-status badge-inprogress">' + status + '</span>';
+    } else if (s === 'done' || s === 'closed' || s === 'resolved' || s === 'rejected') {
+        return '<span class="badge-status badge-done">' + status + '</span>';
+    } else if (s === 'blocked') {
+        return '<span class="badge-status badge-blocked">' + status + '</span>';
+    }
+    return '<span class="badge-status badge-default">' + status + '</span>';
+}
+
+function getPriorityHtml(priority) {
+    if (!priority) return '-';
+    var p = priority.toLowerCase();
+    var cls = '';
+    if (p === 'highest') cls = 'priority-highest';
+    else if (p === 'high') cls = 'priority-high';
+    else if (p === 'medium') cls = 'priority-medium';
+    else if (p === 'low' || p === 'lowest') cls = 'priority-low';
+    return '<span class="' + cls + '">' + priority + '</span>';
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    try {
+        var d = new Date(dateStr);
+        var y = d.getFullYear();
+        var m = ('0' + (d.getMonth() + 1)).slice(-2);
+        var day = ('0' + d.getDate()).slice(-2);
+        var h = ('0' + d.getHours()).slice(-2);
+        var min = ('0' + d.getMinutes()).slice(-2);
+        return y + '-' + m + '-' + day + ' ' + h + ':' + min;
+    } catch (e) {
+        return dateStr;
+    }
+}
+
+// ============ Tab 2: Test Plans ============
+
+function onUploadProjectChange() {
+    var project = document.getElementById('tc-project').value;
+    if (project) {
+        loadTestPlans();
+    } else {
+        document.getElementById('plan-list-container').innerHTML = '<div class="empty-state"><p>请选择项目以加载 Test Plans</p></div>';
+    }
+}
+
+function loadTestPlans() {
+    var project = document.getElementById('tc-project').value;
+    if (!project) return;
+
+    var container = document.getElementById('plan-list-container');
+    container.innerHTML = '<div class="loading">加载 Test Plans...</div>';
+
+    fetch('/api/testcase/testplans?project=' + encodeURIComponent(project), {
+        headers: { 'Authorization': 'Bearer ' + authToken }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success && data.data) {
+            currentPlans = data.data.plans || [];
+            renderPlanList();
+        } else {
+            container.innerHTML = '<div class="empty-state"><p>加载失败: ' + (data.error || '未知错误') + '</p></div>';
+        }
+    })
+    .catch(function(e) {
+        container.innerHTML = '<div class="empty-state"><p>网络错误: ' + e.message + '</p></div>';
+    });
+}
+
+function renderPlanList() {
+    var container = document.getElementById('plan-list-container');
+
+    if (currentPlans.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>该项目暂无 Test Plan (Epic)，点击上方"新建"创建一个</p></div>';
+        return;
+    }
+
+    var html = '<div class="plan-list">';
+
+    // Option: no plan selected
+    html += '<div class="plan-card' + (selectedPlanKey === '' ? ' selected' : '') + '" onclick="selectPlan(\'\')">';
+    html += '<div class="plan-key" style="color:#999;">不关联 Test Plan</div>';
+    html += '<div class="plan-title" style="color:#999; font-size:13px;">直接创建独立 Issue</div>';
+    html += '</div>';
+
+    currentPlans.forEach(function(plan) {
+        var sel = selectedPlanKey === plan.key ? ' selected' : '';
+        html += '<div class="plan-card' + sel + '" onclick="selectPlan(\'' + plan.key + '\')">';
+        html += '<div class="plan-key"><a href="' + plan.url + '" target="_blank" onclick="event.stopPropagation()">' + plan.key + '</a></div>';
+        html += '<div class="plan-title">' + escapeHtml(plan.summary) + '</div>';
+        html += '<div class="plan-meta">';
+        html += '<span>' + getStatusBadge(plan.status) + '</span>';
+        if (plan.assignee) html += ' · ' + escapeHtml(plan.assignee);
+        html += ' · ' + formatDate(plan.created);
+        html += '</div>';
+        html += '</div>';
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function selectPlan(key) {
+    selectedPlanKey = key;
+    renderPlanList();
+}
+
+function toggleCreatePlan() {
+    var form = document.getElementById('create-plan-form');
+    form.style.display = form.style.display === 'none' || !form.style.display ? 'block' : 'none';
+}
+
+function createTestPlan() {
+    var project = document.getElementById('tc-project').value;
+    var name = document.getElementById('new-plan-name').value.trim();
+    var desc = document.getElementById('new-plan-desc').value.trim();
+
+    if (!project) {
+        alert('请先选择项目');
+        return;
+    }
+    if (!name) {
+        alert('请输入 Plan 名称');
+        return;
+    }
+
+    fetch('/api/testcase/testplan', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + authToken
+        },
+        body: JSON.stringify({ project: project, summary: name, description: desc })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success && data.data) {
+            alert('✅ Test Plan 创建成功: ' + data.data.key);
+            selectedPlanKey = data.data.key;
+            document.getElementById('new-plan-name').value = '';
+            document.getElementById('new-plan-desc').value = '';
+            toggleCreatePlan();
+            loadTestPlans();
+        } else {
+            alert('❌ 创建失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(function(e) {
+        alert('❌ 网络错误: ' + e.message);
     });
 }
 
@@ -118,14 +438,13 @@ function handleFile(file) {
     var reader = new FileReader();
     reader.onload = function(e) {
         var text = e.target.result;
-        parseCSVData(text);
+        parseCSVData(text, file.name);
     };
     reader.readAsText(file, 'UTF-8');
 }
 
 // CSV Parser — handles quoted fields, escapes, BOM
-function parseCSVData(text) {
-    // Strip BOM
+function parseCSVData(text, filename) {
     if (text.charCodeAt(0) === 0xFEFF) text = text.substring(1);
 
     var rows = [];
@@ -160,7 +479,6 @@ function parseCSVData(text) {
             } else { currentField += ch; }
         }
     }
-    // Last field/row
     if (currentField) currentRow.push(currentField.trim());
     if (currentRow.length > 0 && currentRow.some(function(c) { return c !== ''; })) rows.push(currentRow);
 
@@ -178,35 +496,23 @@ function parseCSVData(text) {
         return obj;
     });
 
-    uploadArea.innerHTML = '<div class="icon">✅</div><p>已加载 <strong>' + parsedData.length + '</strong> 条记录</p><p class="hint">' + file.name + ' (' + headers.length + ' 列)</p>';
+    uploadArea.innerHTML = '<div class="icon">✅</div><p>已加载 <strong>' + parsedData.length + '</strong> 条记录</p><p class="hint">' + (filename || 'file') + ' (' + headers.length + ' 列)</p>';
 
     renderPreview();
 }
 
 // ============ Preview Table ============
 
-// Column mapping: CSV header → JIRA field
 var COLUMN_MAP = {
-    '项目Key': 'project',
-    '项目': 'project',
-    'project': 'project',
-    'Issue类型': 'issuetype',
-    '类型': 'issuetype',
-    'issuetype': 'issuetype',
-    '标题': 'summary',
-    'summary': 'summary',
-    '名称': 'summary',
-    '描述': 'description',
-    'description': 'description',
-    '优先级': 'priority',
-    'priority': 'priority',
-    '标签': 'labels',
-    'labels': 'labels',
-    '负责人': 'assignee',
-    'assignee': 'assignee',
-    '父任务Key': 'parentKey',
-    'parent': 'parentKey',
-    '父任务': 'parentKey'
+    '项目key': 'project', '项目': 'project', 'project': 'project',
+    'issuetype': 'issuetype', 'issue类型': 'issuetype', '类型': 'issuetype',
+    '标题': 'summary', 'summary': 'summary', '名称': 'summary',
+    '描述': 'description', 'description': 'description',
+    '优先级': 'priority', 'priority': 'priority',
+    '标签': 'labels', 'labels': 'labels',
+    '负责人': 'assignee', 'assignee': 'assignee',
+    '父任务key': 'parentkey', 'parent': 'parentkey', '父任务': 'parentkey',
+    'parentkey': 'parentkey'
 };
 
 function mapField(csvHeader) {
@@ -220,10 +526,8 @@ function renderPreview() {
     var section = document.getElementById('preview-section');
     section.style.display = 'block';
 
-    // Count
     document.getElementById('preview-count').textContent = parsedData.length + ' 条记录';
 
-    // Thead
     var thead = document.getElementById('preview-thead');
     thead.innerHTML = '';
     var headRow = document.createElement('tr');
@@ -242,7 +546,6 @@ function renderPreview() {
     headRow.appendChild(thStatus);
     thead.appendChild(headRow);
 
-    // Tbody
     var tbody = document.getElementById('preview-tbody');
     tbody.innerHTML = '';
     var fragment = document.createDocumentFragment();
@@ -276,7 +579,6 @@ function renderPreview() {
     });
     tbody.appendChild(fragment);
 
-    // Enable upload button
     document.getElementById('btn-start-upload').disabled = false;
 }
 
@@ -284,7 +586,7 @@ function renderPreview() {
 
 function startEditCell(e) {
     var td = e.target;
-    if (td.querySelector('input')) return; // Already editing
+    if (td.querySelector('input')) return;
 
     var header = td.getAttribute('data-header');
     var rowIdx = parseInt(td.getAttribute('data-row'));
@@ -332,7 +634,6 @@ function startBatchUpload() {
         return;
     }
 
-    // Build issues array
     var issues = parsedData.map(function(row) {
         var issue = {
             summary: row['标题'] || row['summary'] || row['名称'] || '',
@@ -343,17 +644,25 @@ function startBatchUpload() {
             assignee: row['负责人'] || row['assignee'] || document.getElementById('tc-assignee').value,
             parentKey: row['父任务Key'] || row['parent'] || row['父任务'] || ''
         };
+
+        // If a test plan is selected and no explicit parent, use the test plan as parent
+        if (selectedPlanKey && !issue.parentKey) {
+            issue.parentKey = selectedPlanKey;
+            // Force Sub-task type if no type specified and we have a parent
+            if (!row['Issue类型'] && !row['类型'] && !row['issuetype']) {
+                issue.issuetype = 'Sub-task';
+            }
+        }
+
         return issue;
     });
 
-    // Validate
     var validIssues = issues.filter(function(iss) { return iss.summary; });
     if (validIssues.length === 0) {
         alert('所有记录都缺少标题，无法上传');
         return;
     }
 
-    // Show progress
     document.getElementById('progress-section').style.display = 'block';
     document.getElementById('summary-section').style.display = 'none';
     document.getElementById('btn-start-upload').disabled = true;
@@ -366,7 +675,6 @@ function startBatchUpload() {
     var logEl = document.getElementById('progress-log');
     logEl.innerHTML = '';
 
-    // Send in batches of 10
     var batchSize = 10;
     var batches = [];
     for (var i = 0; i < validIssues.length; i += batchSize) {
@@ -376,7 +684,6 @@ function startBatchUpload() {
     var batchIdx = 0;
     function processNextBatch() {
         if (batchIdx >= batches.length) {
-            // Done
             updateProgress(total, total, successCount, failCount);
             showSummary(total, successCount, failCount);
             document.getElementById('btn-start-upload').disabled = false;
@@ -411,7 +718,6 @@ function startBatchUpload() {
                     addLog('❌ Row ' + err.row + ': ' + err.summary + ' — ' + err.error, 'err');
                 });
             } else {
-                // Batch failed entirely
                 batch.forEach(function(iss, i) {
                     completed++;
                     failCount++;
@@ -432,7 +738,8 @@ function startBatchUpload() {
         });
     }
 
-    addLog('🚀 开始上传 ' + total + ' 条 Issue 到 ' + project, 'ok');
+    var planInfo = selectedPlanKey ? ' (Plan: ' + selectedPlanKey + ')' : '';
+    addLog('🚀 开始上传 ' + total + ' 条 Issue 到 ' + project + planInfo, 'ok');
     processNextBatch();
 }
 
@@ -483,5 +790,4 @@ function downloadTemplate() {
 }
 
 // ============ Init ============
-
 checkAuth();
