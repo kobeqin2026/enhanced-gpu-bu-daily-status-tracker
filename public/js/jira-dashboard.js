@@ -1427,6 +1427,42 @@ function showDiagnoseResult(data, bugStatus) {
     } else if (screenshotSection) {
         screenshotSection.style.display = 'none';
     }
+
+    // ===== VLM Status Indicator =====
+    var vlmStatusSection = document.getElementById('diag-vlm-status');
+    var vlmIcon = document.getElementById('diag-vlm-icon');
+    var vlmText = document.getElementById('diag-vlm-text');
+
+    if (vlmStatusSection && vlmIcon && vlmText) {
+        var totalAnalyzed = sourceImages.length;
+        var totalPending = sourcePending.length;
+        var totalAttachments = totalAnalyzed + totalPending;
+
+        vlmStatusSection.className = 'diag-section diag-vlm-status';
+
+        if (totalAttachments > 0) {
+            // Has attachments — show analysis status
+            if (totalAnalyzed > 0 && totalPending === 0) {
+                vlmIcon.textContent = '🟢';
+                vlmText.textContent = 'VLM图片识别 — 源Bug共 ' + totalAttachments + ' 张附件，已完成识别';
+                vlmStatusSection.classList.add('vlm-active');
+            } else if (totalAnalyzed > 0 && totalPending > 0) {
+                vlmIcon.textContent = '🟡';
+                vlmText.textContent = 'VLM图片识别 — 源Bug共 ' + totalAttachments + ' 张附件，已识别 ' + totalAnalyzed + ' 张，待识别 ' + totalPending + ' 张';
+                vlmStatusSection.classList.add('vlm-pending');
+            } else {
+                vlmIcon.textContent = '⚪';
+                vlmText.textContent = 'VLM图片识别 — 源Bug共 ' + totalAttachments + ' 张附件，当前模型不支持VLM，待启用后自动识别';
+                vlmStatusSection.classList.add('vlm-disabled');
+            }
+        } else {
+            // No attachments
+            vlmIcon.textContent = '⚪';
+            vlmText.textContent = 'VLM图片识别 — 源Bug无附件截图';
+            vlmStatusSection.classList.add('vlm-disabled');
+        }
+        vlmStatusSection.style.display = 'flex';
+    }
 }
 
 // Helper: create accordion header element

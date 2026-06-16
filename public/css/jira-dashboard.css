@@ -722,6 +722,34 @@
     padding-top: 12px;
     margin-top: 8px;
 }
+.diag-vlm-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #666;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+}
+.diag-vlm-status .vlm-icon {
+    font-size: 14px;
+}
+.diag-vlm-status.vlm-active {
+    border-color: #27ae60;
+    background: #f0faf4;
+}
+.diag-vlm-status.vlm-pending {
+    border-color: #f39c12;
+    background: #fef9e7;
+}
+.diag-vlm-status.vlm-disabled {
+    border-color: #bdc3c7;
+    background: #f8f9fa;
+    color: #999;
+}
 .related-bug-item {
     display: flex;
     align-items: center;
