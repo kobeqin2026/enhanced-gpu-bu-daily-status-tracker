@@ -212,6 +212,7 @@
     font-size: 13px;
     font-weight: 600;
     transition: background 0.2s;
+    white-space: nowrap;
 }
 
 .sync-btn:hover {
@@ -228,7 +229,6 @@
     font-size: 13px;
     font-weight: 600;
     transition: background 0.2s;
-    white-space: nowrap;
 }
 
 .clear-btn:hover {
