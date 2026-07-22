@@ -158,7 +158,9 @@ var Dashboard = {
     charts: {},
     autoRefreshTimer: null,
     sortField: null,
-    sortDirection: 'asc'
+    sortDirection: 'asc',
+    selectedTag: null,
+    selectedComponent: null
 };
 
 // ============ Auth ============
@@ -439,6 +441,7 @@ async function fetchDashboardData() {
                 });
             }
 
+            populateTagFilter(Dashboard.allBugs);
             renderKPI(data.stats);
             renderCharts(data.charts);
             renderBugTable(Dashboard.allBugs);
@@ -474,17 +477,22 @@ function renderKPI(stats) {
     animateNumber('kpi-overdue', stats.overdue || 0);
 }
 
+var _animTimers = {};
 function animateNumber(elementId, target) {
     var el = document.getElementById(elementId);
-    var current = 0;
-    var step = Math.max(1, Math.floor(target / 20));
-    var interval = setInterval(function() {
-        current += step;
-        if (current >= target) {
-            current = target;
-            clearInterval(interval);
-        }
+    if (!el) return;
+    // Clear previous animation on this element
+    if (_animTimers[elementId]) clearInterval(_animTimers[elementId]);
+    var current = parseInt(el.textContent) || 0;
+    var diff = target - current;
+    if (diff === 0) { el.textContent = target; return; }
+    var steps = 20;
+    var step = Math.max(1, Math.ceil(Math.abs(diff) / steps));
+    _animTimers[elementId] = setInterval(function() {
+        if (diff > 0) { current += step; if (current >= target) current = target; }
+        else { current -= step; if (current <= target) current = target; }
         el.textContent = current;
+        if (current === target) { clearInterval(_animTimers[elementId]); delete _animTimers[elementId]; }
     }, 30);
 }
 
@@ -825,6 +833,8 @@ function applyTableFilters() {
     var severityFilter = document.getElementById('filter-severity').value;
     var ownerFilter = document.getElementById('filter-owner').value.toLowerCase();
     var showClosed = document.getElementById('show-closed').checked;
+    var tagFilter = Dashboard.selectedTag;
+    var componentFilter = Dashboard.selectedComponent;
 
     var filtered = Dashboard.filteredBugs.filter(function(bug) {
         // Hide closed/rejected by default unless checkbox is checked or status filter targets them
@@ -838,6 +848,14 @@ function applyTableFilters() {
         if (statusFilter && bug.status !== statusFilter) return false;
         if (severityFilter && bug.severity !== severityFilter) return false;
         if (ownerFilter && bug.owner.toLowerCase().indexOf(ownerFilter) === -1) return false;
+        if (tagFilter) {
+            var labels = bug.labels || [];
+            if (labels.indexOf(tagFilter) === -1) return false;
+        }
+        if (componentFilter) {
+            var components = bug.components || [];
+            if (components.indexOf(componentFilter) === -1) return false;
+        }
         return true;
     });
 
@@ -865,6 +883,44 @@ function applyTableFilters() {
     }
 
     renderBugRows(filtered);
+    updateKPIFromFiltered(filtered);
+}
+
+// ============ KPI from Filtered Bugs ============
+
+function updateKPIFromFiltered(bugs) {
+    var today = new Date().toISOString().split('T')[0];
+    var weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    var total = bugs.length;
+    var open = 0, closed = 0, todayNew = 0, weekClosed = 0, overdue = 0;
+    var resolutionDays = [];
+
+    bugs.forEach(function(bug) {
+        var st = bug.status;
+        var isOpen = st === 'open' || st === 'triage' || st === 'implement';
+        var isClosed = st === 'closed';
+        if (isOpen) open++;
+        if (isClosed) closed++;
+        if (bug.reportDate === today) todayNew++;
+        if (isClosed && bug.updatedDate && bug.updatedDate >= weekAgo) weekClosed++;
+        if (bug.resolutionDays !== undefined) resolutionDays.push(bug.resolutionDays);
+        if (!isClosed && st !== 'rejected' && bug.ageDays > 14) overdue++;
+    });
+
+    var avgDays = resolutionDays.length > 0
+        ? Math.round(resolutionDays.reduce(function(a, b) { return a + b; }, 0) / resolutionDays.length * 10) / 10
+        : 0;
+
+    renderKPI({
+        total: total,
+        open: open,
+        closed: closed,
+        todayNew: todayNew,
+        weekClosed: weekClosed,
+        avgResolutionDays: avgDays,
+        overdue: overdue
+    });
 }
 
 function renderBugRows(bugs) {
@@ -954,6 +1010,62 @@ function renderBugRows(bugs) {
 
     tbody.appendChild(fragment);
     document.getElementById('bug-count').textContent = '显示 ' + displayBugs.length + ' / ' + bugs.length + ' 条';
+}
+
+// ============ Tag Filter (Labels) + Component Filter ============
+
+function populateTagFilter(bugs) {
+    // Populate labels dropdown
+    var tagSet = {};
+    bugs.forEach(function(bug) {
+        var labels = bug.labels || [];
+        labels.forEach(function(l) { if (l) tagSet[l] = true; });
+    });
+    var tags = Object.keys(tagSet).sort();
+    var select = document.getElementById('tag-filter');
+    var currentTag = select.value;
+    select.innerHTML = '<option value="">全部标签</option>';
+    tags.forEach(function(t) {
+        var opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        select.appendChild(opt);
+    });
+    if (currentTag && tagSet[currentTag]) select.value = currentTag;
+
+    // Populate components dropdown
+    var compSet = {};
+    bugs.forEach(function(bug) {
+        var comps = bug.components || [];
+        comps.forEach(function(c) { if (c) compSet[c] = true; });
+    });
+    var comps = Object.keys(compSet).sort();
+    var compSelect = document.getElementById('tag-value-filter');
+    var currentComp = compSelect.value;
+    compSelect.innerHTML = '<option value="">全部组件</option>';
+    comps.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        compSelect.appendChild(opt);
+    });
+    compSelect.disabled = comps.length === 0;
+    if (currentComp && compSet[currentComp]) compSelect.value = currentComp;
+
+    // Restore state
+    Dashboard.selectedTag = select.value || null;
+    Dashboard.selectedComponent = compSelect.value || null;
+}
+
+function onTagFilterChange() {
+    var val = document.getElementById('tag-filter').value;
+    Dashboard.selectedTag = val || null;
+    applyTableFilters();
+}
+
+function onTagValueFilterChange() {
+    Dashboard.selectedComponent = document.getElementById('tag-value-filter').value || null;
+    applyTableFilters();
 }
 
 var _filterBugsTimer = null;

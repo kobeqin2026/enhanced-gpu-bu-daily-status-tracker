@@ -76,6 +76,19 @@
             </div>
 
             <div class="control-group">
+                <label>标签:</label>
+                <select id="tag-filter" class="project-select" onchange="onTagFilterChange()" style="max-width:200px;">
+                    <option value="">全部标签</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>组件:</label>
+                <select id="tag-value-filter" class="project-select" onchange="onTagValueFilterChange()" style="max-width:200px;" disabled>
+                    <option value="">全部组件</option>
+                </select>
+            </div>
+
+            <div class="control-group">
                 <label><input type="checkbox" id="include-closed" checked onchange="onFilterChange()"> 包含已关闭</label>
                 <label>时间范围:
                     <select id="time-range" onchange="onFilterChange()">
@@ -298,6 +311,6 @@
         </div>
     </div>
 
-    <script src="/js/jira-dashboard.js?v=31"></script>
+    <script src="/js/jira-dashboard.js?v=38"></script>
 </body>
 </html>
