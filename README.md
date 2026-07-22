@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
-![Version](https://img.shields.io/badge/version-v5.5.4-blue)
+![Version](https://img.shields.io/badge/version-v5.5.5-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -186,6 +186,28 @@ enhanced-gpu-bu-daily-status-tracker/
 
 ## 版本历史
 
+### v5.5.5 (2026-07-22)
+**GitHub同步 + 代码库对齐**
+
+#### 🔄 GitHub仓库同步
+- **同步本地完整代码到GitHub**: `kobeqin2026/enhanced-gpu-bu-daily-status-tracker`
+- **同步方式**: 使用GraphQL API绕过公司SSL代理限制（`git push` HTTPS POST被拦截）
+- **同步脚本**: `~/scripts/github-sync.py`（基于 `gh api graphql --input -` stdin传输）
+- **同步范围**: 全部20个文件，包括前端HTML/JS/CSS、后端Node.js模块、配置文件
+- **同步耗时**: ~4.5秒完成
+
+#### 📋 代码库现状
+- **版本**: v5.5.4代码 + v5.5.5版本标记
+- **核心功能**: GPU芯片Bring-up进度追踪、JIRA集成、VLM图片识别、LLM智能诊断
+- **安全加固**: XSS防护、JQL注入防护、bcrypt密码哈希、JWT认证、速率限制
+- **技术栈**: Node.js/Express + vanilla JS前端 + nginx反向代理
+
+#### ⚙️ 部署信息
+- **本地部署**: PM2进程管理 (`pm2 restart gpu-tracker`)
+- **生产路径**: `/var/www/html/` (nginx静态文件)
+- **环境变量**: `DASHSCOPE_API_KEY`, `JIRA_PAT`, `DEFAULT_ADMIN_PASSWORD`
+- **默认账号**: admin / admin123（⚠️ 生产环境请修改）
+
 ### v5.5.4 (2026-06-16)
 **VLM图片识别启用 + LLM响应解析增强**
 
@@ -193,7 +215,7 @@ enhanced-gpu-bu-daily-status-tracker/
 
 **1. VLM模型切换: mimo-v2.5 → qwen-vl**
 - `lib/vision-analysis.js` 默认VLM模型从 `mimo-v2.5` 改为 `qwen-vl`
-- 原因: 当前API上 `mimo-v2.5` 不可用，`qwen-vl` 已验证可正常工作
+- 原因: aiapiidc.birentech.com API上 `mimo-v2.5` 不可用，`qwen-vl` 已验证可正常工作
 - 测试验证: 使用1x1白色PNG测试，`qwen-vl` 返回 "The image is a plain, uniform white square" — 确认视觉能力正常
 - 环境变量优先级: `VLM_MODEL` > `BAILIAN_API_KEY`(fallback) > 默认值 `qwen-vl`
 
@@ -233,7 +255,7 @@ VLM通过3个环节影响诊断质量:
 - 限制: 仅对有附件的Bug有效，无附件Bug不受影响
 
 **当前配置**:
-- VLM模型: `qwen-vl` (通过环境变量配置)
+- VLM模型: `qwen-vl` (aiapiidc.birentech.com)
 - 超时: 30秒/张(可优化到8秒)
 - 并发: 最多3张/批
 - 缓存: 24小时
