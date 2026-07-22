@@ -187,26 +187,62 @@ enhanced-gpu-bu-daily-status-tracker/
 ## 版本历史
 
 ### v5.5.5 (2026-07-22)
-**GitHub同步 + 代码库对齐**
+**JIRA Dashboard 筛选增强: 标签/组件双维度筛选 + KPI实时联动 + 动画修复**
 
-#### 🔄 GitHub仓库同步
-- **同步本地完整代码到GitHub**: `kobeqin2026/enhanced-gpu-bu-daily-status-tracker`
+#### 🔍 标签/组件双维度筛选器
+
+**1. 标签 (Labels) 筛选下拉框**
+- 新增 `标签` 筛选下拉框，从所有 Bug 的 `labels` 字段自动收集唯一值
+- 选择标签后，Bug 明细表和 KPI 卡片同步筛选
+- 数据加载后自动恢复上次选择（如果该标签仍存在）
+
+**2. 组件 (Components) 筛选下拉框**
+- 新增 `组件` 筛选下拉框，从所有 Bug 的 `components` 字段自动收集唯一值
+- 与标签筛选独立运行，可同时使用（AND 逻辑）
+- 无组件数据时下拉框自动禁用
+
+**3. 筛选联动逻辑**
+- `onTagFilterChange()` → 设置 `Dashboard.selectedTag` → `applyTableFilters()`
+- `onTagValueFilterChange()` → 设置 `Dashboard.selectedComponent` → `applyTableFilters()`
+- 两个筛选器独立工作，可单独或组合使用
+- 筛选结果同时应用于 Bug 明细表格和 KPI 卡片
+
+#### 📊 KPI 卡片实时联动
+
+**4. `updateKPIFromFiltered()` 函数**
+- 筛选后从 `filtered` 数组重新计算所有 KPI 指标
+- 计算项: total / open / closed / todayNew / weekClosed / avgResolutionDays / overdue
+- 在 `applyTableFilters()` 末尾自动调用，确保 KPI 与表格同步
+
+**5. `animateNumber()` 动画修复**
+- 问题: 旧动画未清除，新旧 `setInterval` 互相覆盖导致 KPI 数值不更新
+- 修复: 使用 `_animTimers` 字典跟踪每个元素的动画定时器
+- 新动画开始前先 `clearInterval` 旧定时器
+- 从当前显示值开始动画（支持递增和递减）
+- 筛选后 KPI 数字正确地从旧值动画到新值
+
+#### 📝 修改文件清单
+
+| 文件 | 修改内容 |
+|------|----------|
+| `public/jira-dashboard.html` | 新增标签/组件双下拉筛选器 UI，版本号 v38 |
+| `public/js/jira-dashboard.js` | 标签/组件筛选逻辑 + KPI 联动 + animateNumber 动画修复 |
+
+#### 🧪 验证结果
+
+- ✅ JS 语法检查通过 (node --check)
+- ✅ 标签下拉框正确填充所有唯一 label 值
+- ✅ 组件下拉框正确填充所有唯一 component 值
+- ✅ 选择标签后 Bug 表格和 KPI 卡片同步更新
+- ✅ KPI 数字动画正确递增/递减
+- ✅ 两个筛选器可独立或组合使用
+
+#### 🔄 GitHub同步
 - **同步方式**: 使用GraphQL API绕过公司SSL代理限制（`git push` HTTPS POST被拦截）
 - **同步脚本**: `~/scripts/github-sync.py`（基于 `gh api graphql --input -` stdin传输）
-- **同步范围**: 全部20个文件，包括前端HTML/JS/CSS、后端Node.js模块、配置文件
-- **同步耗时**: ~4.5秒完成
+- **同步耗时**: ~51秒完成
 
-#### 📋 代码库现状
-- **版本**: v5.5.4代码 + v5.5.5版本标记
-- **核心功能**: GPU芯片Bring-up进度追踪、JIRA集成、VLM图片识别、LLM智能诊断
-- **安全加固**: XSS防护、JQL注入防护、bcrypt密码哈希、JWT认证、速率限制
-- **技术栈**: Node.js/Express + vanilla JS前端 + nginx反向代理
-
-#### ⚙️ 部署信息
-- **本地部署**: PM2进程管理 (`pm2 restart gpu-tracker`)
-- **生产路径**: `/var/www/html/` (nginx静态文件)
-- **环境变量**: `DASHSCOPE_API_KEY`, `JIRA_PAT`, `DEFAULT_ADMIN_PASSWORD`
-- **默认账号**: admin / admin123（⚠️ 生产环境请修改）
+---
 
 ### v5.5.4 (2026-06-16)
 **VLM图片识别启用 + LLM响应解析增强**
