@@ -44,7 +44,6 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/projects', require('./routes/projects'));
 app.use('/api/data', require('./routes/data'));
 app.use('/api/data', require('./routes/jira'));
-app.use('/api/testcase', require('./routes/testcase'));
 app.use('/api/data/diagnose-bug', diagnoseLimiter);
 
 // Logs route (admin only)
