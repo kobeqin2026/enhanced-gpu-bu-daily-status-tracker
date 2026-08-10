@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>国产GPU芯片bring up每日追踪</title>
+    <title>GPU Bring Up 每日状态追踪</title>
     <link rel="stylesheet" href="/css/base.css">
     <link rel="stylesheet" href="/css/header.css">
     <link rel="stylesheet" href="/css/components.css">
@@ -17,9 +17,81 @@
     <link rel="stylesheet" href="/css/bu-exit-criteria.css?v=5.3.0">
     <link rel="stylesheet" href="/css/responsive.css">
 </head>
-<body>
+<body class="gated">
+    <style>
+        body.gated { overflow: hidden; }
+        body.gated .container { display: none !important; }
+        .gate-overlay { position: fixed; inset: 0; background: #eef1f6; display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .gate-card { background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.15); padding: 34px 40px; width: 400px; max-width: 92vw; text-align: center; }
+        .gate-card h2 { margin: 0 0 6px; color: #2c3e50; }
+        .gate-card p { color: #7f8c8d; font-size: 13px; margin: 0 0 20px; }
+        .gate-card input { width: 100%; box-sizing: border-box; padding: 11px 12px; margin: 8px 0; border: 1px solid #dcdfe6; border-radius: 6px; font-size: 14px; outline: none; }
+        .gate-card input:focus { border-color: #3498db; }
+        .gate-card .gate-btn { width: 100%; padding: 11px; margin-top: 14px; background: #3498db; color: #fff; border: none; border-radius: 6px; font-size: 15px; cursor: pointer; }
+        .gate-card .gate-btn:hover { background: #2980b9; }
+        .gate-err { color: #e74c3c; font-size: 13px; min-height: 18px; margin-top: 10px; }
+        #gate-project-list { max-height: 320px; overflow-y: auto; margin-top: 6px; }
+        .gate-project-item { display: block; width: 100%; background: #f8f9fa; border: 1px solid #e0e4e8; border-radius: 8px; padding: 12px 14px; margin: 8px 0; text-align: left; cursor: pointer; font-size: 14px; }
+        .gate-project-item:hover { border-color: #3498db; background: #eef6fd; }
+        .gate-project-item b { color: #2c3e50; }
+        .gate-project-item span { display: block; color: #7f8c8d; font-size: 12px; margin-top: 2px; }
+        .gate-mode-option { display: block; background: #f8f9fa; border: 1px solid #e0e4e8; border-radius: 8px; padding: 10px 12px; margin: 6px 0; cursor: pointer; font-size: 14px; font-weight: normal; }
+        .gate-mode-option:hover { border-color: #3498db; background: #eef6fd; }
+        .gate-mode-option span { display: inline-block; margin-left: 6px; color: #2c3e50; }
+        .gate-mode-option em { display: block; font-style: normal; font-size: 12px; color: #999; margin-left: 20px; margin-top: 2px; }
+        .gate-link { margin-top: 14px; font-size: 13px; color: #7f8c8d; }
+        .gate-link a { color: #e74c3c; cursor: pointer; }
+    </style>
+    <!-- 第一步: 登录 (登录前整页不可见) -->
+    <div id="gate-login" class="gate-overlay">
+        <div class="gate-card">
+            <h2>🔐 用户登录</h2>
+            <p>请使用统一账号登录（管理员 / Domain Owner）</p>
+            <input type="text" id="gate-username" placeholder="用户名" autocomplete="off" />
+            <input type="password" id="gate-password" placeholder="密码" />
+            <button class="gate-btn" onclick="gateLoginSubmit()">登 录</button>
+            <div class="gate-err" id="gate-login-err"></div>
+        </div>
+    </div>
+    <!-- 第二步: 选择项目 -->
+    <div id="gate-project" class="gate-overlay" style="display:none;">
+        <div class="gate-card">
+            <h2>📂 选择项目</h2>
+            <p>选择要查看的 Bring Up 项目</p>
+            <select id="gate-project-select" style="width:100%; padding:11px 12px; margin:8px 0; border:1px solid #dcdfe6; border-radius:6px; font-size:14px; background:#fff; color:#2c3e50;"></select>
+            <button class="gate-btn" onclick="gateEnterProject()">进 入</button>
+            <div class="gate-link" id="gate-new-project-link" style="display:none;">
+                <a onclick="showGateNewProject()" style="color:#3498db; font-weight:bold;">＋ 新建项目</a> &nbsp;·&nbsp; <a onclick="gateLogout()">退出登录</a>
+            </div>
+        </div>
+    </div>
+    <!-- 新建项目 (选择项目门内, 仅管理员) -->
+    <div id="gate-new-project-modal" class="gate-overlay" style="display:none; z-index:10002;">
+        <div class="gate-card" style="text-align:left; width:460px;">
+            <h2 style="text-align:center;">➕ 新建项目</h2>
+            <p style="text-align:center; margin-bottom:16px;">选择创建方式，创建后自动进入新项目</p>
+            <div style="font-size:13px; color:#555;">项目名称 <span style="color:#e74c3c;">*</span></div>
+            <input type="text" id="gate-new-project-name" placeholder="例如 BR288Y" style="margin:6px 0 14px;" />
+            <div style="font-size:13px; color:#555; margin-bottom:4px;">创建方式</div>
+            <label class="gate-mode-option">
+                <input type="radio" name="gate-new-mode" value="blank" checked onchange="gateNewModeChanged()" />
+                <span>新建空白项目 <em>从零开始，不复制任何数据</em></span>
+            </label>
+            <label class="gate-mode-option">
+                <input type="radio" name="gate-new-mode" value="copy" onchange="gateNewModeChanged()" />
+                <span>从已有项目复制 <em>复制所选项目的域、Bug、每日进度等全部数据</em></span>
+            </label>
+            <div id="gate-copy-source-wrap" style="display:none; margin-top:10px;">
+                <div style="font-size:13px; color:#555;">源项目</div>
+                <select id="gate-copy-source" style="width:100%; padding:11px 12px; margin:6px 0; border:1px solid #dcdfe6; border-radius:6px; font-size:14px; background:#fff;"></select>
+            </div>
+            <div class="gate-err" id="gate-new-project-err"></div>
+            <button class="gate-btn" onclick="gateCreateProject()">创 建</button>
+            <div style="text-align:center; margin-top:12px;"><a style="color:#7f8c8d; cursor:pointer; font-size:13px;" onclick="closeGateNewProject()">取消</a></div>
+        </div>
+    </div>
     <div class="container">
-        <h1>国产GPU芯片bring up每日追踪</h1>
+        <h1>GPU Bring Up 每日状态追踪</h1>
         <div class="nav-links" style="text-align:center; margin-bottom:10px;">
             <a href="/jira-dashboard.html" style="font-size:14px; color:#27ae60; text-decoration:none; padding:4px 12px; border:1px solid #27ae60; border-radius:4px; margin:0 4px;">JIRA Bug Dashboard</a>
         </div>
@@ -34,10 +106,9 @@
                 <option value="">加载中...</option>
             </select>
             <button class="add-project-btn admin-only" onclick="showAddProjectModal()">+ 新建项目</button>
-            <button class="edit-project-btn admin-only" onclick="showEditProjectModal()" title="修改当前项目">✏️</button>
             <button class="delete-project-btn admin-only" onclick="showDeleteProjectConfirm()" title="删除当前项目">🗑️</button>
             <span class="current-project-label" id="current-project-label"></span>
-            <button class="add-project-btn user-only" onclick="showUserManagementModal()" style="background-color: #8e44ad; margin-left: 10px;">👥 用户管理</button>
+            <button class="add-project-btn admin-only" onclick="showUserManagementModal()" style="background-color: #8e44ad; margin-left: 10px;">👥 用户管理</button>
             
             <!-- Login/User Section in project switcher -->
             <span id="login-status" style="margin-left: 20px;"></span>
@@ -121,6 +192,20 @@
                 <h3>创建新项目</h3>
                 <input type="text" id="new-project-name" placeholder="项目名称" />
                 <input type="text" id="new-project-description" placeholder="项目描述（可选）" />
+                <div style="margin:10px 0 4px; font-size:13px; color:#555;">创建方式</div>
+                <label class="gate-mode-option">
+                    <input type="radio" name="new-project-mode" value="blank" checked onchange="newProjectModeChanged()" />
+                    <span>新建空白项目</span>
+                </label>
+                <label class="gate-mode-option">
+                    <input type="radio" name="new-project-mode" value="copy" onchange="newProjectModeChanged()" />
+                    <span>从已有项目复制</span>
+                </label>
+                <div id="new-project-copy-source-wrap" style="display:none; margin-top:8px;">
+                    <select id="new-project-copy-source" style="width:100%; padding:9px; border:1px solid #ddd; border-radius:4px; font-size:14px; background:#fff;">
+                        <option value="">请选择源项目...</option>
+                    </select>
+                </div>
                 <div class="modal-buttons">
                     <button class="modal-cancel-btn" onclick="closeAddProjectModal()">取消</button>
                     <button class="modal-confirm-btn" onclick="createNewProject()">创建</button>
@@ -161,7 +246,14 @@
         </div>
         
         <div class="project-info">
-            <strong>项目时间线：</strong> <span id="project-timeline">未设置</span><br>
+            <strong>BU执行时间：</strong> <span id="project-timeline">未设置</span>
+            <span class="admin-only" style="margin-left:8px; white-space:nowrap;">
+                <input type="date" id="bu-start-date" title="BU开始日期" style="padding:3px 6px; border:1px solid #ccc; border-radius:4px; font-size:13px;" />
+                <span style="color:#666;"> 至 </span>
+                <input type="date" id="bu-end-date" title="BU结束日期" style="padding:3px 6px; border:1px solid #ccc; border-radius:4px; font-size:13px;" />
+                <button class="save-btn" onclick="saveBUExecuteTime()" style="padding:4px 12px; font-size:12px; margin-left:6px;">保存</button>
+            </span>
+            <br>
             <strong>最后更新：</strong> <span id="last-update">2026年3月3日</span>
         </div>
         
@@ -178,8 +270,10 @@
             <div class="add-domain-form">
                 <input type="text" id="new-domain-name" placeholder="输入Domain名称" class="domain-input">
                 <input type="text" id="new-domain-owner" placeholder="负责人" class="owner-input">
-                <button class="add-btn user-only" onclick="addNewDomain()">添加</button>
-                <button class="add-btn user-only" onclick="showDomainImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
+                <button class="add-btn admin-only" onclick="addNewDomain()">添加</button>
+                <button class="add-btn admin-only" onclick="showDomainImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
+                <button class="add-btn admin-only" id="sync-domains-btn" onclick="syncDomainsFromJira()" style="background-color: #e67e22; margin-left: 10px;">从JIRA组件同步</button>
+                <button class="add-btn admin-only" onclick="previewJiraDomains()" style="background-color: #9b59b6; margin-left: 10px;">预览JIRA组件</button>
             </div>
         </div>
         
@@ -222,11 +316,11 @@
                     <option value="rejected">Rejected</option>
                 </select>
                 <input type="text" id="new-bug-owner" placeholder="负责人" class="bug-input">
-                <button class="add-btn user-only" onclick="addNewBug()">添加Bug</button>
-                <button class="add-btn user-only" onclick="showJiraProjectModal()" style="background-color: #27ae60; margin-left: 10px;">从JIRA导入</button>
-                <button class="add-btn user-only" onclick="syncJiraStatus()" style="background-color: #8e44ad; margin-left: 10px;" title="从JIRA同步所有Bug最新状态">同步JIRA状态</button>
-                <button class="add-btn user-only" onclick="showBugImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
-                <button class="add-btn user-only" onclick="clearAllBugs()" style="background-color: #e74c3c; margin-left: 10px;" title="清空所有Bug数据">清空Bug</button>
+                <button class="add-btn admin-only" onclick="addNewBug()">添加Bug</button>
+                <button class="add-btn admin-only" onclick="showJiraProjectModal()" style="background-color: #27ae60; margin-left: 10px;">从JIRA导入</button>
+                <button class="add-btn admin-only" onclick="syncJiraStatus()" style="background-color: #8e44ad; margin-left: 10px;" title="从JIRA同步所有Bug最新状态">同步JIRA状态</button>
+                <button class="add-btn admin-only" onclick="showBugImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
+                <button class="add-btn admin-only" onclick="clearAllBugs()" style="background-color: #e74c3c; margin-left: 10px;" title="清空所有Bug数据">清空Bug</button>
             </div>
         </div>
         
@@ -354,8 +448,8 @@
 
         <!-- Add new BU Exit Criteria row button -->
         <div class="bu-exit-criteria-section">
-            <button class="add-btn user-only" onclick="addNewBUExitCriteriaRow()">添加BU准出标准</button>
-            <button class="add-btn user-only" onclick="showBUImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
+            <button class="add-btn admin-only" onclick="addNewBUExitCriteriaRow()">添加BU准出标准</button>
+            <button class="add-btn admin-only" onclick="showBUImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
         </div>
         
         <div class="notes-section">
@@ -370,7 +464,7 @@
             <p>• <strong>完整编辑功能</strong>：Domain、Bug、每日进度和准出标准都支持完整编辑！</p>
         </div>
         
-        <button class="save-btn user-only" onclick="saveData()">保存数据</button>
+        <button class="save-btn admin-only" onclick="saveData()">保存数据</button>
         <div class="save-message" id="save-message"></div>
         
         <div class="update-timestamp">
@@ -646,8 +740,8 @@
     <!-- JS modules (order matters: globals -> utils -> data -> auth -> projects -> domains -> bugs -> daily-progress -> bu-exit-criteria -> import -> app) -->
     <script src="/js/globals.js"></script>
     <script src="/js/utils.js"></script>
-    <script src="/js/data.js"></script>
-    <script src="/js/auth.js"></script>
+    <script src="/js/data.js?v=5.5.6"></script>
+    <script src="/js/auth.js?v=5.5.6"></script>
     <script src="/js/projects.js"></script>
     <script src="/js/domains.js"></script>
     <script src="/js/bugs.js"></script>

@@ -156,3 +156,52 @@ function addNewDomain() {
     document.getElementById('new-domain-owner').value = '';
     persistData();
 }
+
+// ===== JIRA 组件同步(组件 = Domain, lead = owner) =====
+// JIRA 组件页: https://jira01.birentech.com/projects/BR200?selectedItem=...:components-page
+async function syncDomainsFromJira() {
+    if (!App.currentProject) { alert('请先选择项目'); return; }
+    var btn = document.getElementById('sync-domains-btn');
+    var oldText = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = '同步中...'; }
+    try {
+        var resp = await fetch('/api/data/domain-source/sync?project=' + encodeURIComponent(App.currentProject), {
+            method: 'POST',
+            credentials: 'same-origin',
+            cache: 'no-store'
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        var j = await resp.json();
+        if (!j.success) throw new Error(j.error || '同步失败');
+        var s = j.summary;
+        var msg = '从 JIRA 同步完成: 新建 ' + (s.created || []).length + ' 个, 更新 ' + (s.updated || []).length + ' 个';
+        if (s.errors && s.errors.length) msg += ', 错误 ' + s.errors.length + ': ' + s.errors.join('; ');
+        alert(msg);
+        await loadDataFromAPI();
+        renderDomains(App.data.domains);
+    } catch (e) {
+        alert('同步失败: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = oldText; }
+    }
+}
+
+async function previewJiraDomains() {
+    try {
+        var resp = await fetch('/api/data/domain-source', {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store'
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        var j = await resp.json();
+        if (!j.success) throw new Error(j.error || '拉取失败');
+        var list = (j.components || []).map(function(c) {
+            var lead = (c.lead && (c.lead.displayName || c.lead.name)) || '(无负责人)';
+            return c.name + ' → ' + lead;
+        }).join('\n');
+        alert('JIRA 项目 ' + j.project + ' 组件(' + list.length + ' 行):\n\n' + list);
+    } catch (e) {
+        alert('拉取失败: ' + e.message);
+    }
+}
