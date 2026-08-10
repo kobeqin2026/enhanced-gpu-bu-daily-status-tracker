@@ -17,21 +17,28 @@
     "username": "board",
     "role": "domain_owner",
     "name": "Board",
-    "token": "610aaf282af735dcf9b1de47afad0437",
-    "createdAt": 1785997563993
+    "token": "8d304cd0ec61f597adf67b7018077e9e",
+    "createdAt": 1786350394665
   },
   "admin": {
     "username": "admin",
     "role": "admin",
     "name": "管理员",
-    "token": "4c4ce8963ad0da82082256c9d40296aa",
-    "createdAt": 1786349943962
+    "token": "a53f82e61e66cee4d7fe32f3b389704a",
+    "createdAt": 1786350378702
   },
   "pcie": {
     "username": "pcie",
     "role": "domain_owner",
     "name": "PCIe",
-    "token": "758cfbe64d076747761adbeae8d6a852",
-    "createdAt": 1786000642521
+    "token": "e247e7f627c0815e1bcd6e7ecc20f795",
+    "createdAt": 1786350378870
+  },
+  "kobe": {
+    "username": "kobe",
+    "role": "admin",
+    "name": "Kobe",
+    "token": "f86d095df62d476c355c39e933cbe8c6",
+    "createdAt": 1786350378763
   }
 }
