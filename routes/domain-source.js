@@ -54,6 +54,43 @@ function sourceProject(req) {
     return p || DEFAULT_SOURCE_PROJECT;
 }
 
+// GET /api/data/domain-source/users?jiraProject=XXXX[&q=关键字] — 负责人候选集合
+// 返回: 1) components 的 lead 全集(确定候选, 对应 domain owner)
+//       2) 若带 q 参数, 追加全局 user/search 搜索结果(输入时补全)
+router.get('/domain-source/users', auth.authenticateToken, async function(req, res) {
+    var proj = sourceProject(req);
+    var q = (req.query.q || '').trim();
+    try {
+        var rComp = await jiraGet('/rest/api/2/project/' + proj + '/components');
+        if (!rComp.ok) return res.status(502).json({ success: false, error: rComp.error || ('JIRA HTTP ' + rComp.status) });
+
+        var users = [], seen = {};
+        (rComp.data || []).forEach(function(c) {
+            var lead = c.lead || {};
+            var dn = (lead.displayName || '').trim();
+            if (!dn || seen[dn]) return;
+            seen[dn] = true;
+            users.push({ name: lead.name || '', displayName: dn, active: lead.active !== false, source: 'component-lead' });
+        });
+
+        if (q) {
+            var rSearch = await jiraGet('/rest/api/2/user/search?username=' + encodeURIComponent(q) + '&maxResults=20');
+            if (rSearch.ok && Array.isArray(rSearch.data)) {
+                rSearch.data.forEach(function(u) {
+                    var dn = (u.displayName || '').trim();
+                    if (!dn || seen[dn]) return;
+                    seen[dn] = true;
+                    users.push({ name: u.name || '', displayName: dn, active: u.active !== false, source: 'search' });
+                });
+            }
+        }
+        users.sort(function(a, b) { return a.displayName.localeCompare(b.displayName); });
+        res.json({ success: true, project: proj, users: users });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // GET /api/data/domain-source/projects — 可选的 JIRA 项目列表(供下拉,只读)
 router.get('/domain-source/projects', auth.authenticateToken, async function(req, res) {
     try {
