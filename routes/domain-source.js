@@ -1,5 +1,6 @@
-// Domain sync from JIRA BR200 components
+// Domain sync from JIRA components (component = Domain)
 // 组件 = Domain, 组件 lead = Domain owner, 组件描述 = notes
+// 支持选择 JIRA 项目: ?jiraProject=BR200 (默认取 env DOMAIN_SOURCE_PROJECT 或 BR200)
 // JIRA 组件页: https://jira01.birentech.com/projects/BR200?selectedItem=com.atlassian.jira.jira-projects-plugin:components-page
 
 var express = require('express');
@@ -14,7 +15,7 @@ var logOperation = logger.logOperation;
 
 var JIRA_BASE = process.env['JIRA_BASE_URL'] || 'https://jira01.birentech.com';
 var JIRA_PAT = process.env['JIRA_PAT'] || '';
-var CONF_PROJECT_KEY = process.env['DOMAIN_SOURCE_PROJECT'] || 'BR200';
+var DEFAULT_SOURCE_PROJECT = process.env['DOMAIN_SOURCE_PROJECT'] || 'BR200';
 
 function jiraGet(path) {
     return new Promise(function(resolve) {
@@ -48,44 +49,70 @@ function jiraGet(path) {
     });
 }
 
-// GET /api/data/domain-source — 拉取 JIRA 组件列表(只读预览,不落库)
-router.get('/domain-source', auth.authenticateToken, async function(req, res) {
+function sourceProject(req) {
+    var p = (req.query.jiraProject || '').trim().toUpperCase();
+    return p || DEFAULT_SOURCE_PROJECT;
+}
+
+// GET /api/data/domain-source/projects — 可选的 JIRA 项目列表(供下拉,只读)
+router.get('/domain-source/projects', auth.authenticateToken, async function(req, res) {
     try {
-        var r = await jiraGet('/rest/api/2/project/' + CONF_PROJECT_KEY + '/components');
+        var r = await jiraGet('/rest/api/2/project?maxResults=200&fields=key,name');
         if (!r.ok) return res.status(502).json({ success: false, error: r.error || ('JIRA HTTP ' + r.status) });
-        res.json({ success: true, project: CONF_PROJECT_KEY, components: r.data });
+        var list = (r.data || []).map(function(p) {
+            return { key: p.key, name: p.name };
+        }).sort(function(a, b) { return a.key.localeCompare(b.key); });
+        res.json({ success: true, projects: list });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
 });
 
-// POST /api/domain-source/sync?project=br288y — 组件 upsert 进 domains
+// GET /api/data/domain-source?jiraProject=XXXX — 拉取指定 JIRA 项目组件列表(只读预览,不落库)
+router.get('/domain-source', auth.authenticateToken, async function(req, res) {
+    var proj = sourceProject(req);
+    try {
+        var r = await jiraGet('/rest/api/2/project/' + proj + '/components');
+        if (!r.ok) return res.status(502).json({ success: false, error: r.error || ('JIRA HTTP ' + r.status) });
+        res.json({ success: true, project: proj, components: r.data });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// POST /api/data/domain-source/sync?project=br288y&jiraProject=XXXX — 组件 upsert 进 domains
 router.post('/domain-source/sync', auth.authenticateToken, async function(req, res) {
     var projectId = req.query.project || 'gpu-bringup';
+    var jiraProj = sourceProject(req);
     try {
-        var r = await jiraGet('/rest/api/2/project/' + CONF_PROJECT_KEY + '/components');
+        var r = await jiraGet('/rest/api/2/project/' + jiraProj + '/components');
         if (!r.ok) return res.status(502).json({ success: false, error: r.error || ('JIRA HTTP ' + r.status) });
 
         var data = await loadProjectData(projectId);
         var existing = data.domains || [];
-        var byJiraId = {};
-        existing.forEach(function(d) { if (d.jiraComponentId) byJiraId[d.jiraComponentId] = d; });
+        var byKey = {};  // jiraProject + '/' + jiraComponentId → domain
+        existing.forEach(function(d) {
+            if (d.jiraComponentId) byKey[d.jiraProject + '/' + d.jiraComponentId] = d;
+        });
 
-        var created = [], updated = [], matchedByName = [], errors = [];
+        var created = [], updated = [], errors = [];
         r.data.forEach(function(c) {
             try {
                 var leadName = (c.lead && (c.lead.displayName || c.lead.name)) || '';
-                var d = byJiraId[c.id];
+                var key = jiraProj + '/' + c.id;
+                var d = byKey[key];
                 if (!d) {
-                    // 后端项目里已有同名 domain(没有 jiraComponentId 的历史数据)
-                    d = existing.find(function(x) { return (x.name || '').toLowerCase() === (c.name || '').toLowerCase(); });
-                    if (d) d.jiraComponentId = String(c.id);
+                    // 同源同名的历史 domain(无 jiraComponentId 或旧源) → 绑到当前源
+                    d = existing.find(function(x) {
+                        return !x.jiraComponentId && (x.name || '').toLowerCase() === (c.name || '').toLowerCase();
+                    });
+                    if (d) { d.jiraComponentId = String(c.id); d.jiraProject = jiraProj; }
                 }
                 if (d) {
-                    // 更新 lead/notes,保留手动状态
                     if (leadName && d.owner !== leadName) d.owner = leadName;
                     if (c.description && d.notes !== c.description) d.notes = c.description;
                     d.jiraLeadKey = (c.lead && c.lead.name) || d.jiraLeadKey || '';
+                    d.jiraProject = jiraProj;
                     d.syncedAt = new Date().toISOString();
                     updated.push(c.name);
                 } else {
@@ -96,6 +123,7 @@ router.post('/domain-source/sync', auth.authenticateToken, async function(req, r
                         status: 'not-started',
                         notes: c.description || '',
                         jiraComponentId: String(c.id),
+                        jiraProject: jiraProj,
                         jiraLeadKey: (c.lead && c.lead.name) || '',
                         syncedAt: new Date().toISOString()
                     });
@@ -107,12 +135,9 @@ router.post('/domain-source/sync', auth.authenticateToken, async function(req, r
         data.domains = existing;
         data.lastUpdated = new Date().toLocaleString('zh-CN');
         await saveProjectData(projectId, data);
-        logOperation(req.user.username, 'SYNC', 'domains', { projectId: projectId, componentCount: r.data.length });
+        logOperation(req.user.username, 'SYNC', 'domains', { projectId: projectId, jiraProject: jiraProj, componentCount: r.data.length });
 
-        res.json({
-            success: true,
-            summary: { created: created, updated: updated, errors: errors, total: r.data.length }
-        });
+        res.json({ success: true, source: jiraProj, summary: { created: created, updated: updated, errors: errors, total: r.data.length } });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }
