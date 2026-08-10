@@ -20,6 +20,7 @@
     <style id="theme-inline">
         /* ═══ 与 kpi-portal 统一深色主题 (内联, 优先级最高, 防缓存/加载顺序问题) ═══ */
         html, body {
+            color-scheme: dark !important;
             background: radial-gradient(1200px 500px at 20% -10%, #1b2740 0%, #0f1420 55%) fixed !important;
             background-color: #0f1420 !important;
             color: #e6e9f2 !important;
@@ -63,7 +64,26 @@
             border-radius: 6px !important;
         }
         body input::placeholder, body textarea::placeholder { color: #8b93a7 !important; }
+        /* Chrome autofill 强制深底(否则填充后白/淡黄底) */
+        input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus,
+        textarea:-webkit-autofill, select:-webkit-autofill {
+            -webkit-box-shadow: 0 0 0 1000px #1d2436 inset !important;
+            -webkit-text-fill-color: #e6e9f2 !important;
+            caret-color: #e6e9f2 !important;
+        }
+        /* select: 原生白面板 → 深色面板 + 自定义箭头 */
+        body select {
+            color-scheme: dark !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            padding-right: 26px !important;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%238b93a7'/></svg>") !important;
+            background-repeat: no-repeat !important;
+            background-position: right 8px center !important;
+        }
         body select option { background-color: #1d2436 !important; color: #e6e9f2 !important; }
+        body select option:checked { background-color: #4f8cff !important; color: #fff !important; }
         /* 按钮: 与门户一致蓝紫渐变 */
         body .add-btn, body .modal-btn, body .modal-save-btn, body .modal-confirm-btn,
         body .gate-btn, body .login-btn, body .filter-btn {

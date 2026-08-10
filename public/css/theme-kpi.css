@@ -13,6 +13,7 @@
 }
 
 html, body {
+    color-scheme: dark;
     background: radial-gradient(1200px 500px at 20% -10%, #1b2740 0%, var(--bg) 55%) fixed !important;
     background-color: var(--bg) !important;
     color: var(--text) !important;
@@ -69,8 +70,8 @@ input, select, textarea,
     border-radius: 6px;
 }
 input::placeholder, textarea::placeholder { color: var(--muted) !important; }
-select option { background-color: var(--panel2); color: var(--text); }
-select option:checked { background-color: var(--panel); color: var(--text); }
+select option { background-color: var(--panel2) !important; color: var(--text) !important; }
+select option:hover, select option:checked { background-color: var(--accent) !important; }
 
 /* ---------- 按钮 ---------- */
 .add-btn, .modal-btn, .modal-save-btn, .modal-confirm-btn, .gate-btn, .login-btn,
