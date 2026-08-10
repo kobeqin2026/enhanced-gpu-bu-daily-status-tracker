@@ -77,6 +77,17 @@ function renderDomains(domains) {
     populateDomainDropdowns();
 }
 
+// 🔍 搜索 JIRA 用户补全负责人候选
+function searchJiraOwner() {
+    var domain = App.data.domains.find(function(d) { return d.id === App.currentEditDomainId; });
+    if (!domain) return;
+    var q = window.prompt('输入 JIRA 用户关键字(姓名或工号, 如 Feng 或 E00272):', '');
+    if (q === null) return;  // 取消
+    q = q.trim();
+    if (!q) return;
+    loadJiraOwnerOptions(domain.jiraProject || 'BR200', q);
+}
+
 function editDomain(domainId) {
     var domain = App.data.domains.find(function(d) { return d.id === domainId; });
     if (!domain) return;
@@ -87,7 +98,51 @@ function editDomain(domainId) {
     document.getElementById('edit-domain-status').value = domain.status;
     document.getElementById('edit-domain-notes').value = domain.notes;
     
+    // 负责人从 JIRA 用户列表选择(按 domain.jiraProject, 缺省 BR200)
+    loadJiraOwnerOptions(domain.jiraProject || 'BR200');
+    
     openModal('edit-domain-modal');
+}
+
+// 加载 JIRA 用户填充负责人 datalist(组件 lead 全集; 带 q 时追加搜索)
+async function loadJiraOwnerOptions(jiraProject, q) {
+    var dl = document.getElementById('jira-owner-options');
+    var hint = document.getElementById('owner-source-hint');
+    if (!dl) return;
+    var url = '/api/data/domain-source/users?jiraProject=' + encodeURIComponent(jiraProject);
+    if (q) url += '&q=' + encodeURIComponent(q);
+    if (q && hint) hint.textContent = '搜索中...';
+    try {
+        var resp = await fetch(url, {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store'
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        var j = await resp.json();
+        if (!j.success) throw new Error(j.error || '拉取失败');
+        var frag = document.createDocumentFragment();
+        (j.users || []).forEach(function(u) {
+            var opt = document.createElement('option');
+            opt.value = u.displayName;
+            opt.label = u.displayName + ' (' + u.name + (u.source === 'component-lead' ? ', 组件负责人' : '') + ')';
+            frag.appendChild(opt);
+        });
+        dl.innerHTML = '';
+        dl.appendChild(frag);
+        if (hint) {
+            var leadCount = (j.users || []).filter(function(u) { return u.source === 'component-lead'; }).length;
+            hint.textContent = q
+                ? '共 ' + (j.users || []).length + ' 个候选(项目 ' + j.project + '), 含搜索补全'
+                : leadCount + ' 位组件负责人(项目 ' + j.project + ')';
+        }
+    } catch (e) {
+        if (!q) {
+            dl.innerHTML = '';
+            if (hint) hint.textContent = 'JIRA 用户加载失败: ' + e.message;
+        }
+        console.error('loadJiraOwnerOptions:', e.message);
+    }
 }
 
 function closeEditDomainModal() {
