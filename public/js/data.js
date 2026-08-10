@@ -133,6 +133,7 @@ async function loadDataFromAPI() {
         renderDailyProgress(App.data.dailyProgress);
         renderBUExitCriteria(App.data.buExitCriteria);
         updateUIBasedOnRole();
+        if (typeof loadJiraDomainProjects === 'function') loadJiraDomainProjects();
         
         showSyncStatus('✓ 数据已从服务器同步', 'success');
         return true;

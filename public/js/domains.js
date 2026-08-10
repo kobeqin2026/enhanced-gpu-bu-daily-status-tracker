@@ -159,13 +159,57 @@ function addNewDomain() {
 
 // ===== JIRA 组件同步(组件 = Domain, lead = owner) =====
 // JIRA 组件页: https://jira01.birentech.com/projects/BR200?selectedItem=...:components-page
+
+// 加载 JIRA 项目下拉(供选择从哪个项目导组件)
+async function loadJiraDomainProjects() {
+    var sel = document.getElementById('jira-domain-source-select');
+    if (!sel) return;
+    try {
+        var resp = await fetch('/api/data/domain-source/projects', {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store'
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        var j = await resp.json();
+        if (!j.success) throw new Error(j.error || '拉取失败');
+        var saved = localStorage.getItem('domainSourceJiraProject') || 'BR200';
+        var frag = document.createDocumentFragment();
+        (j.projects || []).forEach(function(p) {
+            var opt = document.createElement('option');
+            opt.value = p.key;
+            opt.textContent = p.key + ' - ' + p.name;
+            if (p.key === saved) opt.selected = true;
+            frag.appendChild(opt);
+        });
+        sel.innerHTML = '';
+        sel.appendChild(frag);
+        if (!saved || !(j.projects || []).some(function(p) { return p.key === saved; })) {
+            sel.selectedIndex = 0;
+        }
+    } catch (e) {
+        sel.innerHTML = '<option value="">项目加载失败</option>';
+        console.error('loadJiraDomainProjects:', e.message);
+    }
+}
+
+function getSelectedJiraProject() {
+    var sel = document.getElementById('jira-domain-source-select');
+    var proj = (sel && sel.value) || '';
+    if (!proj) { alert('请先选择JIRA项目'); return ''; }
+    localStorage.setItem('domainSourceJiraProject', proj);
+    return proj;
+}
+
 async function syncDomainsFromJira() {
     if (!App.currentProject) { alert('请先选择项目'); return; }
+    var jiraProj = getSelectedJiraProject();
+    if (!jiraProj) return;
     var btn = document.getElementById('sync-domains-btn');
     var oldText = btn ? btn.textContent : '';
     if (btn) { btn.disabled = true; btn.textContent = '同步中...'; }
     try {
-        var resp = await fetch('/api/data/domain-source/sync?project=' + encodeURIComponent(App.currentProject), {
+        var resp = await fetch('/api/data/domain-source/sync?project=' + encodeURIComponent(App.currentProject) + '&jiraProject=' + encodeURIComponent(jiraProj), {
             method: 'POST',
             credentials: 'same-origin',
             cache: 'no-store'
@@ -174,7 +218,7 @@ async function syncDomainsFromJira() {
         var j = await resp.json();
         if (!j.success) throw new Error(j.error || '同步失败');
         var s = j.summary;
-        var msg = '从 JIRA 同步完成: 新建 ' + (s.created || []).length + ' 个, 更新 ' + (s.updated || []).length + ' 个';
+        var msg = '从 JIRA [' + jiraProj + '] 同步完成: 新建 ' + (s.created || []).length + ' 个, 更新 ' + (s.updated || []).length + ' 个';
         if (s.errors && s.errors.length) msg += ', 错误 ' + s.errors.length + ': ' + s.errors.join('; ');
         alert(msg);
         await loadDataFromAPI();
@@ -187,8 +231,10 @@ async function syncDomainsFromJira() {
 }
 
 async function previewJiraDomains() {
+    var jiraProj = getSelectedJiraProject();
+    if (!jiraProj) return;
     try {
-        var resp = await fetch('/api/data/domain-source', {
+        var resp = await fetch('/api/data/domain-source?jiraProject=' + encodeURIComponent(jiraProj), {
             method: 'GET',
             credentials: 'same-origin',
             cache: 'no-store'
@@ -200,7 +246,7 @@ async function previewJiraDomains() {
             var lead = (c.lead && (c.lead.displayName || c.lead.name)) || '(无负责人)';
             return c.name + ' → ' + lead;
         }).join('\n');
-        alert('JIRA 项目 ' + j.project + ' 组件(' + list.length + ' 行):\n\n' + list);
+        alert('JIRA 项目 [' + jiraProj + '] 组件(' + (j.components || []).length + ' 个):\n\n' + list);
     } catch (e) {
         alert('拉取失败: ' + e.message);
     }
