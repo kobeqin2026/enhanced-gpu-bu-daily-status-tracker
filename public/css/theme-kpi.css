@@ -57,22 +57,30 @@ h2 {
 .status-table tbody tr:hover td { background: var(--panel2) !important; }
 
 /* ---------- 表单控件 ---------- */
-input, select, textarea {
+input, select, textarea,
+.domain-input, .owner-input, .notes-input, .bug-input, .task-input,
+.bug-id-input, .bug-domain-input, .bug-description-input, .bug-severity-select, .bug-status-select,
+.task-priority-select, .status-select, .daily-domain-select, .bu-criteria-status-select,
+.filter-input, .filter-select, .daily-date-input, .daily-domain-input, .daily-content-input,
+.bu-criteria-index-input, .bu-criteria-domain-input, .bu-criteria-content-input, .bu-criteria-owner-input {
     background-color: var(--panel2) !important;
     color: var(--text) !important;
     border: 1px solid var(--border) !important;
     border-radius: 6px;
 }
 input::placeholder, textarea::placeholder { color: var(--muted) !important; }
+select option { background-color: var(--panel2); color: var(--text); }
+select option:checked { background-color: var(--panel); color: var(--text); }
 
 /* ---------- 按钮 ---------- */
-.add-btn, .modal-btn, .modal-save-btn, .modal-confirm-btn, .gate-btn, .login-btn {
+.add-btn, .modal-btn, .modal-save-btn, .modal-confirm-btn, .gate-btn, .login-btn,
+.filter-btn {
     background: linear-gradient(135deg, var(--accent), #6a5cff) !important;
     border: none !important;
     color: #fff !important;
     border-radius: 8px !important;
 }
-.add-btn:hover, .modal-btn:hover, .gate-btn:hover, .login-btn:hover { opacity: .88; }
+.add-btn:hover, .modal-btn:hover, .gate-btn:hover, .login-btn:hover, .filter-btn:hover { opacity: .88; }
 .modal-cancel-btn, .modal-delete-btn { background: var(--panel2) !important; border: 1px solid var(--border) !important; color: var(--text) !important; }
 
 /* ---------- 弹窗 ---------- */
