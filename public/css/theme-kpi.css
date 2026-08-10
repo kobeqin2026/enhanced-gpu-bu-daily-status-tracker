@@ -1,0 +1,117 @@
+/* ============================================================
+   theme-kpi.css — 与 kpi-portal 聚合平台统一的深色主题覆盖层
+   设计令牌与 kpi-portal (public/index.html) 完全一致:
+   --bg #0f1420 / --panel #171d2b / --panel2 #1d2436 / --border #2a3350
+   --text #e6e9f2 / --muted #8b93a7 / --accent #4f8cff 霓虹系
+   只覆盖颜色/背景/圆角/阴影, 不改变任何布局与 JS 逻辑。
+   ============================================================ */
+
+:root {
+    --bg: #0f1420; --panel: #171d2b; --panel2: #1d2436; --border: #2a3350;
+    --text: #e6e9f2; --muted: #8b93a7; --accent: #4f8cff;
+    --green: #3ddc84; --red: #ff5c5c; --yellow: #ffc53d; --purple: #b57bff; --teal: #22d3ee; --orange: #ff9f43;
+}
+
+html, body {
+    background: radial-gradient(1200px 500px at 20% -10%, #1b2740 0%, var(--bg) 55%) fixed !important;
+    background-color: var(--bg) !important;
+    color: var(--text) !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.container {
+    max-width: 1280px;
+    background: linear-gradient(160deg, var(--panel) 0%, #131a2a 100%) !important;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.35);
+}
+
+h1 { color: var(--text) !important; }
+h2 {
+    color: var(--text) !important;
+    border-bottom-color: var(--accent) !important;
+}
+
+/* ---------- 顶部信息条 ---------- */
+.project-info, .milestone-item, .notes-section {
+    background: var(--panel2) !important;
+    border-color: var(--border) !important;
+    border-radius: 10px;
+}
+.milestone-date, .update-timestamp { color: var(--muted) !important; }
+
+/* ---------- 表格 ---------- */
+.status-table, .status-table th {
+    border-color: var(--border) !important;
+}
+.status-table th {
+    background: var(--panel2) !important;
+    color: var(--text) !important;
+}
+.status-table td {
+    background: var(--panel) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+.status-table tbody tr:hover td { background: var(--panel2) !important; }
+
+/* ---------- 表单控件 ---------- */
+input, select, textarea {
+    background-color: var(--panel2) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 6px;
+}
+input::placeholder, textarea::placeholder { color: var(--muted) !important; }
+
+/* ---------- 按钮 ---------- */
+.add-btn, .modal-btn, .modal-save-btn, .modal-confirm-btn, .gate-btn, .login-btn {
+    background: linear-gradient(135deg, var(--accent), #6a5cff) !important;
+    border: none !important;
+    color: #fff !important;
+    border-radius: 8px !important;
+}
+.add-btn:hover, .modal-btn:hover, .gate-btn:hover, .login-btn:hover { opacity: .88; }
+.modal-cancel-btn, .modal-delete-btn { background: var(--panel2) !important; border: 1px solid var(--border) !important; color: var(--text) !important; }
+
+/* ---------- 弹窗 ---------- */
+.modal-content {
+    background: var(--panel) !important;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.5);
+}
+.modal-title, .modal-header { color: var(--text) !important; }
+.modal-header { border-bottom-color: var(--border) !important; }
+
+/* ---------- 登录门 & 项目门 (与门户登录卡一致) ---------- */
+.gate-card, .login-section, .login-box {
+    background: linear-gradient(160deg, var(--panel) 0%, #131a2a 100%) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 12px 40px rgba(0,0,0,.45) !important;
+}
+.gate-title, .login-title { color: var(--text) !important; }
+.gate-err { color: var(--red) !important; }
+.gate-overlay { background: rgba(15,20,32,.92) !important; }
+
+/* ---------- KPI/统计卡片风格 (如果页面有数值卡) ---------- */
+.stat-card, .kpi-card, .metric-card {
+    background: var(--panel) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 14px !important;
+}
+
+/* ---------- 杂项 ---------- */
+#sync-status.sync-info { color: var(--accent) !important; }
+#sync-status.sync-success { color: var(--green) !important; }
+#sync-status.sync-error { color: var(--red) !important; }
+.btn-edit, .edit-btn { background: var(--yellow) !important; color: #222 !important; }
+.btn-delete, .delete-btn { background: var(--red) !important; color: #fff !important; }
+a { color: var(--accent) !important; }
+
+/* 滚动条适配深色 */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--panel); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
