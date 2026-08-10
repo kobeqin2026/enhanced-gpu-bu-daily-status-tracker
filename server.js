@@ -20,6 +20,10 @@ sessions.setupGracefulShutdown();
 var app = express();
 var PORT = process.env.PORT || 3000;
 
+// 禁用 ETag: API 响应带 ETag 会让浏览器条件请求返回 304, 304 无 body 导致前端 fetch .json() 抛错/挂起
+// (症状: domain_owner 登录后"项目一直在加载中" - verify 304 卡死 loadSavedUser -> initProjects 永不执行)
+app.disable('etag');
+
 // Middleware
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
@@ -38,12 +42,22 @@ var diagnoseLimiter = rateLimit({
 });
 app.use('/api/', generalLimiter);
 
+// 所有 /api 响应禁用缓存 — ETag/304 会让 fetch 拿到无 body 的 304 响应, 前端 .json() 抛错
+app.use('/api/', function(req, res, next) {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    next();
+});
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/projects', require('./routes/projects'));
 app.use('/api/data', require('./routes/data'));
 app.use('/api/data', require('./routes/jira'));
+app.use('/api/testcase', require('./routes/testcase'));
+app.use('/api/data', require('./routes/domain-source'));
 app.use('/api/data/diagnose-bug', diagnoseLimiter);
 
 // Logs route (admin only)
