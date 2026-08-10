@@ -17,6 +17,72 @@
     <link rel="stylesheet" href="/css/bu-exit-criteria.css?v=5.3.0">
     <link rel="stylesheet" href="/css/responsive.css">
     <link rel="stylesheet" href="/css/theme-kpi.css?v=3">
+    <style id="theme-inline">
+        /* ═══ 与 kpi-portal 统一深色主题 (内联, 优先级最高, 防缓存/加载顺序问题) ═══ */
+        html, body {
+            background: radial-gradient(1200px 500px at 20% -10%, #1b2740 0%, #0f1420 55%) fixed !important;
+            background-color: #0f1420 !important;
+            color: #e6e9f2 !important;
+        }
+        .container {
+            background: linear-gradient(160deg, #171d2b 0%, #131a2a 100%) !important;
+            border: 1px solid #2a3350 !important;
+            border-radius: 14px !important;
+            box-shadow: 0 8px 30px rgba(0,0,0,.35) !important;
+        }
+        h1, h2, h3, .modal-title { color: #e6e9f2 !important; }
+        h2 { border-bottom-color: #4f8cff !important; }
+        .project-info, .milestone-item, .notes-section { background: #1d2436 !important; border-color: #2a3350 !important; border-radius: 10px !important; color: #e6e9f2 !important; }
+        .gate-overlay { background: rgba(15,20,32,.95) !important; }
+        .gate-card {
+            background: linear-gradient(160deg, #171d2b 0%, #131a2a 100%) !important;
+            border: 1px solid #2a3350 !important;
+            border-radius: 14px !important;
+            box-shadow: 0 12px 40px rgba(0,0,0,.45) !important;
+        }
+        .gate-card h2, .gate-card h3, .gate-card .gate-title { color: #e6e9f2 !important; }
+        .gate-project-item, .gate-mode-option {
+            background: #1d2436 !important; border: 1px solid #2a3350 !important;
+            color: #e6e9f2 !important; border-radius: 8px !important;
+        }
+        .gate-project-item:hover, .gate-mode-option:hover { border-color: #4f8cff !important; background: #222b42 !important; }
+        .gate-card label, .gate-mode-option label { color: #8b93a7 !important; }
+        /* 全部表单控件强制深底白字 (含 gate 登录框/添加/筛选/进度) */
+        body input, body select, body textarea,
+        body .domain-input, body .owner-input, body .notes-input, body .bug-input, body .task-input,
+        body .bug-id-input, body .bug-domain-input, body .bug-description-input,
+        body .bug-severity-select, body .bug-status-select, body .task-priority-select,
+        body .status-select, body .daily-domain-select, body .bu-criteria-status-select,
+        body .filter-input, body .filter-select, body .daily-date-input, body .daily-domain-input,
+        body .daily-content-input, body .bu-criteria-index-input, body .bu-criteria-domain-input,
+        body .bu-criteria-content-input, body .bu-criteria-owner-input,
+        body .gate-card input, body .gate-card select {
+            background-color: #1d2436 !important;
+            color: #e6e9f2 !important;
+            border: 1px solid #2a3350 !important;
+            border-radius: 6px !important;
+        }
+        body input::placeholder, body textarea::placeholder { color: #8b93a7 !important; }
+        body select option { background-color: #1d2436 !important; color: #e6e9f2 !important; }
+        /* 按钮: 与门户一致蓝紫渐变 */
+        body .add-btn, body .modal-btn, body .modal-save-btn, body .modal-confirm-btn,
+        body .gate-btn, body .login-btn, body .filter-btn {
+            background: linear-gradient(135deg, #4f8cff, #6a5cff) !important;
+            border: none !important;
+            color: #fff !important;
+            border-radius: 8px !important;
+        }
+        body .add-btn:hover, body .gate-btn:hover, body .login-btn:hover, body .filter-btn:hover { opacity: .88; }
+        body .modal-cancel-btn, body .modal-delete-btn {
+            background: #1d2436 !important; border: 1px solid #2a3350 !important; color: #e6e9f2 !important;
+        }
+        .status-table th { background: #1d2436 !important; color: #e6e9f2 !important; border-color: #2a3350 !important; }
+        .status-table td { background: #171d2b !important; color: #e6e9f2 !important; border-color: #2a3350 !important; }
+        .status-table tbody tr:hover td { background: #1d2436 !important; }
+        .modal-content { background: #171d2b !important; border: 1px solid #2a3350 !important; border-radius: 14px !important; }
+        .modal-header { border-bottom-color: #2a3350 !important; }
+        input[type="date"] { color-scheme: dark !important; }
+    </style>
 </head>
 <body class="gated">
     <style>
