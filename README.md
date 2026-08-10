@@ -237,11 +237,6 @@ enhanced-gpu-bu-daily-status-tracker/
 - ✅ KPI 数字动画正确递增/递减
 - ✅ 两个筛选器可独立或组合使用
 
-#### 🔄 GitHub同步
-- **同步方式**: 使用GraphQL API绕过公司SSL代理限制（`git push` HTTPS POST被拦截）
-- **同步脚本**: `~/scripts/github-sync.py`（基于 `gh api graphql --input -` stdin传输）
-- **同步耗时**: ~51秒完成
-
 ---
 
 ### v5.5.4 (2026-06-16)
@@ -251,7 +246,7 @@ enhanced-gpu-bu-daily-status-tracker/
 
 **1. VLM模型切换: mimo-v2.5 → qwen-vl**
 - `lib/vision-analysis.js` 默认VLM模型从 `mimo-v2.5` 改为 `qwen-vl`
-- 原因: aiapiidc.birentech.com API上 `mimo-v2.5` 不可用，`qwen-vl` 已验证可正常工作
+- 原因: 当前API上 `mimo-v2.5` 不可用，`qwen-vl` 已验证可正常工作
 - 测试验证: 使用1x1白色PNG测试，`qwen-vl` 返回 "The image is a plain, uniform white square" — 确认视觉能力正常
 - 环境变量优先级: `VLM_MODEL` > `BAILIAN_API_KEY`(fallback) > 默认值 `qwen-vl`
 
@@ -291,7 +286,7 @@ VLM通过3个环节影响诊断质量:
 - 限制: 仅对有附件的Bug有效，无附件Bug不受影响
 
 **当前配置**:
-- VLM模型: `qwen-vl` (aiapiidc.birentech.com)
+- VLM模型: `qwen-vl` (通过环境变量配置)
 - 超时: 30秒/张(可优化到8秒)
 - 并发: 最多3张/批
 - 缓存: 24小时

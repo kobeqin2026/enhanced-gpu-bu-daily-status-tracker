@@ -6,11 +6,39 @@
     "token": "7e534629a8e3a863fabc9cf391f4429a",
     "createdAt": 1777256036208
   },
+  "jtag": {
+    "username": "jtag",
+    "role": "domain_owner",
+    "name": "JTAG",
+    "token": "f8c87cbda2368d2f765183b31c8e90d9",
+    "createdAt": 1785897070800
+  },
+  "board": {
+    "username": "board",
+    "role": "domain_owner",
+    "name": "Board",
+    "token": "610aaf282af735dcf9b1de47afad0437",
+    "createdAt": 1785997563993
+  },
   "admin": {
     "username": "admin",
     "role": "admin",
     "name": "管理员",
-    "token": "a09b89c3cee0f0095e0e0c1f04ab07cc",
-    "createdAt": 1778835705066
+    "token": "d080e2576b9839afe9b21aa804bc2d95",
+    "createdAt": 1786342628420
+  },
+  "kobe": {
+    "username": "kobe",
+    "role": "admin",
+    "name": "Kobe",
+    "token": "f388a4cc35525f9e56ea508b67021cf5",
+    "createdAt": 1786341596731
+  },
+  "pcie": {
+    "username": "pcie",
+    "role": "domain_owner",
+    "name": "PCIe",
+    "token": "758cfbe64d076747761adbeae8d6a852",
+    "createdAt": 1786000642521
   }
 }
