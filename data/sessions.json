@@ -24,15 +24,8 @@
     "username": "admin",
     "role": "admin",
     "name": "管理员",
-    "token": "e0c208bcbd64812335ea1318959f48f6",
-    "createdAt": 1786348749685
-  },
-  "kobe": {
-    "username": "kobe",
-    "role": "admin",
-    "name": "Kobe",
-    "token": "f388a4cc35525f9e56ea508b67021cf5",
-    "createdAt": 1786341596731
+    "token": "4c4ce8963ad0da82082256c9d40296aa",
+    "createdAt": 1786349943962
   },
   "pcie": {
     "username": "pcie",
