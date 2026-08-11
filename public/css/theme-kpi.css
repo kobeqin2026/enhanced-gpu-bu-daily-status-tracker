@@ -112,6 +112,26 @@ select option:hover, select option:checked { background-color: var(--accent) !im
     border-radius: 14px !important;
 }
 
+/* ---------- 区块容器深色化 (add/filter/daily section 的浅色大框) ---------- */
+.add-domain-section, .add-bug-section, .add-task-section, .daily-progress-section,
+.daily-progress-input-section, .bu-exit-criteria-section, .filter-section,
+.domain-section, .bug-section, .daily-progress-block, .status-block, .section-card, .data-section {
+    background: var(--panel2) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    color: var(--text) !important;
+}
+.add-domain-section h3, .add-bug-section h3, .filter-section h3,
+.daily-progress-section h3, .bu-exit-criteria-section h3 { color: var(--text) !important; }
+.status-table tr:nth-child(even) td, .tasks-table tr:nth-child(even) td,
+.bu-exit-criteria-table tr:nth-child(even) td, .bug-table tr:nth-child(even) td,
+.daily-progress-table tr:nth-child(even) td { background-color: var(--panel2) !important; }
+.daily-progress-input-form, .bug-form, .task-form, .domain-form {
+    background: var(--panel2) !important;
+    border-color: var(--border) !important;
+}
+.read-only-notice { background-color: var(--panel2) !important; border-color: var(--border) !important; color: var(--yellow) !important; }
+
 /* ---------- 杂项 ---------- */
 #sync-status.sync-info { color: var(--accent) !important; }
 #sync-status.sync-success { color: var(--green) !important; }
