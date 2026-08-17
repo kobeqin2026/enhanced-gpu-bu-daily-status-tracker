@@ -56,5 +56,34 @@
       "low": 1,
       "lowest": 0
     }
+  },
+  {
+    "date": "2026-08-14T06:54:32.323Z",
+    "project": "MPW2",
+    "total": 51,
+    "stats": {
+      "total": 51,
+      "open": 21,
+      "closed": 30,
+      "rejected": 0,
+      "todayNew": 0,
+      "weekClosed": 1,
+      "avgResolutionDays": 67,
+      "overdue": 20
+    },
+    "statusCount": {
+      "open": 0,
+      "triage": 17,
+      "implement": 4,
+      "closed": 30,
+      "rejected": 0
+    },
+    "severityCount": {
+      "highest": 4,
+      "high": 8,
+      "medium": 35,
+      "low": 4,
+      "lowest": 0
+    }
   }
 ]
