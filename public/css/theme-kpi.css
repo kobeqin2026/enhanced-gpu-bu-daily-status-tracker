@@ -144,3 +144,156 @@ a { color: var(--accent) !important; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--panel); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+/* ============================================================
+   jira-dashboard 深色统一 (2026-08-17)
+   除「快速诊断」/「关键字搜索」两张渐变卡外, 全部黑底白字。
+   覆盖: 控制条/图表卡/Bug表/状态徽章/加载/错误/诊断弹窗/搜索结果浮层
+   ============================================================ */
+
+/* ---------- 保留两张渐变卡的原始设计 (还原 theme-kpi 通用 input 覆盖) ---------- */
+.quick-diag-card, .quick-search-card { color: #fff !important; }
+.quick-diag-card h3, .quick-search-card h3,
+.quick-diag-desc, .quick-search-desc { color: #fff !important; opacity: 1 !important; }
+.quick-diag-card input, .quick-search-card input {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border: 2px solid rgba(255, 255, 255, 0.3) !important;
+    border-radius: 6px !important;
+    color: #fff !important;
+}
+.quick-diag-card input::placeholder, .quick-search-card input::placeholder { color: rgba(255, 255, 255, 0.6) !important; }
+.quick-diag-btn { background: #fff !important; color: #764ba2 !important; }
+.quick-search-btn { background: #fff !important; color: #11998e !important; }
+
+/* ---------- 控制条 ---------- */
+.control-bar {
+    background: var(--panel2) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    color: var(--text) !important;
+}
+.control-group label { color: var(--text) !important; }
+.refresh-btn {
+    background: var(--panel2) !important;
+    color: var(--accent) !important;
+    border: 1px solid var(--border) !important;
+}
+
+/* ---------- KPI 卡文字 ---------- */
+.kpi-label { color: var(--muted) !important; }
+
+/* ---------- 图表卡 ---------- */
+.chart-card {
+    background: var(--panel) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.3) !important;
+}
+.chart-card h3, .chart-header-row h3 {
+    color: var(--text) !important;
+    border-bottom: 1px solid var(--border) !important;
+}
+
+/* ---------- Bug 明细表 ---------- */
+#bug-table-section.bug-table-section {
+    background: var(--panel) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    color: var(--text) !important;
+}
+.bug-table-section h3 { color: var(--text) !important; }
+.dashboard-bug-table thead { background: var(--panel2) !important; }
+.dashboard-bug-table th {
+    color: var(--text) !important;
+    border-bottom: 2px solid var(--border) !important;
+}
+.dashboard-bug-table th:hover { background: #222b42 !important; }
+.dashboard-bug-table td {
+    color: var(--text) !important;
+    border-bottom: 1px solid var(--border) !important;
+}
+.dashboard-bug-table tbody tr:nth-child(even) td { background: var(--panel2) !important; }
+.dashboard-bug-table tbody tr:hover td { background: #222b42 !important; }
+tr.row-overdue { background: #2a1622 !important; }
+tr.row-overdue:hover { background: #3a1d2e !important; }
+tr.row-overdue td { background: transparent !important; }
+.bug-count { color: var(--muted) !important; }
+
+/* ---------- 状态徽章 → 深底保留语义色 ---------- */
+.status-badge {
+    background: var(--panel2) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+}
+.status-badge.status-open { color: var(--yellow) !important; border-color: rgba(255, 197, 61, 0.45) !important; }
+.status-badge.status-triage { color: #6db9ff !important; border-color: rgba(109, 185, 255, 0.45) !important; }
+.status-badge.status-implement { color: var(--green) !important; border-color: rgba(61, 220, 132, 0.45) !important; }
+.status-badge.status-closed { color: var(--muted) !important; }
+.status-badge.status-rejected { color: var(--red) !important; border-color: rgba(255, 92, 92, 0.45) !important; }
+
+/* ---------- 加载 / 错误 / 时间戳 ---------- */
+#loading-overlay.loading-overlay {
+    background: rgba(15, 20, 32, 0.92) !important;
+    color: var(--text) !important;
+}
+#error-message.error-message {
+    background: rgba(255, 92, 92, 0.12) !important;
+    border: 1px solid rgba(255, 92, 92, 0.45) !important;
+    color: var(--red) !important;
+}
+.last-updated { color: var(--muted) !important; }
+
+/* ---------- 智能诊断弹窗内部 ---------- */
+.diag-section h4 { color: var(--text) !important; }
+.diag-section p, .diag-section li { color: var(--muted) !important; }
+.diag-confidence {
+    background: var(--panel2) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+}
+#diag-vlm-status.diag-vlm-status {
+    background: var(--panel2) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+}
+.diag-related-section { border-top-color: var(--border) !important; }
+.related-bug-item { border-bottom-color: var(--border) !important; }
+.related-bug-item:hover { background: var(--panel2) !important; }
+.related-bug-project { background: var(--panel2) !important; color: var(--muted) !important; }
+.related-bug-summary, .related-bug-status { color: var(--muted) !important; }
+
+/* ---------- 截图卡 ---------- */
+.screenshot-card {
+    background: var(--panel) !important;
+    border-color: var(--border) !important;
+}
+.screenshot-card-summary, .screenshot-card-key-data, .screenshot-card-key-data strong { color: var(--text) !important; }
+.screenshot-card-key-data { border-top-color: var(--border) !important; }
+.screenshot-keyword-tag { background: var(--panel2) !important; color: var(--muted) !important; }
+.screenshot-card-pending { border-color: rgba(255, 159, 67, 0.6) !important; background: rgba(255, 159, 67, 0.08) !important; }
+
+/* ---------- 关键字搜索结果浮层 (页面其他表面, 深色; 卡片本身保持渐变) ---------- */
+#quick-search-results.quick-search-results {
+    background: var(--panel2) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5) !important;
+}
+.search-results-header {
+    background: var(--panel) !important;
+    color: var(--muted) !important;
+    border-bottom-color: var(--border) !important;
+}
+.search-result-item { border-bottom-color: var(--border) !important; }
+.search-result-item:hover { background: #222b42 !important; }
+.search-result-desc, .search-result-meta { color: var(--muted) !important; }
+.search-result-diag-btn {
+    background: var(--panel) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+}
+.search-result-diag-btn:hover { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+.search-highlight {
+    background: rgba(255, 197, 61, 0.25) !important;
+    color: var(--yellow) !important;
+}
+.search-no-results { color: var(--muted) !important; }

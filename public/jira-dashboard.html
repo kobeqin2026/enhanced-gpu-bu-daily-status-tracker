@@ -6,7 +6,87 @@
     <title>JIRA Bug Dashboard - GPU Tracker</title>
     <link rel="stylesheet" href="/css/base.css">
     <link rel="stylesheet" href="/css/jira-dashboard.css?v=9">
-    <link rel="stylesheet" href="/css/theme-kpi.css?v=3">
+    <link rel="stylesheet" href="/css/theme-kpi.css?v=4">
+    <style id="theme-dashboard">
+        /* jira-dashboard 深色统一(与 theme-kpi.css?v=4 同规则, 字面色值防缓存; 快速诊断/关键字搜索两张渐变卡除外) */
+        .quick-diag-card, .quick-search-card { color: #fff !important; }
+        .quick-diag-card h3, .quick-search-card h3,
+        .quick-diag-desc, .quick-search-desc { color: #fff !important; opacity: 1 !important; }
+        .quick-diag-card input, .quick-search-card input,
+        .quick-diag-card select, .quick-search-card select {
+            background: rgba(255, 255, 255, 0.15) !important;
+            border: 2px solid rgba(255, 255, 255, 0.3) !important;
+            border-radius: 6px !important;
+            color: #fff !important;
+        }
+        .quick-diag-card input::placeholder, .quick-search-card input::placeholder { color: rgba(255, 255, 255, 0.6) !important; }
+        .quick-diag-btn { background: #fff !important; color: #764ba2 !important; }
+        .quick-search-btn { background: #fff !important; color: #11998e !important; }
+        .control-bar {
+            background: #1d2436 !important;
+            border: 1px solid #2a3350 !important;
+            border-radius: 10px !important;
+            color: #e6e9f2 !important;
+        }
+        .control-group label { color: #e6e9f2 !important; }
+        .refresh-btn { background: #1d2436 !important; color: #4f8cff !important; border: 1px solid #2a3350 !important; }
+        .kpi-label { color: #8b93a7 !important; }
+        .chart-card {
+            background: #171d2b !important;
+            border: 1px solid #2a3350 !important;
+            border-radius: 12px !important;
+            box-shadow: 0 6px 22px rgba(0, 0, 0, 0.3) !important;
+        }
+        .chart-card h3, .chart-header-row h3 { color: #e6e9f2 !important; border-bottom: 1px solid #2a3350 !important; }
+        #bug-table-section.bug-table-section {
+            background: #171d2b !important;
+            border: 1px solid #2a3350 !important;
+            border-radius: 12px !important;
+            color: #e6e9f2 !important;
+        }
+        .bug-table-section h3 { color: #e6e9f2 !important; }
+        .dashboard-bug-table thead { background: #1d2436 !important; }
+        .dashboard-bug-table th { color: #e6e9f2 !important; border-bottom: 2px solid #2a3350 !important; }
+        .dashboard-bug-table th:hover { background: #222b42 !important; }
+        .dashboard-bug-table td { color: #e6e9f2 !important; border-bottom: 1px solid #2a3350 !important; }
+        .dashboard-bug-table tbody tr:nth-child(even) td { background: #1d2436 !important; }
+        .dashboard-bug-table tbody tr:hover td { background: #222b42 !important; }
+        tr.row-overdue td { background: #2a1622 !important; }
+        tr.row-overdue:hover td { background: #3a1d2e !important; }
+        .bug-count { color: #8b93a7 !important; }
+        .status-badge { background: #1d2436 !important; border: 1px solid #2a3350 !important; color: #e6e9f2 !important; }
+        .status-badge.status-open { color: #ffc53d !important; border-color: rgba(255, 197, 61, 0.45) !important; }
+        .status-badge.status-triage { color: #6db9ff !important; border-color: rgba(109, 185, 255, 0.45) !important; }
+        .status-badge.status-implement { color: #3ddc84 !important; border-color: rgba(61, 220, 132, 0.45) !important; }
+        .status-badge.status-closed { color: #8b93a7 !important; }
+        .status-badge.status-rejected { color: #ff5c5c !important; border-color: rgba(255, 92, 92, 0.45) !important; }
+        #loading-overlay.loading-overlay { background: rgba(15, 20, 32, 0.92) !important; color: #e6e9f2 !important; }
+        #error-message.error-message { background: rgba(255, 92, 92, 0.12) !important; border: 1px solid rgba(255, 92, 92, 0.45) !important; color: #ff5c5c !important; }
+        .last-updated { color: #8b93a7 !important; }
+        .diag-section h4 { color: #e6e9f2 !important; }
+        .diag-section p, .diag-section li { color: #8b93a7 !important; }
+        .diag-confidence { background: #1d2436 !important; border: 1px solid #2a3350 !important; color: #e6e9f2 !important; }
+        #diag-vlm-status.diag-vlm-status { background: #1d2436 !important; border-color: #2a3350 !important; color: #e6e9f2 !important; }
+        .diag-related-section { border-top-color: #2a3350 !important; }
+        .related-bug-item { border-bottom-color: #2a3350 !important; }
+        .related-bug-item:hover { background: #1d2436 !important; }
+        .related-bug-project { background: #1d2436 !important; color: #8b93a7 !important; }
+        .related-bug-summary, .related-bug-status { color: #8b93a7 !important; }
+        .screenshot-card { background: #171d2b !important; border-color: #2a3350 !important; }
+        .screenshot-card-summary, .screenshot-card-key-data, .screenshot-card-key-data strong { color: #e6e9f2 !important; }
+        .screenshot-card-key-data { border-top-color: #2a3350 !important; }
+        .screenshot-keyword-tag { background: #1d2436 !important; color: #8b93a7 !important; }
+        .screenshot-card-pending { border-color: rgba(255, 159, 67, 0.6) !important; background: rgba(255, 159, 67, 0.08) !important; }
+        #quick-search-results.quick-search-results { background: #1d2436 !important; border: 1px solid #2a3350 !important; color: #e6e9f2 !important; box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5) !important; }
+        .search-results-header { background: #171d2b !important; color: #8b93a7 !important; border-bottom-color: #2a3350 !important; }
+        .search-result-item { border-bottom-color: #2a3350 !important; }
+        .search-result-item:hover { background: #222b42 !important; }
+        .search-result-desc, .search-result-meta { color: #8b93a7 !important; }
+        .search-result-diag-btn { background: #171d2b !important; border-color: #2a3350 !important; color: #e6e9f2 !important; }
+        .search-result-diag-btn:hover { background: #4f8cff !important; color: #fff !important; border-color: #4f8cff !important; }
+        .search-highlight { background: rgba(255, 197, 61, 0.25) !important; color: #ffc53d !important; }
+        .search-no-results { color: #8b93a7 !important; }
+    </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
@@ -323,6 +403,6 @@
         </div>
     </div>
 
-    <script src="/js/jira-dashboard.js?v=39"></script>
+    <script src="/js/jira-dashboard.js?v=40"></script>
 </body>
 </html>

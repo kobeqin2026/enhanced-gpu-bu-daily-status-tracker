@@ -537,6 +537,12 @@ var CHART_COLORS = {
 function renderCharts(charts) {
     if (!charts) return;
 
+    // 深色主题: 图表文字/图例/网格线默认色 (canvas 绘制, CSS 无法覆盖)
+    if (typeof Chart !== 'undefined') {
+        Chart.defaults.color = '#e6e9f2';
+        Chart.defaults.borderColor = 'rgba(255,255,255,0.12)';
+    }
+
     // Destroy existing charts
     Object.keys(Dashboard.charts).forEach(function(key) {
         if (Dashboard.charts[key]) {
