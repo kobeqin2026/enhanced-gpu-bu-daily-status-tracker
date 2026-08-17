@@ -11,7 +11,31 @@
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
 </head>
-<body>
+<body class="gated">
+    <style>
+        body.gated { overflow: hidden; }
+        body.gated .container { display: none !important; }
+        .gate-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .gate-card { padding: 34px 40px; width: 400px; max-width: 92vw; text-align: center; }
+        .gate-card h2 { margin: 0 0 6px; }
+        .gate-card p { color: #8b93a7; font-size: 13px; margin: 0 0 20px; }
+        .gate-card input { width: 100%; box-sizing: border-box; padding: 11px 12px; margin: 8px 0; font-size: 14px; outline: none; }
+        .gate-card input:focus { border-color: #4f8cff; }
+        .gate-card .gate-btn { width: 100%; padding: 11px; margin-top: 14px; font-size: 15px; cursor: pointer; }
+        .gate-err { min-height: 18px; margin-top: 10px; }
+        #gate-login-err { text-align: center; }
+    </style>
+    <!-- 统一登录门: 登录前整页不可见 (本地用户 + Hardware 账号回退, 与 Tracker 主页一致) -->
+    <div id="gate-login" class="gate-overlay">
+        <div class="gate-card">
+            <h2 class="gate-title">🔐 用户登录</h2>
+            <p>请使用统一账号登录（管理员 / Domain Owner）</p>
+            <input type="text" id="gate-username" placeholder="用户名" autocomplete="off" />
+            <input type="password" id="gate-password" placeholder="密码" />
+            <button class="gate-btn" onclick="gateLoginSubmit()">登 录</button>
+            <div class="gate-err" id="gate-login-err"></div>
+        </div>
+    </div>
     <div class="container dashboard-container">
         <!-- Header -->
         <div class="dashboard-header">
@@ -22,7 +46,7 @@
         <!-- Login Section -->
         <div class="login-section" id="login-section">
             <span id="login-status"></span>
-            <button id="login-btn" class="login-btn" onclick="showLoginModal()">登录</button>
+            <button id="login-btn" class="login-btn" onclick="showGateLogin()">登录</button>
             <button id="logout-btn" class="logout-btn" onclick="doLogout()" style="display:none;">退出</button>
         </div>
 
@@ -44,19 +68,6 @@
                     <button class="quick-search-btn" onclick="searchBugsByKey()">搜索</button>
                 </div>
                 <div id="quick-search-results" class="quick-search-results" style="display:none;"></div>
-            </div>
-        </div>
-
-        <!-- Login Modal -->
-        <div id="login-modal" class="modal" style="display:none;">
-            <div class="modal-content">
-                <h3>用户登录</h3>
-                <input type="text" id="login-username" placeholder="用户名" />
-                <input type="password" id="login-password" placeholder="密码" />
-                <div class="modal-buttons">
-                    <button class="modal-cancel-btn" onclick="closeLoginModal()">取消</button>
-                    <button class="modal-confirm-btn" onclick="doLogin()">登录</button>
-                </div>
             </div>
         </div>
 
@@ -312,6 +323,6 @@
         </div>
     </div>
 
-    <script src="/js/jira-dashboard.js?v=38"></script>
+    <script src="/js/jira-dashboard.js?v=39"></script>
 </body>
 </html>

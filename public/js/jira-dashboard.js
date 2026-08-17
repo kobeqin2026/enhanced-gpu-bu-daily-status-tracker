@@ -164,45 +164,59 @@ var Dashboard = {
 };
 
 // ============ Auth ============
+// 统一登录门: 与 Tracker 主页一致 — 登录前整页不可见; /api/auth/login 已实现本地 users.json + Hardware 平台回退
 
-function showLoginModal() {
-    document.getElementById('login-modal').style.display = 'flex';
-    document.getElementById('login-username').focus();
+function showGateLogin() {
+    document.body.classList.add('gated');
+    var gate = document.getElementById('gate-login');
+    if (gate) gate.style.display = 'flex';
+    var err = document.getElementById('gate-login-err');
+    if (err) err.textContent = '';
+    var u = document.getElementById('gate-username');
+    if (u) u.value = '';
+    var p = document.getElementById('gate-password');
+    if (p) p.value = '';
+    if (u) u.focus();
 }
 
-function closeLoginModal() {
-    document.getElementById('login-modal').style.display = 'none';
+function enterDashboard() {
+    document.body.classList.remove('gated');
+    var gate = document.getElementById('gate-login');
+    if (gate) gate.style.display = 'none';
+    document.getElementById('control-bar').style.display = 'flex';
+    document.getElementById('quick-actions-section').style.display = 'flex';
+    loadJiraProjects();
 }
 
-async function doLogin() {
-    var username = document.getElementById('login-username').value.trim();
-    var password = document.getElementById('login-password').value;
+async function gateLoginSubmit() {
+    var username = document.getElementById('gate-username').value.trim();
+    var password = document.getElementById('gate-password').value;
+    var errEl = document.getElementById('gate-login-err');
+    if (!errEl) return;
+    errEl.textContent = '';
     if (!username || !password) {
-        alert('请输入用户名和密码');
+        errEl.textContent = '请输入用户名和密码';
         return;
     }
-
     try {
         var resp = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: username, password: password })
+            body: JSON.stringify({ username: username, password: password }),
+            cache: 'no-store'
         });
         var data = await resp.json();
         if (data.success) {
             Dashboard.authToken = data.token;
-            Dashboard.currentUser = data.user.username;
-            Dashboard.userRole = data.user.role;
-            closeLoginModal();
+            Dashboard.currentUser = (data.user && (data.user.name || data.user.username)) || username;
+            Dashboard.userRole = data.user ? data.user.role : 'user';
             updateLoginUI();
-            document.getElementById('control-bar').style.display = 'flex';
-            document.getElementById('quick-actions-section').style.display = 'flex';
-            loadJiraProjects();
+            enterDashboard();
         } else {
-            alert('登录失败: ' + (data.message || '未知错误'));
+            errEl.textContent = data.message || '用户名或密码错误';
         }
     } catch (err) {
-        alert('登录请求失败: ' + err.message);
+        errEl.textContent = '登录失败，请稍后重试';
     }
 }
 
@@ -217,6 +231,7 @@ async function doLogout() {
     document.getElementById('control-bar').style.display = 'none';
     document.getElementById('quick-actions-section').style.display = 'none';
     hideAllData();
+    showGateLogin();
 }
 
 function updateLoginUI() {
@@ -224,10 +239,11 @@ function updateLoginUI() {
     var logoutBtn = document.getElementById('logout-btn');
     var loginStatus = document.getElementById('login-status');
 
-    if (Dashboard.authToken) {
+    if (Dashboard.currentUser) {
         loginBtn.style.display = 'none';
         logoutBtn.style.display = 'inline-block';
-        loginStatus.textContent = '欢迎, ' + Dashboard.currentUser + ' (' + (Dashboard.userRole === 'admin' ? '管理员' : '用户') + ')';
+        var roleText = Dashboard.userRole === 'admin' ? '管理员' : (Dashboard.userRole === 'domain_owner' ? 'Domain Owner' : '用户');
+        loginStatus.textContent = '欢迎, ' + Dashboard.currentUser + ' (' + roleText + ')';
     } else {
         loginBtn.style.display = 'inline-block';
         logoutBtn.style.display = 'none';
@@ -237,16 +253,14 @@ function updateLoginUI() {
 
 async function verifyAuth() {
     try {
-        var resp = await fetch('/api/auth/verify', { credentials: 'same-origin' });
+        var resp = await fetch('/api/auth/verify', { credentials: 'same-origin', cache: 'no-store' });
         var data = await resp.json();
-        if (data.success && data.authenticated) {
+        if (data.success && data.user && data.user.username) {
             Dashboard.authToken = data.token || Dashboard.authToken;
-            Dashboard.currentUser = data.user ? data.user.username : null;
-            Dashboard.userRole = data.user ? data.user.role : null;
+            Dashboard.currentUser = data.user.name || data.user.username;
+            Dashboard.userRole = data.user.role;
             updateLoginUI();
-            document.getElementById('control-bar').style.display = 'flex';
-            document.getElementById('quick-actions-section').style.display = 'flex';
-            loadJiraProjects();
+            enterDashboard();
             return true;
         }
     } catch (e) {}
@@ -1147,20 +1161,19 @@ function onFilterChange() {
 // ============ Keyboard shortcuts ============
 
 document.addEventListener('keydown', function(e) {
-    // Enter on login fields
-    if (e.key === 'Enter' && document.getElementById('login-modal').style.display === 'flex') {
-        doLogin();
+    // Enter on gate login fields
+    if (e.key === 'Enter' && document.getElementById('gate-login') && document.getElementById('gate-login').style.display === 'flex') {
+        gateLoginSubmit();
     }
 });
 
 // ============ Init ============
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Try to verify existing session
+    // Try to verify existing session (统一登录: 已有会话直接进入, 否则显示登录门)
     verifyAuth().then(function(loggedIn) {
         if (!loggedIn) {
-            // Show login prompt
-            document.getElementById('login-status').textContent = '请先登录后查看 Dashboard';
+            showGateLogin();
         }
     });
 });
