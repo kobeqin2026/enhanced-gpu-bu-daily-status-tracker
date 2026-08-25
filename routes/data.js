@@ -48,12 +48,13 @@ router.post('/', auth.authenticateToken, async function(req, res) {
 });
 
 // POST /api/data/daily-summary - 一键总结 daily bringup 状态 (方案C: 规则骨架 + LLM 润色)
-// Body: { projectId 或 ?project=, date: 'YYYY-MM-DD' (默认今天) }
-// 返回: { success, skeleton, ai (LLM润色结果), aiFailed }
+// Body: { projectId 或 ?project=, date: 'YYYY-MM-DD' (默认今天), time: 'HH:MM' (可选, 同一天多次更新时按截至该时刻取快照) }
+// 返回: { success, date, time, skeleton, ai (LLM润色结果), aiFailed }
 router.post('/daily-summary', auth.authenticateToken, async function(req, res) {
     try {
         var projectId = (req.body && req.body.projectId) || req.query.project || 'gpu-bringup';
         var date = (req.body && req.body.date) || new Date().toISOString().split('T')[0];
+        var time = (req.body && req.body.time) || '';
 
         var data = await loadProjectData(projectId);
 
@@ -74,8 +75,8 @@ router.post('/daily-summary', auth.authenticateToken, async function(req, res) {
             console.error('[DailySummary] load projects info error:', e.message);
         }
 
-        // 1. 规则骨架 (纯规则, 保证准确)
-        var skeleton = dailySummary.buildDailySkeleton(data, date, projectInfo);
+        // 1. 规则骨架 (纯规则, 保证准确; time 决定当日快照口径)
+        var skeleton = dailySummary.buildDailySkeleton(data, date, projectInfo, time);
         var skeletonText = dailySummary.skeletonToText(skeleton);
 
         // 2. LLM 润色 (失败降级: aiFailed=true, 前端只展示规则版)
@@ -93,14 +94,14 @@ router.post('/daily-summary', auth.authenticateToken, async function(req, res) {
             ai = null;
         }
 
-        res.json({ success: true, date: date, skeleton: skeleton, ai: ai, aiFailed: aiFailed });
+        res.json({ success: true, date: date, time: time, skeleton: skeleton, ai: ai, aiFailed: aiFailed });
     } catch (error) {
         console.error('[DailySummary] error:', error.message);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// GET /api/data/daily-summary/history?project=xxx - 递增式历史总结列表 (按日期升序, 轻量字段)
+// GET /api/data/daily-summary/history?project=xxx - 递增式历史总结列表 (按 date+time 升序, 轻量字段)
 router.get('/daily-summary/history', auth.authenticateToken, async function(req, res) {
     try {
         var projectId = req.query.project || 'gpu-bringup';
@@ -110,6 +111,7 @@ router.get('/daily-summary/history', auth.authenticateToken, async function(req,
             var crit = skel.criteria || {};
             return {
                 date: r.date,
+                time: r.time || '',
                 createdAt: r.createdAt,
                 updatedAt: r.updatedAt,
                 aiFailed: !!r.aiFailed,
@@ -129,21 +131,22 @@ router.get('/daily-summary/history', auth.authenticateToken, async function(req,
     }
 });
 
-// GET /api/data/daily-summary/history/:date?project=xxx - 单条完整历史总结 (含 skeleton + ai)
+// GET /api/data/daily-summary/history/:date?project=xxx - 指定日期的全部快照 (同一天多次更新 → 多个时刻)
 router.get('/daily-summary/history/:date', auth.authenticateToken, async function(req, res) {
     try {
         var projectId = req.query.project || 'gpu-bringup';
         var list = await projects.loadDailySummaries(projectId);
-        var found = list.find(function(r) { return r.date === req.params.date; });
-        if (!found) return res.status(404).json({ success: false, error: '该日期暂无历史总结' });
-        res.json({ success: true, item: found });
+        var found = list.filter(function(r) { return r.date === req.params.date; });
+        if (!found.length) return res.status(404).json({ success: false, error: '该日期暂无历史总结' });
+        res.json({ success: true, date: req.params.date, items: found });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// POST /api/data/daily-summary/save - 保存/更新一条历史总结 (同日期重新生成则覆盖, 递增存储)
-// Body: { projectId, date: 'YYYY-MM-DD', aiFailed, skeleton, ai }
+// POST /api/data/daily-summary/save - 保存/更新一条历史总结
+// 键 = project+date+time: 同日期同时刻 → 覆盖更新; 同日期不同时刻(多次更新) → 新增快照 (递增存储)
+// Body: { projectId, date: 'YYYY-MM-DD', time: 'HH:MM'(可选), aiFailed, skeleton, ai }
 router.post('/daily-summary/save', auth.authenticateToken, async function(req, res) {
     try {
         var projectId = (req.body && req.body.projectId) || req.query.project || 'gpu-bringup';
@@ -153,15 +156,16 @@ router.post('/daily-summary/save', auth.authenticateToken, async function(req, r
         var record = {
             projectId: projectId,
             date: req.body.date,
+            time: (req.body && req.body.time) || '',
             aiFailed: !!req.body.aiFailed,
             skeleton: req.body.skeleton,
             ai: req.body.ai || null,
             generatedBy: (req.user && req.user.username) || ''
         };
         var result = await projects.upsertDailySummary(projectId, record);
-        logOperation(req.user.username, 'CREATE', 'daily-summary-history', { projectId: projectId, date: record.date, mode: result.mode });
-        console.log('[DailySummary] history ' + result.mode + ' for ' + projectId + ' @ ' + record.date);
-        res.json({ success: true, mode: result.mode, date: record.date });
+        logOperation(req.user.username, 'CREATE', 'daily-summary-history', { projectId: projectId, date: record.date, time: record.time, mode: result.mode });
+        console.log('[DailySummary] history ' + result.mode + ' for ' + projectId + ' @ ' + record.date + ' ' + record.time + ' (dayCount=' + result.dayCount + ')');
+        res.json({ success: true, mode: result.mode, date: record.date, time: record.time, dayCount: result.dayCount });
     } catch (error) {
         logOperation(req.user.username, 'ERROR', 'daily-summary-history', { error: error.message });
         res.status(500).json({ success: false, error: error.message });
