@@ -225,13 +225,23 @@ router.post('/daily-summary/summarize-day', auth.authenticateToken, async functi
             aiFailed = true;
         }
 
-        // 降级: 规则版 dayOverview (基于最新快照 + 快照时间线)
+        // 降级: 规则版 (聚合所有快照的 AI 摘要, 保证复制内容不为空)
         if (!summary) {
+            var ruleHighlights = [];
+            var ruleRisks = [];
+            snaps.forEach(function(s) {
+                if (s.ai && s.ai.overallStatus) {
+                    ruleHighlights.push('[' + (s.time || '全天') + '] ' + String(s.ai.overallStatus).replace(/\s+/g, ' ').trim());
+                }
+                if (s.ai && s.ai.riskAndNextSteps) {
+                    ruleRisks.push('[' + (s.time || '全天') + '] ' + String(s.ai.riskAndNextSteps).replace(/\s+/g, ' ').trim());
+                }
+            });
             summary = {
                 dayOverview: derived.lastOverall ||
-                    ('当天共 ' + snaps.length + ' 个时刻快照 (' + snaps.map(function(s) { return s.time || '全天'; }).join(' / ') + ')，最新状态见快照索引。'),
-                highlights: [],
-                risks: [],
+                    ('当天共 ' + snaps.length + ' 个时刻快照 (' + snaps.map(function(s) { return s.time || '全天'; }).join(' / ') + ')，各时刻概览见"主要进展"。'),
+                highlights: ruleHighlights,
+                risks: ruleRisks,
                 nextSteps: []
             };
         }
