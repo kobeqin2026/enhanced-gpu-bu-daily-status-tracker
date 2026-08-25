@@ -126,11 +126,15 @@ function ownedDomainNames() {
     return out;
 }
 
-// 当前用户能否编辑指定 domain (admin 恒可编辑)
+// 当前用户能否编辑指定 domain (admin 恒可编辑); 支持别名归一: Firmware→FW, PCIe→PCIE 等 (与 CRITERIA_DOMAIN_MAP 一致)
 function canEditDomain(domainName) {
     var owned = ownedDomainNames();
     if (owned === null) return true;
     var k = domainNormKey(domainName);
+    if (typeof CRITERIA_DOMAIN_MAP !== 'undefined' && CRITERIA_DOMAIN_MAP) {
+        var alias = CRITERIA_DOMAIN_MAP[k];
+        if (alias) k = domainNormKey(alias);
+    }
     return owned.some(function(n) { return domainNormKey(n) === k; });
 }
 
