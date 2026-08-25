@@ -287,6 +287,7 @@ function criteriaDomainKey(name) {
 // ===== 状态一致性: 准出标准全部 pass → 自动置为已完成 + 记录执行结束时间 =====
 // 一旦某 domain 的 BU 准出标准全部通过(pass==total), 状态自动变为 completed(已完成),
 // 并记录当下日期为执行结束时间(endDate; 仅首次完成时写入, 不覆盖已有值)。
+// 反向: 标准被改回(不再全部pass)且当前为 completed → 自动回退为 not-started(未开始)并清空 endDate。
 // 在所有写操作(persistData)前调用; 返回是否有变化。
 function reconcileDomainCompletion() {
     var changed = false;
@@ -295,16 +296,23 @@ function reconcileDomainCompletion() {
     var criteriaList = (App.data.buExitCriteria || []);
     (App.data.domains || []).forEach(function(dm) {
         var cList = criteriaList.filter(function(c) { return criteriaDomainKey(c.domain) === criteriaDomainKey(dm.name); });
-        if (!cList.length) return; // 无准出标准的 domain 不自动完成
+        if (!cList.length) return; // 无准出标准的 domain 不自动完成也不回退
         var total = cList.length;
         var pass = cList.filter(function(c) { return c.status === 'pass'; }).length;
-        if (pass === total) {
+        var allPass = (pass === total);
+        if (allPass) {
             if (dm.status !== 'completed') { dm.status = 'completed'; dm.endDate = dm.endDate || today; changed = true; }
             else if (!dm.endDate) { dm.endDate = today; changed = true; }
+        } else if (dm.status === 'completed') {
+            // 标准不再全部pass: 回退为未开始并清空执行结束时间 (双向一致)
+            dm.status = 'not-started';
+            if (dm.endDate) { dm.endDate = ''; changed = true; }
+            else { changed = true; }
+            console.log('[Domain] 准出标准不再全部通过, ' + dm.name + ' 回退为未开始并清空结束时间');
         }
     });
     if (changed) {
-        console.log('[Domain] 满足准出标准的Domain已自动置为已完成:', App.data.domains.filter(function(d) { return d.status === 'completed'; }).map(function(d) { return d.name + '(结束:' + d.endDate + ')'; }).join(', '));
+        console.log('[Domain] 状态一致性调整完成, completed domains:', App.data.domains.filter(function(d) { return d.status === 'completed'; }).map(function(d) { return d.name + '(结束:' + d.endDate + ')'; }).join(', ') || '无');
     }
     return changed;
 }
