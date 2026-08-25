@@ -199,6 +199,12 @@
         .gate-link { margin-top: 14px; font-size: 13px; color: #7f8c8d; }
         .gate-link a { color: #e74c3c; cursor: pointer; }
     </style>
+    <!-- 固定右上角: 当前用户显示 + 退出按钮 (任何页面可见, 不依赖顶部栏显隐) -->
+    <div id="top-user-bar" style="position:fixed; top:12px; right:16px; z-index:9999; display:none; align-items:center; gap:10px;">
+        <span id="top-user-name" style="font-size:13px; color:#e6e9f2; background:#1d2436; border:1px solid #2a3350; padding:6px 14px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,.35);"></span>
+        <button onclick="logout()" title="退出登录" style="background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff; border:none; border-radius:8px; padding:7px 16px; font-size:13px; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,.35);">退出</button>
+    </div>
+
     <!-- 第一步: 登录 (登录前整页不可见) -->
     <div id="gate-login" class="gate-overlay">
         <div class="gate-card">
@@ -990,7 +996,7 @@
     <script src="/js/daily-summary.js?v=5.6.7"></script>
     <script src="/js/import.js"></script>
     <script src="/js/app.js?v=1"></script>
-    <script src="/js/gate.js?v=2"></script>
+    <script src="/js/gate.js?v=3"></script>
 
     <!-- Bug CSV Import Modal -->
     <div id="bug-import-modal" class="modal">

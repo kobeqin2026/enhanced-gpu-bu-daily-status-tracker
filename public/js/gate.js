@@ -194,6 +194,23 @@ function refreshMainData() {
     }
 }
 
+// 固定右上角用户栏 (任何页面可见): 登录显示 用户名+角色徽章, 未登录隐藏
+function updateTopUserBar() {
+    var bar = document.getElementById('top-user-bar');
+    var nameEl = document.getElementById('top-user-name');
+    if (!bar || !nameEl) return;
+    var u = (typeof App !== 'undefined' && App) ? App.currentUser : null;
+    var role = (typeof App !== 'undefined' && App) ? App.userRole : '';
+    if (u) {
+        var roleText = role === 'admin' ? '管理员' : (role === 'domain_owner' ? 'Domain Owner' : '用户');
+        var roleColor = role === 'admin' ? '#e74c3c' : (role === 'domain_owner' ? '#e67e22' : '#27ae60');
+        nameEl.innerHTML = '👤 ' + escapeHtml(u) + ' <span style="display:inline-block; margin-left:8px; padding:2px 8px; border-radius:6px; font-size:12px; color:#fff; background:' + roleColor + ';">' + escapeHtml(roleText) + '</span>';
+        bar.style.display = 'flex';
+    } else {
+        bar.style.display = 'none';
+    }
+}
+
 function updateLoginUI() {
     var loginBtn = document.getElementById('login-btn');
     var logoutBtn = document.getElementById('logout-btn');
@@ -212,6 +229,8 @@ function updateLoginUI() {
         logoutBtn.style.display = 'none';
         if (loginStatus) loginStatus.textContent = '';
     }
+    // 固定右上角用户栏同步 (登录显示/退出隐藏)
+    updateTopUserBar();
 }
 
 async function verifyAuth() {
