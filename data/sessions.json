@@ -5,19 +5,5 @@
     "name": "JTAG",
     "token": "f8c87cbda2368d2f765183b31c8e90d9",
     "createdAt": 1785897070800
-  },
-  "admin": {
-    "username": "admin",
-    "role": "admin",
-    "name": "管理员",
-    "token": "9754b53c07d99fc94756f586d2ec8a8c",
-    "createdAt": 1787653494189
-  },
-  "kobe": {
-    "username": "kobe",
-    "role": "admin",
-    "name": "Kobe",
-    "token": "0fd5e91778273884b2a1ff5c9c50b82b",
-    "createdAt": 1787638380417
   }
 }
