@@ -31,6 +31,15 @@ function updateUIBasedOnRole() {
         
         adminButtons.forEach(function(btn) { btn.classList.add('visible'); });
         userButtons.forEach(function(btn) { btn.classList.add('visible'); });
+    } else if (isLoggedIn() && App.userRole === 'domain_owner') {
+        loginBtn.style.display = 'none';
+        logoutBtn.style.display = 'inline-block';
+        
+        // Domain Owner: 橙色徽章, 仅可编辑自己的 domain (user-only 按钮可见)
+        loginStatus.innerHTML = '<span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">' + escapeHtml(App.currentUser) + '</span> <span class="user-role role-domain-owner" style="background:#e67e22;">Domain Owner</span>';
+        
+        adminButtons.forEach(function(btn) { btn.classList.remove('visible'); });
+        userButtons.forEach(function(btn) { btn.classList.add('visible'); });
     } else if (isLoggedIn()) {
         loginBtn.style.display = 'none';
         logoutBtn.style.display = 'inline-block';
@@ -80,10 +89,12 @@ async function doLogin() {
         if (result.success) {
             App.currentUser = result.user.name;
             App.userRole = result.user.role;
+            App.currentUserUsername = result.user.username || '';
             App.authToken = result.token;
             
             localStorage.setItem('currentUser', App.currentUser);
             localStorage.setItem('userRole', App.userRole);
+            localStorage.setItem('currentUserUsername', App.currentUserUsername);
             
             closeLoginModal();
             updateUIBasedOnRole();
@@ -111,10 +122,12 @@ async function logout() {
     
     App.currentUser = null;
     App.userRole = null;
+    App.currentUserUsername = null;
     App.authToken = null;
     localStorage.removeItem('currentUser');
     localStorage.removeItem('userRole');
-    
+    localStorage.removeItem('currentUserUsername');
+
     updateUIBasedOnRole();
     showSyncStatus('已退出登录', 'info');
 }
@@ -140,13 +153,17 @@ async function loadSavedUser() {
         if (result.success) {
             App.currentUser = result.user.name;
             App.userRole = result.user.role;
+            App.currentUserUsername = result.user.username || localStorage.getItem('currentUserUsername') || '';
             localStorage.setItem('currentUser', App.currentUser);
             localStorage.setItem('userRole', App.userRole);
+            localStorage.setItem('currentUserUsername', App.currentUserUsername);
         } else {
             localStorage.removeItem('currentUser');
             localStorage.removeItem('userRole');
+            localStorage.removeItem('currentUserUsername');
             App.currentUser = null;
             App.userRole = null;
+            App.currentUserUsername = null;
             App.authToken = null;
         }
     } catch (error) {

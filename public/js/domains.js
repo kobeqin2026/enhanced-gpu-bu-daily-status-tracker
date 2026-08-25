@@ -20,9 +20,10 @@ function renderDomains(domains) {
         ownerCell.textContent = domain.owner || '';
         row.appendChild(ownerCell);
         
-        // Status cell
+        // Status cell (admin 或 domain owner 自己的 domain 可编辑; 其他只读)
+        var editable = canEditDomain(domain.name);
         var statusCell = document.createElement('td');
-        if (isAdmin()) {
+        if (editable) {
             var select = document.createElement('select');
             select.className = 'status-select';
             select.style.backgroundColor = statusColor;
@@ -51,9 +52,9 @@ function renderDomains(domains) {
         }
         row.appendChild(statusCell);
         
-        // 执行开始时间 cell (admin: date input 即时保存; 其他: 只读文本)
+        // 执行开始时间 cell (admin/owner: date input 即时保存; 其他: 只读文本)
         var startCell = document.createElement('td');
-        if (isAdmin()) {
+        if (editable) {
             var startInput = document.createElement('input');
             startInput.type = 'date';
             startInput.className = 'domain-date-input';
@@ -69,7 +70,7 @@ function renderDomains(domains) {
         
         // 执行结束时间 cell
         var endCell = document.createElement('td');
-        if (isAdmin()) {
+        if (editable) {
             var endInput = document.createElement('input');
             endInput.type = 'date';
             endInput.className = 'domain-date-input';
@@ -93,16 +94,17 @@ function renderDomains(domains) {
         notesCell.textContent = domain.notes || '';
         row.appendChild(notesCell);
         
-        // Actions cell
+        // Actions cell (编辑: admin 或 domain owner 自己的 domain; 删除: 仅 admin)
         var actionsCell = document.createElement('td');
         var editBtn = document.createElement('button');
-        editBtn.className = 'edit-btn admin-only ' + adminVisibleClass();
+        editBtn.className = 'edit-btn' + (editable ? ' visible' : '');
         editBtn.textContent = '编辑';
         editBtn.addEventListener('click', function() { editDomain(domain.id); });
         actionsCell.appendChild(editBtn);
         
+        var isAdminUser = isAdmin();
         var deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-btn admin-only ' + adminVisibleClass();
+        deleteBtn.className = 'delete-btn' + (isAdminUser ? ' visible' : '');
         deleteBtn.textContent = '删除';
         deleteBtn.addEventListener('click', function() { deleteDomain(domain.id); });
         actionsCell.appendChild(deleteBtn);
@@ -128,6 +130,8 @@ function searchJiraOwner() {
 function editDomain(domainId) {
     var domain = App.data.domains.find(function(d) { return d.id === domainId; });
     if (!domain) return;
+    // 权限守卫: 仅 admin 或该 domain 的 owner 可编辑
+    if (!canEditDomain(domain.name)) { alert('您只能编辑自己的Domain'); return; }
     
     App.currentEditDomainId = domainId;
     document.getElementById('edit-domain-name').value = domain.name;
@@ -219,6 +223,7 @@ function deleteDomainFromModal() {
 function updateDomainStatus(domainId, newStatus) {
     var domain = App.data.domains.find(function(d) { return d.id === domainId; });
     if (domain) {
+        if (!canEditDomain(domain.name)) { alert('您只能编辑自己的Domain'); return; }
         domain.status = newStatus;
         persistData();
         renderDomains(App.data.domains);
@@ -229,6 +234,7 @@ function updateDomainStatus(domainId, newStatus) {
 function updateDomainTime(domainId, field, value) {
     var domain = App.data.domains.find(function(d) { return d.id === domainId; });
     if (!domain) return;
+    if (!canEditDomain(domain.name)) { alert('您只能编辑自己的Domain'); return; }
     if (value) {
         var other = field === 'startDate' ? 'endDate' : 'startDate';
         if (domain[other] && ((field === 'startDate' && value > domain[other]) || (field === 'endDate' && value < domain[other]))) {
@@ -243,6 +249,8 @@ function updateDomainTime(domainId, field, value) {
 }
 
 function deleteDomain(domainId) {
+    // 删除仅限 admin (domain owner 无删除权限)
+    if (!isAdmin()) { alert('仅管理员可删除Domain'); return; }
     if (confirm('确定要删除这个Domain吗？')) {
         App.data.domains = App.data.domains.filter(function(domain) { return domain.id !== domainId; });
         renderDomains(App.data.domains);

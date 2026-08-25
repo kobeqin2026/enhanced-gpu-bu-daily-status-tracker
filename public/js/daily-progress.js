@@ -46,6 +46,8 @@ function addDailyProgress() {
 }
 
 function deleteDailyProgress(progressId) {
+    var record = App.data.dailyProgress.find(function(p) { return p.id === progressId; });
+    if (record && !canEditDomain(record.domain)) { alert('您只能编辑自己Domain的进度记录'); return; }
     if (confirm('确定要删除这个进度记录吗？')) {
         App.data.dailyProgress = App.data.dailyProgress.filter(function(progress) { return progress.id !== progressId; });
         renderDailyProgress(App.data.dailyProgress);
@@ -122,17 +124,19 @@ function groupAndRenderDailyProgress(progressList) {
             // 同一天多次更新: 每条内容前缀时刻 (HH:MM) 便于区分先后
             contentDiv.textContent = (item.time ? '🕐 ' + item.time + ' ' : '') + item.content;
             
+            // 编辑/删除: 仅 admin 或该 domain 的 owner (其他 domain 只读)
+            var itemEditable = canEditDomain(group.domain);
             var editBtn = document.createElement('button');
-            editBtn.className = 'edit-btn user-only ' + userVisibleClass();
+            editBtn.className = 'edit-btn' + (itemEditable ? ' visible' : '');
             editBtn.textContent = '编辑';
             editBtn.addEventListener('click', function() { editDailyProgress(item.id); });
-            contentDiv.appendChild(editBtn);
+            if (itemEditable) contentDiv.appendChild(editBtn);
             
             var delBtn = document.createElement('button');
-            delBtn.className = 'delete-btn user-only ' + userVisibleClass();
+            delBtn.className = 'delete-btn' + (itemEditable ? ' visible' : '');
             delBtn.textContent = '删除';
             delBtn.addEventListener('click', function() { deleteDailyProgress(item.id); });
-            contentDiv.appendChild(delBtn);
+            if (itemEditable) contentDiv.appendChild(delBtn);
             
             infoDiv.appendChild(contentDiv);
         });
@@ -149,6 +153,7 @@ function renderDailyProgress(progressList) {
 function editDailyProgress(progressId) {
     var progress = App.data.dailyProgress.find(function(p) { return p.id === progressId; });
     if (!progress) return;
+    if (!canEditDomain(progress.domain)) { alert('您只能编辑自己Domain的进度记录'); return; }
     
     App.currentEditDailyProgressId = progressId;
     document.getElementById('edit-daily-date').value = progress.date;

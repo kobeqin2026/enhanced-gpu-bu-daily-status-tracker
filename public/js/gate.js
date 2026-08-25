@@ -21,13 +21,16 @@ function showGateLogin() {
 function gateSetUser(user, token) {
     var displayName = (user && (user.name || user.username)) || '';
     var role = (user && user.role) || 'user';
+    var username = (user && user.username) || '';
     if (typeof App !== 'undefined' && App) {
         App.currentUser = displayName;
         App.userRole = role;
+        App.currentUserUsername = username;
         App.authToken = token || App.authToken;
     }
     localStorage.setItem('currentUser', displayName);
     localStorage.setItem('userRole', role);
+    localStorage.setItem('currentUserUsername', username);
 }
 
 // 进门: 移除登录门 + 刷新主界面数据/权限 UI
@@ -257,10 +260,12 @@ async function logout() {
     if (typeof App !== 'undefined' && App) {
         App.currentUser = null;
         App.userRole = null;
+        App.currentUserUsername = null;
         App.authToken = null;
     }
     localStorage.removeItem('currentUser');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('currentUserUsername');
     updateLoginUI();
     if (typeof updateUIBasedOnRole === 'function') updateUIBasedOnRole();
     showGateLogin();

@@ -140,11 +140,19 @@ function populateDomainDropdowns() {
         editDailyDomainSelect.innerHTML = '<option value="">选择Domain</option>';
     }
     
+    // domain_owner 添加进度时: 只列出自己的 domain 并自动选中第一个 (自动识别domain)
+    var owned = ownedDomainNames(); // null=admin全部, []=普通用户, [names]=自己的domain
+    var forAdd = (owned === null) ? App.data.domains.map(function(d) { return d.name; }) : (owned || []);
+    var firstTopAdd = null;
+    
     App.data.domains.forEach(function(domain) {
         var option3 = document.createElement('option');
         option3.value = domain.name;
         option3.textContent = domain.name;
-        dailyDomainSelect.appendChild(option3);
+        if (forAdd.some(function(n) { return n === domain.name; })) {
+            dailyDomainSelect.appendChild(option3);
+            if (!firstTopAdd) firstTopAdd = domain.name;
+        }
         
         var option4 = document.createElement('option');
         option4.value = domain.name;
@@ -158,6 +166,13 @@ function populateDomainDropdowns() {
             editDailyDomainSelect.appendChild(option5);
         }
     });
+    
+    // domain_owner: 自动识别并预选自己的 domain (admin 保持空选)
+    if (owned !== null && owned.length === 1 && firstTopAdd) {
+        dailyDomainSelect.value = firstTopAdd;
+    } else if (owned !== null && owned.length > 1) {
+        dailyDomainSelect.value = firstTopAdd;
+    }
 }
 
 async function saveData() {
