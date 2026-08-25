@@ -18,7 +18,7 @@
       "id": "domain-3",
       "name": "Ethernet",
       "owner": "王五",
-      "status": "completed",
+      "status": "not-started",
       "notes": "MAC层功能验证完成"
     }
   ],
@@ -102,5 +102,5 @@
       "status": "not-ready"
     }
   ],
-  "lastUpdated": "2026/8/25 15:09:18"
+  "lastUpdated": "2026/8/25 18:24:26"
 }
