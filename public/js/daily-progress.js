@@ -55,7 +55,7 @@ function groupAndRenderDailyProgress(progressList) {
         var emptyP = document.createElement('p');
         emptyP.style.textAlign = 'center';
         emptyP.style.fontStyle = 'italic';
-        emptyP.style.color = '#7f8c8d';
+        emptyP.style.color = 'var(--muted, #8b93a7)';
         emptyP.textContent = '暂无每日进度记录';
         container.appendChild(emptyP);
         return;

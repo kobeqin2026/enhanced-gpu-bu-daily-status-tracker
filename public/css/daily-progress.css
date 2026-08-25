@@ -2,8 +2,12 @@
 .daily-progress-input-section {
     margin: 15px 0;
     padding: 15px;
-    background: #e8f4f8;
-    border-radius: 5px;
+    background: var(--panel2, #1d2436);
+    border: 1px solid var(--border, #2a3350);
+    border-radius: 8px;
+}
+.daily-progress-input-section h3 {
+    color: var(--text, #e6e9f2);
 }
 .daily-progress-input-form {
     display: flex;
@@ -30,22 +34,27 @@
     align-items: center;
     padding: 10px;
     margin: 5px 0;
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
+    background: var(--panel2, #1d2436);
+    border: 1px solid var(--border, #2a3350);
+    border-radius: 6px;
+    color: var(--text, #e6e9f2);
 }
 .daily-progress-info {
     flex-grow: 1;
 }
 .daily-date-display {
     font-weight: bold;
-    color: #2c3e50;
+    color: var(--text, #e6e9f2);
 }
 .daily-domain-display {
-    color: #34495e;
+    color: var(--text, #e6e9f2);
     font-style: italic;
+}
+.daily-owner-display {
+    margin-top: 2px;
+    color: var(--muted, #8b93a7);
 }
 .daily-content-display {
     margin-top: 5px;
-    color: #7f8c8d;
+    color: var(--text, #e6e9f2);
 }
