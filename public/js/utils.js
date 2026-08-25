@@ -72,6 +72,11 @@ function closeModal(modalId) {
 // ==================== Data Persistence Helpers ====================
 
 async function persistData() {
+    // 状态一致性: 准出标准全部pass的Domain自动置为已完成并记录执行结束时间(有变化才重渲染)
+    if (typeof reconcileDomainCompletion === 'function') {
+        var changed = reconcileDomainCompletion();
+        if (changed && typeof renderDomains === 'function') renderDomains(App.data.domains);
+    }
     saveToLocalStorage(App.data);
     await saveDataToAPI();
 }

@@ -12,11 +12,46 @@ var loadProjectData = projects.loadProjectData;
 var saveProjectData = projects.saveProjectData;
 var logOperation = logger.logOperation;
 
+// ===== Domain 状态一致性: 准出标准全部 pass → completed + 记录执行结束时间 =====
+// 域名别名映射与前端 bu-exit-criteria.js 的 CRITERIA_DOMAIN_MAP 保持一致
+var CRITERIA_DOMAIN_MAP = {
+    'firmware': 'FW', 'pcie': 'PCIE', 'ethernet': 'ETH', 'diagnostic': 'Diag',
+    'ucie': 'UCIE', 'iodie': 'IOD', 'iodieethernet': 'IOD', 'iodcl': 'IOD', 'iodieucie': 'IOD', 'dft': 'JTAG'
+};
+function normDomainKey(s) {
+    return String(s || '').trim().toLowerCase().replace(/[\s\-/]/g, '');
+}
+function domainKeyOf(name) {
+    var norm = normDomainKey(name);
+    return normDomainKey(CRITERIA_DOMAIN_MAP[norm] || name);
+}
+// 就地修正 data.domains: 满足准出标准(全部pass)的 domain → status=completed + endDate=当天(首次)
+// 返回是否有变化
+function reconcileDomainCompletion(data) {
+    var changed = false;
+    var now = new Date();
+    var today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    var criteriaList = Array.isArray(data.buExitCriteria) ? data.buExitCriteria : [];
+    (Array.isArray(data.domains) ? data.domains : []).forEach(function(dm) {
+        var cList = criteriaList.filter(function(c) { return domainKeyOf(c.domain) === domainKeyOf(dm.name); });
+        if (!cList.length) return;
+        var total = cList.length;
+        var pass = cList.filter(function(c) { return c.status === 'pass'; }).length;
+        if (pass === total) {
+            if (dm.status !== 'completed') { dm.status = 'completed'; dm.endDate = dm.endDate || today; changed = true; }
+            else if (!dm.endDate) { dm.endDate = today; changed = true; }
+        }
+    });
+    return changed;
+}
+
 // GET /api/data - get project data
 router.get('/', async function(req, res) {
     try {
         var projectId = req.query.project || 'gpu-bringup';
         var data = await loadProjectData(projectId);
+        // 显示层一致性: 满足准出标准的 domain 显示为已完成+结束时间 (不落库, 下次保存时持久化)
+        reconcileDomainCompletion(data);
         res.json(data);
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -37,10 +72,16 @@ router.post('/', auth.authenticateToken, async function(req, res) {
             lastUpdated: new Date().toLocaleString('zh-CN')
         };
         
+        // 状态一致性(权威): 准出标准全部pass的domain → completed + endDate=当天, 落库
+        var reconciled = reconcileDomainCompletion(data);
+        if (reconciled) {
+            console.log('[Data] 保存时自动完成满足准出标准的Domain: ' + projectId);
+        }
+        
         await saveProjectData(projectId, data);
         logOperation(req.user.username, 'UPDATE', 'project-data', { projectId: projectId });
         console.log('Saved data for project: ' + projectId);
-        res.json({ success: true, message: 'Data saved successfully' });
+        res.json({ success: true, message: 'Data saved successfully', reconciled: reconciled });
     } catch (error) {
         logOperation(req.user.username, 'ERROR', 'project-data', { error: error.message });
         res.status(500).json({ success: false, error: error.message });
