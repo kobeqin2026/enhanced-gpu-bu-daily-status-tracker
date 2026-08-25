@@ -598,8 +598,8 @@
             <!-- Daily progress items will be dynamically generated here -->
         </div>
         
-        <!-- Bringup准出标准 (BU Exit Criteria) -->
-        <h2>Bringup准出标准 (BU Exit Criteria)</h2>
+        <!-- BU Exit Criteria -->
+        <h2>BU Exit Criteria</h2>
         
         <!-- BU Exit Criteria Table with inline editing -->
         <div class="bu-exit-criteria-table-wrapper">
@@ -625,7 +625,7 @@
 
         <!-- Add new BU Exit Criteria row button -->
         <div class="bu-exit-criteria-section">
-            <button class="add-btn admin-only" onclick="addNewBUExitCriteriaRow()">添加BU准出标准</button>
+            <button class="add-btn admin-only owner-add-btn" onclick="addNewBUExitCriteriaRow()">添加BU准出标准</button>
             <button class="add-btn admin-only" onclick="showBUImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
         </div>
         
@@ -979,14 +979,14 @@
     </div>
     <!-- JS modules (order matters: globals -> utils -> data -> auth -> projects -> domains -> bugs -> daily-progress -> bu-exit-criteria -> import -> app) -->
     <script src="/js/globals.js?v=5.6.1"></script>
-    <script src="/js/utils.js?v=1"></script>
+    <script src="/js/utils.js?v=2"></script>
     <script src="/js/data.js?v=5.5.6"></script>
-    <script src="/js/auth.js?v=5.5.7"></script>
+    <script src="/js/auth.js?v=5.5.8"></script>
     <script src="/js/projects.js?v=5.6.1"></script>
     <script src="/js/domains.js?v=1"></script>
     <script src="/js/bugs.js?v=5.6.2"></script>
     <script src="/js/daily-progress.js?v=4"></script>
-    <script src="/js/bu-exit-criteria.js?v=5.3.0"></script>
+    <script src="/js/bu-exit-criteria.js?v=5.4.0"></script>
     <script src="/js/daily-summary.js?v=5.6.7"></script>
     <script src="/js/import.js"></script>
     <script src="/js/app.js?v=1"></script>

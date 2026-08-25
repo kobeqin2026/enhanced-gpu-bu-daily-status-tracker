@@ -1,13 +1,19 @@
 // BU Exit Criteria management
 
 function addNewBUExitCriteriaRow() {
+    // 权限: domain owner 只能添加自己 domain 的准出标准; 普通用户只读
+    var owned = ownedDomainNames();
+    if (owned !== null && owned.length === 0) { alert('您只能添加自己Domain的准出标准'); return; }
+    
     var currentIndex = App.data.buExitCriteria.length + 1;
     
     var defaultOwner = '';
     var defaultDomain = '';
-    if (App.data.domains.length > 0) {
-        defaultDomain = App.data.domains[0].name;
-        defaultOwner = App.data.domains[0].owner || '';
+    // domain owner: 默认自己的 domain; admin: 默认第一个
+    var pool = (owned === null) ? App.data.domains : (App.data.domains || []).filter(function(d) { return owned.indexOf(d.name) !== -1; });
+    if (pool.length > 0) {
+        defaultDomain = pool[0].name;
+        defaultOwner = pool[0].owner || '';
     }
     
     var newCriteria = {
@@ -25,6 +31,9 @@ function addNewBUExitCriteriaRow() {
 }
 
 function deleteBUExitCriteria(criteriaId) {
+    // 权限: 仅 admin 或该 domain 的 owner
+    var criteria = App.data.buExitCriteria.find(function(c) { return c.id === criteriaId; });
+    if (criteria && !canEditDomain(criteria.domain)) { alert('您只能修改自己Domain的准出标准'); return; }
     if (confirm('确定要删除这个准出标准吗？')) {
         App.data.buExitCriteria = App.data.buExitCriteria.filter(function(criteria) { return criteria.id !== criteriaId; });
         reindexBUExitCriteria();
@@ -56,7 +65,10 @@ function populateDomainOwnerDropdowns() {
     defaultOwnerOption.textContent = '请选择Owner';
     ownerSelect.appendChild(defaultOwnerOption);
     
-    App.data.domains.forEach(function(domain) {
+    // domain owner: 编辑弹窗只允许选自己的 domain (不能把标准改成其他 domain)
+    var editableDomains = ownedDomainNames(); // null=admin全部
+    var domainPool = (editableDomains === null) ? App.data.domains : (App.data.domains || []).filter(function(d) { return editableDomains.indexOf(d.name) !== -1; });
+    domainPool.forEach(function(domain) {
         var option = document.createElement('option');
         option.value = domain.name;
         option.textContent = domain.name;
@@ -149,19 +161,20 @@ function renderBUExitCriteria(criteriaList) {
         statusCell.textContent = statusDisplay;
         row.appendChild(statusCell);
         
-        // Actions
+        // Actions (编辑/删除: admin 或该 domain 的 owner; 其他只读)
+        var criteriaEditable = canEditDomain(criteria.domain);
         var actionsCell = document.createElement('td');
         var editBtn = document.createElement('button');
-        editBtn.className = 'edit-btn user-only ' + userVisibleClass();
+        editBtn.className = 'edit-btn' + (criteriaEditable ? ' visible' : '');
         editBtn.textContent = '编辑';
         editBtn.addEventListener('click', function() { editBUExitCriteria(criteria.id); });
-        actionsCell.appendChild(editBtn);
+        if (criteriaEditable) actionsCell.appendChild(editBtn);
         
         var deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-btn user-only ' + userVisibleClass();
+        deleteBtn.className = 'delete-btn' + (criteriaEditable ? ' visible' : '');
         deleteBtn.textContent = '删除';
         deleteBtn.addEventListener('click', function() { deleteBUExitCriteria(criteria.id); });
-        actionsCell.appendChild(deleteBtn);
+        if (criteriaEditable) actionsCell.appendChild(deleteBtn);
         
         row.appendChild(actionsCell);
         tbody.appendChild(row);
@@ -199,7 +212,9 @@ function updateBUSuccessBanner(criteriaList) {
 function editBUExitCriteria(criteriaId) {
     var criteria = App.data.buExitCriteria.find(function(c) { return c.id === criteriaId; });
     if (!criteria) return;
-    
+    // 权限: 仅 admin 或该 domain 的 owner
+    if (!canEditDomain(criteria.domain)) { alert('您只能修改自己Domain的准出标准'); return; }
+
     App.currentEditBUExitCriteriaId = criteriaId;
     populateDomainOwnerDropdowns();
     
@@ -247,9 +262,11 @@ function closeEditBUExitCriteriaModal() {
 
 function saveEditedBUExitCriteria() {
     if (!App.currentEditBUExitCriteriaId) return;
-    
+
     var criteria = App.data.buExitCriteria.find(function(c) { return c.id === App.currentEditBUExitCriteriaId; });
     if (!criteria) return;
+    // 权限: 仅 admin 或该 domain 的 owner
+    if (!canEditDomain(criteria.domain)) { alert('您只能修改自己Domain的准出标准'); return; }
     
     criteria.domain = document.getElementById('edit-bu-criteria-domain').value;
     criteria.criteria = document.getElementById('edit-bu-criteria-content').value.trim();

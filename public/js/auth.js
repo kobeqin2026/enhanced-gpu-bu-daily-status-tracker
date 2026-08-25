@@ -40,6 +40,8 @@ function updateUIBasedOnRole() {
         
         adminButtons.forEach(function(btn) { btn.classList.remove('visible'); });
         userButtons.forEach(function(btn) { btn.classList.add('visible'); });
+        // domain owner 可为自己 domain 添加/编辑 BU Exit Criteria
+        document.querySelectorAll('.owner-add-btn').forEach(function(btn) { btn.classList.add('visible'); });
     } else if (isLoggedIn()) {
         loginBtn.style.display = 'none';
         logoutBtn.style.display = 'inline-block';
