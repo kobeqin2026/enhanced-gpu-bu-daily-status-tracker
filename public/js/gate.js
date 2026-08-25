@@ -55,11 +55,19 @@ function enterOrSelectProject() {
 }
 
 // 第二步门: 选择项目
-function showGateProject() {
+async function showGateProject() {
     var gateLogin = document.getElementById('gate-login');
     if (gateLogin) gateLogin.style.display = 'none';
     var gateProj = document.getElementById('gate-project');
     if (!gateProj) { enterDashboard(); return; }
+    // 确保项目列表已加载 (登录时刻 loadProjects 可能尚未返回, 否则项目下拉为空)
+    if (!(typeof App !== 'undefined' && App && App.projectsList && App.projectsList.length)) {
+        try {
+            if (typeof loadProjects === 'function') await loadProjects();
+        } catch (e) {
+            console.error('[gate] showGateProject loadProjects error:', e);
+        }
+    }
     // 填充项目列表
     var select = document.getElementById('gate-project-select');
     if (select) {
