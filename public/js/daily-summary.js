@@ -129,6 +129,16 @@ function renderSummaryAI(result) {
     var ai = result.ai || {};
     var frag = document.createDocumentFragment();
 
+    // LLM 内容为空时的兜底提示 (服务不稳定/降级快照), 避免白屏
+    if (!ai.overallStatus && (!ai.domainSummaries || !ai.domainSummaries.length) && !ai.criteriaVerdict && !ai.criticalBugsHighlight && !ai.riskAndNextSteps) {
+        var warnCard = summaryCard('⚠ LLM 润色无内容', null, 'card-accent-yellow');
+        warnCard.appendChild(summaryEl('div', 'summary-text',
+            '本次 AI 总结未返回内容（生成时 LLM 服务不稳定）。可点击上方「🔄 生成总结」重新生成（已加自动重试），或查看「📋 数据明细」tab。'));
+        frag.appendChild(warnCard);
+        container.appendChild(frag);
+        return;
+    }
+
     // 总体状态
     if (ai.overallStatus) {
         frag.appendChild(summaryCard('📌 总体状态', summaryEl('div', 'summary-text', ai.overallStatus), 'card-accent-blue'));
