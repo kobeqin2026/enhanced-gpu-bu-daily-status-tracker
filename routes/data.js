@@ -100,4 +100,72 @@ router.post('/daily-summary', auth.authenticateToken, async function(req, res) {
     }
 });
 
+// GET /api/data/daily-summary/history?project=xxx - 递增式历史总结列表 (按日期升序, 轻量字段)
+router.get('/daily-summary/history', auth.authenticateToken, async function(req, res) {
+    try {
+        var projectId = req.query.project || 'gpu-bringup';
+        var list = await projects.loadDailySummaries(projectId);
+        var items = list.map(function(r) {
+            var skel = r.skeleton || {};
+            var crit = skel.criteria || {};
+            return {
+                date: r.date,
+                createdAt: r.createdAt,
+                updatedAt: r.updatedAt,
+                aiFailed: !!r.aiFailed,
+                overview: (r.ai && r.ai.overallStatus) ? r.ai.overallStatus : '',
+                counts: {
+                    domains: (skel.domainSummaries || []).length,
+                    criticalBugs: (skel.criticalBugs || []).length,
+                    allBugs: (skel.allBugs || []).length,
+                    criteriaTotal: crit.total || 0,
+                    criteriaPass: crit.pass || 0
+                }
+            };
+        });
+        res.json({ success: true, items: items });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/data/daily-summary/history/:date?project=xxx - 单条完整历史总结 (含 skeleton + ai)
+router.get('/daily-summary/history/:date', auth.authenticateToken, async function(req, res) {
+    try {
+        var projectId = req.query.project || 'gpu-bringup';
+        var list = await projects.loadDailySummaries(projectId);
+        var found = list.find(function(r) { return r.date === req.params.date; });
+        if (!found) return res.status(404).json({ success: false, error: '该日期暂无历史总结' });
+        res.json({ success: true, item: found });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/data/daily-summary/save - 保存/更新一条历史总结 (同日期重新生成则覆盖, 递增存储)
+// Body: { projectId, date: 'YYYY-MM-DD', aiFailed, skeleton, ai }
+router.post('/daily-summary/save', auth.authenticateToken, async function(req, res) {
+    try {
+        var projectId = (req.body && req.body.projectId) || req.query.project || 'gpu-bringup';
+        if (!req.body || !req.body.date || !req.body.skeleton) {
+            return res.status(400).json({ success: false, error: '缺少 date 或 skeleton' });
+        }
+        var record = {
+            projectId: projectId,
+            date: req.body.date,
+            aiFailed: !!req.body.aiFailed,
+            skeleton: req.body.skeleton,
+            ai: req.body.ai || null,
+            generatedBy: (req.user && req.user.username) || ''
+        };
+        var result = await projects.upsertDailySummary(projectId, record);
+        logOperation(req.user.username, 'CREATE', 'daily-summary-history', { projectId: projectId, date: record.date, mode: result.mode });
+        console.log('[DailySummary] history ' + result.mode + ' for ' + projectId + ' @ ' + record.date);
+        res.json({ success: true, mode: result.mode, date: record.date });
+    } catch (error) {
+        logOperation(req.user.username, 'ERROR', 'daily-summary-history', { error: error.message });
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 module.exports = router;
