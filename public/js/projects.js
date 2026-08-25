@@ -43,7 +43,7 @@ async function switchProject() {
 function updateProjectTimeline() {
     var project = App.projectsList.find(function(p) { return p.id === App.currentProject; });
     var timelineEl = document.getElementById('project-timeline');
-    
+
     if (project && project.startDate && project.endDate) {
         var formatDate = function(dateStr) {
             var date = new Date(dateStr);
@@ -52,6 +52,52 @@ function updateProjectTimeline() {
         timelineEl.textContent = formatDate(project.startDate) + ' - ' + formatDate(project.endDate);
     } else {
         timelineEl.textContent = '未设置';
+    }
+
+    // 同步 BU 快捷编辑输入框 (BU执行时间 = Bug 时间轴依据)
+    var startInput = document.getElementById('bu-start-date');
+    var endInput = document.getElementById('bu-end-date');
+    if (startInput) startInput.value = (project && project.startDate) || '';
+    if (endInput) endInput.value = (project && project.endDate) || '';
+}
+
+// 快捷保存 BU执行时间 (project-info 区) — 保存后按新时间轴重渲染 Bug 表
+async function saveBUExecuteTime() {
+    var startDate = document.getElementById('bu-start-date').value;
+    var endDate = document.getElementById('bu-end-date').value;
+
+    if (!startDate || !endDate) {
+        alert('请选择完整的BU开始和结束日期');
+        return;
+    }
+    if (endDate < startDate) {
+        alert('BU结束日期不能早于开始日期');
+        return;
+    }
+
+    var project = App.projectsList.find(function(p) { return p.id === App.currentProject; });
+    if (!project) {
+        alert('项目不存在');
+        return;
+    }
+
+    try {
+        var response = await apiCall('/api/projects/' + App.currentProject, {
+            method: 'PUT',
+            body: JSON.stringify({ name: project.name, description: project.description || '', startDate: startDate, endDate: endDate })
+        });
+
+        if (response.success) {
+            await loadProjects();
+            updateProjectTimeline();
+            renderBugs(App.data.bugs); // Bug 表按新 BU 时间轴重算
+            showSyncStatus('BU执行时间已更新, Bug表已按新时间轴过滤', 'success');
+        } else {
+            alert(response.message || '保存失败');
+        }
+    } catch (error) {
+        console.error('Failed to save BU execute time:', error);
+        alert('保存失败，请重试');
     }
 }
 

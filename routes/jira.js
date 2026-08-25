@@ -354,6 +354,89 @@ var selectedProject;
 });
 
 /**
+ * POST /api/data/bug-debug-progress/summarize
+ * Fetch JIRA comments + description for a bug and summarize debug progress via LLM.
+ * Body: { jiraKey: "BR200-123" }
+ */
+router.post('/bug-debug-progress/summarize', auth.authenticateToken, async function(req, res) {
+    try {
+        var authHeader = getAuthHeader();
+        if (!authHeader) {
+            return res.status(500).json({ success: false, error: 'JIRA认证未配置。请在环境变量中设置 JIRA_PAT 或 JIRA_EMAIL + JIRA_API_TOKEN' });
+        }
+
+        var jiraKey = (req.body && req.body.jiraKey) || '';
+        if (!/^[A-Za-z0-9]+-\d+$/.test(jiraKey)) {
+            return res.status(400).json({ success: false, error: '无效的JIRA Key: ' + jiraKey });
+        }
+
+        var jiraUrl = jiraConfig.baseUrl;
+        var parsedUrl = url.parse(jiraUrl);
+        var baseOptions = {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+            method: 'GET',
+            headers: {
+                'Authorization': authHeader,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            protocol: parsedUrl.protocol,
+            rejectUnauthorized: false
+        };
+
+        // 1. Fetch issue summary + description
+        var issueOptions = Object.assign({}, baseOptions, {
+            path: '/rest/api/2/issue/' + encodeURIComponent(jiraKey) + '?fields=summary,description,created'
+        });
+        var issueData = await makeRequest(issueOptions);
+        var fields = issueData && issueData.fields ? issueData.fields : {};
+        var bugSummary = fields.summary || '';
+        var description = fields.description || '';
+
+        // 2. Fetch comments
+        var commentOptions = Object.assign({}, baseOptions, {
+            path: '/rest/api/2/issue/' + encodeURIComponent(jiraKey) + '/comment?maxResults=100&orderBy=created'
+        });
+        var commentData = await makeRequest(commentOptions);
+        var comments = [];
+        if (commentData && Array.isArray(commentData.comments)) {
+            comments = commentData.comments.map(function(c) {
+                return {
+                    created: (c.created || '').split('T')[0],
+                    author: c.author ? (c.author.displayName || c.author.name || '') : '',
+                    body: c.body || ''
+                };
+            });
+        }
+
+        // 3. LLM summarize
+        var result = await diagnosis.summarizeDebugProgress(jiraKey, bugSummary, comments, description);
+
+        if (result.noComments) {
+            return res.json({
+                success: true,
+                summary: '',
+                commentCount: 0,
+                noComments: true,
+                warning: '该Bug在JIRA没有评论，无法归纳。可在弹窗中手动填写调试进展。'
+            });
+        }
+
+        res.json({
+            success: true,
+            summary: result.summary || '',
+            commentCount: comments.length,
+            noComments: false,
+            updatedAt: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Debug progress summarize error: ' + error.message);
+        res.status(500).json({ success: false, error: '归纳调试进展失败: ' + error.message });
+    }
+});
+
+/**
  * GET /api/data/jira-projects
  * Fetches all projects from JIRA
  */

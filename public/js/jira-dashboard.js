@@ -183,9 +183,13 @@ function enterDashboard() {
     document.body.classList.remove('gated');
     var gate = document.getElementById('gate-login');
     if (gate) gate.style.display = 'none';
-    document.getElementById('control-bar').style.display = 'flex';
-    document.getElementById('quick-actions-section').style.display = 'flex';
-    loadJiraProjects();
+    // index.html 合体门: control-bar/quick-actions-section 仅存在于 jira-dashboard.html, 需防御
+    var cb = document.getElementById('control-bar');
+    if (cb) cb.style.display = 'flex';
+    var qa = document.getElementById('quick-actions-section');
+    if (qa) qa.style.display = 'flex';
+    // 仅 JIRA Dashboard 页面才加载 dashboard 数据; index.html 借用 gate 门只放行主界面
+    if (cb) loadJiraProjects();
 }
 
 async function gateLoginSubmit() {
