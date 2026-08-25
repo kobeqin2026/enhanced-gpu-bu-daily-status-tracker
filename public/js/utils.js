@@ -98,6 +98,42 @@ function userVisibleClass() {
     return isLoggedIn() ? 'visible' : '';
 }
 
+// ==================== Domain Owner 权限辅助 ====================
+// domain_owner 只能编辑自己的 domain; admin 可编辑全部; 普通用户只读。
+// hardware 库 owner 登录名 → domain 名规范化键 (与 CRITERIA_DOMAIN_MAP 同思路)
+var DOMAIN_OWNER_USER_KEY = {
+    'board': 'board', 'firmware': 'fw', 'diag': 'diag', 'jtag': 'jtag', 'ethernet': 'eth',
+    'pcie': 'pcie', 'hbm': 'hbm', 'ucie': 'ucie', 'slt': 'slt', 'ppo': 'ppo',
+    'swci': 'ci', 'swmodel': 'swmodel', 'swtool': 'tools', 'kmd': 'kmd', 'umd': 'umd', 'video': 'video'
+};
+
+function domainNormKey(s) {
+    return String(s || '').trim().toLowerCase().replace(/[\s\-/]/g, '');
+}
+
+// 返回当前用户可编辑的 domain 名数组; admin → null(全部); 普通用户 → []
+function ownedDomainNames() {
+    if (!App) return [];
+    if (App.userRole === 'admin') return null;
+    if (App.userRole !== 'domain_owner') return [];
+    var uname = String(App.currentUserUsername || '').toLowerCase();
+    if (!uname) return [];
+    var key = DOMAIN_OWNER_USER_KEY[uname] || uname;
+    var out = [];
+    (App.data.domains || []).forEach(function(d) {
+        if (domainNormKey(d.name) === key) out.push(d.name);
+    });
+    return out;
+}
+
+// 当前用户能否编辑指定 domain (admin 恒可编辑)
+function canEditDomain(domainName) {
+    var owned = ownedDomainNames();
+    if (owned === null) return true;
+    var k = domainNormKey(domainName);
+    return owned.some(function(n) { return domainNormKey(n) === k; });
+}
+
 // ==================== Table Helpers ====================
 
 function emptyTableRow(colspan, message) {
