@@ -2,12 +2,18 @@
 
 function addDailyProgress() {
     var date = document.getElementById('daily-date-input').value;
+    var time = document.getElementById('daily-time-input').value;
     var domain = document.getElementById('daily-domain-select').value;
     var content = document.getElementById('daily-content-input').value.trim();
     
     if (!date || !domain || !content) {
         alert('请填写日期、Domain和工作内容');
         return;
+    }
+    // 未填时间则取当前时刻 (支持同一天多次更新: 每次更新记录 HH:MM)
+    if (!time) {
+        var now = new Date();
+        time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
     }
     
     var domainEntry = App.data.domains.find(function(d) { return d.name === domain; });
@@ -16,6 +22,7 @@ function addDailyProgress() {
     var newProgress = {
         id: 'progress-' + Date.now(),
         date: date,
+        time: time,
         domain: domain,
         content: content,
         owner: owner
@@ -23,8 +30,9 @@ function addDailyProgress() {
     
     App.data.dailyProgress.push(newProgress);
     renderDailyProgress(App.data.dailyProgress);
-    
+
     document.getElementById('daily-date-input').value = '';
+    document.getElementById('daily-time-input').value = '';
     document.getElementById('daily-domain-select').value = '';
     document.getElementById('daily-content-input').value = '';
     
@@ -75,7 +83,7 @@ function groupAndRenderDailyProgress(progressList) {
                 contents: []
             };
         }
-        grouped[key].contents.push({ id: progress.id, content: progress.content });
+        grouped[key].contents.push({ id: progress.id, content: progress.content, time: progress.time || '' });
     });
     
     var groupedArray = Object.values(grouped).sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
@@ -105,7 +113,8 @@ function groupAndRenderDailyProgress(progressList) {
         group.contents.forEach(function(item) {
             var contentDiv = document.createElement('div');
             contentDiv.className = 'daily-content-display';
-            contentDiv.textContent = item.content;
+            // 同一天多次更新: 每条内容前缀时刻 (HH:MM) 便于区分先后
+            contentDiv.textContent = (item.time ? '🕐 ' + item.time + ' ' : '') + item.content;
             
             var editBtn = document.createElement('button');
             editBtn.className = 'edit-btn user-only ' + userVisibleClass();

@@ -567,6 +567,7 @@
             <h3>添加每日进度</h3>
             <div class="daily-progress-input-form">
                 <input type="date" id="daily-date-input" class="daily-date-input">
+                <input type="time" id="daily-time-input" class="daily-date-input" title="更新时间(同一天多次更新时区分, 默认当前时间)">
                 <select id="daily-domain-select" class="daily-domain-select">
                     <option value="">选择Domain</option>
                     <!-- Options will be populated from domains -->
@@ -656,8 +657,8 @@
                 <span class="close" onclick="closeDailySummaryModal()">&times;</span>
             </div>
             <div style="padding: 10px 20px 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;" class="summary-control-bar">
-                <label style="font-size: 13px; color: var(--text);">总结日期</label>
-                <input type="date" id="daily-summary-date" class="daily-date-input" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 13px;" />
+                <label style="font-size: 13px; color: var(--text);">总结时刻</label>
+                <input type="datetime-local" id="daily-summary-date" class="daily-date-input" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 13px;" />
                 <button class="add-btn" onclick="generateDailySummary()" style="padding: 5px 14px; font-size: 13px;" id="daily-summary-gen-btn">生成总结</button>
                 <button class="add-btn" onclick="copyDailySummaryMarkdown()" style="padding: 5px 14px; font-size: 13px; background: linear-gradient(135deg,#9b59b6,#6a5cff) !important;" id="daily-summary-copy-btn">📋 复制Markdown</button>
                 <span id="daily-summary-status" style="font-size: 12px; color: var(--muted);"></span>
@@ -981,9 +982,9 @@
     <script src="/js/projects.js?v=5.6.1"></script>
     <script src="/js/domains.js"></script>
     <script src="/js/bugs.js?v=5.6.2"></script>
-    <script src="/js/daily-progress.js?v=1"></script>
+    <script src="/js/daily-progress.js?v=2"></script>
     <script src="/js/bu-exit-criteria.js?v=5.3.0"></script>
-    <script src="/js/daily-summary.js?v=5.6.3"></script>
+    <script src="/js/daily-summary.js?v=5.6.4"></script>
     <script src="/js/import.js"></script>
     <script src="/js/app.js"></script>
     <script src="/js/gate.js"></script>

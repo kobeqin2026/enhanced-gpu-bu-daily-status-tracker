@@ -15,13 +15,21 @@ function summaryTodayStr() {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
+// 当前时刻 YYYY-MM-DDTHH:MM (datetime-local 值, 支持同一天多次更新的快照选择)
+function summaryNowLocal() {
+    var d = new Date();
+    var date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    var time = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    return date + 'T' + time;
+}
+
 // 打开总结弹窗
 function openDailySummaryModal() {
     var modal = document.getElementById('daily-summary-modal');
     if (!modal) return;
     modal.style.display = 'flex';
-    // 默认今天
-    document.getElementById('daily-summary-date').value = summaryTodayStr();
+    // 默认今天当前时刻
+    document.getElementById('daily-summary-date').value = summaryNowLocal();
     document.getElementById('daily-summary-status').textContent = '';
     generateDailySummary();
 }
@@ -45,12 +53,14 @@ function switchSummaryTab(tab) {
 
 // 生成总结
 async function generateDailySummary() {
-    var date = document.getElementById('daily-summary-date').value;
+    var dateTime = document.getElementById('daily-summary-date').value;
+    var date = dateTime ? dateTime.slice(0, 10) : '';
+    var time = dateTime && dateTime.length > 10 ? dateTime.slice(11) : '';
     var statusEl = document.getElementById('daily-summary-status');
     var contentEl = document.getElementById('daily-summary-content');
     var genBtn = document.getElementById('daily-summary-gen-btn');
 
-    if (!date) { statusEl.textContent = '请选择日期'; return; }
+    if (!date) { statusEl.textContent = '请选择总结时刻'; return; }
     statusEl.textContent = '生成中... (LLM润色约需5-15秒)';
     statusEl.style.color = 'var(--muted)';
     genBtn.disabled = true;
@@ -59,7 +69,7 @@ async function generateDailySummary() {
     try {
         var result = await apiCall('/api/data/daily-summary?project=' + encodeURIComponent(App.currentProject), {
             method: 'POST',
-            body: JSON.stringify({ projectId: App.currentProject, date: date }),
+            body: JSON.stringify({ projectId: App.currentProject, date: date, time: time }),
             cache: 'no-store'
         });
 
@@ -68,10 +78,12 @@ async function generateDailySummary() {
         }
 
         window._summaryResult = result;
-        // 自动存档到历史 (递增式, 同日期覆盖更新) — 失败不影响展示
-        var saved = false;
-        try { saved = await saveSummaryToHistory(result); } catch (e) { console.error('[DailySummary] 存档失败:', e); }
-        statusEl.textContent = (result.aiFailed ? '⚠ LLM润色失败，显示规则版数据明细' : '✓ 生成完成') + (saved ? ' · 已存档' : '');
+        // 自动存档到历史 (键=日期+时刻: 同时刻覆盖, 不同时刻新增快照) — 失败不影响展示
+        var savedInfo = null;
+        try { savedInfo = await saveSummaryToHistory(result); } catch (e) { console.error('[DailySummary] 存档失败:', e); }
+        var tsText = (result.time ? ' ' + result.time : ' 全天');
+        statusEl.textContent = (result.aiFailed ? '⚠ LLM润色失败，显示规则版数据明细' : '✓ 生成完成') +
+            (savedInfo ? ' · 已存档(当日第' + savedInfo.dayCount + '条)' : '') + ' · 快照:' + result.date + tsText;
         statusEl.style.color = result.aiFailed ? 'var(--yellow)' : 'var(--green)';
 
         // 默认展示 AI 总结 tab；AI 失败则展示数据明细
@@ -325,7 +337,7 @@ function buildSummaryMarkdown(result) {
     var L = [];
     var projectName = (skel.project && skel.project.name) ? skel.project.name : App.currentProject;
     var timeline = (skel.project && skel.project.startDate) ? (' (BU: ' + skel.project.startDate + ' ~ ' + (skel.project.endDate || '-') + ')') : '';
-    L.push('# ' + projectName + ' Daily Bring-up 状态总结 — ' + skel.date + timeline);
+    L.push('# ' + projectName + ' Daily Bring-up 状态总结 — ' + skel.date + (result.time ? ' ' + result.time : '') + timeline);
     L.push('');
 
     if (ai.overallStatus) { L.push('## 📌 总体状态'); L.push(ai.overallStatus); L.push(''); }
@@ -412,20 +424,23 @@ function copyDailySummaryMarkdown() {
 
 // ==================== 历史总结 (递增存储, 查看bringup 14天进度) ====================
 
-// 生成成功后自动存档 → POST /api/data/daily-summary/save (同日期覆盖更新, 不同日期追加)
+// 生成成功后自动存档 → POST /api/data/daily-summary/save
+// 键 = 日期+时刻: 同一天同时刻 → 覆盖更新; 不同时刻(当天多次更新) → 新增快照
 async function saveSummaryToHistory(result) {
     var res = await apiCall('/api/data/daily-summary/save?project=' + encodeURIComponent(App.currentProject), {
         method: 'POST',
         body: JSON.stringify({
             projectId: App.currentProject,
             date: result.date,
+            time: result.time || '',
             aiFailed: !!result.aiFailed,
             skeleton: result.skeleton,
             ai: result.ai || null
         }),
         cache: 'no-store'
     });
-    return !!(res && res.success);
+    if (!res || !res.success) return null;
+    return { ok: true, mode: res.mode, dayCount: res.dayCount || 1 };
 }
 
 // 加载历史列表 (轻量) 并渲染
@@ -443,7 +458,7 @@ async function loadSummaryHistory() {
     }
 }
 
-// 渲染历史列表: 按日期递增排列, 点击某天查看完整总结
+// 渲染历史列表: 按日期分组, 组内同一日期的多个时刻快照按 time 升序 (同一天多次更新 → 多次总结)
 function renderSummaryHistory(items) {
     var container = document.getElementById('daily-summary-content');
     if (!container) return;
@@ -452,68 +467,85 @@ function renderSummaryHistory(items) {
 
     if (!items.length) {
         frag.appendChild(summaryEl('div', 'summary-text muted-hint',
-            '暂无历史总结。点击"生成总结"后会自动存档，按日期递增记录，可回看BU 14天bringup进度。'));
+            '暂无历史总结。点击"生成总结"后会自动存档，按日期+时刻递增记录，可回看BU 14天bringup进度。'));
         container.appendChild(frag);
         return;
     }
 
-    frag.appendChild(summaryEl('div', 'summary-text',
-        '📅 历史总结共 ' + items.length + ' 天（按日期递增，最新在底部）— 点击任意一天查看完整总结'));
-    frag.appendChild(summaryEl('div', 'summary-text muted-hint', '记录保存在 data/' + summaryEscapeHtml(App.currentProject) + '.daily-summaries.json（同日期重新生成会覆盖更新）'));
-
+    var days = [];
     items.forEach(function(item) {
-        var row = summaryEl('div', 'summary-history-row');
-        row.style.cssText = 'display:flex; align-items:flex-start; gap:12px; padding:10px 12px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; margin-bottom:8px; cursor:pointer;';
-        row.addEventListener('click', function() { viewSummaryHistory(item.date); });
+        var day = days.find(function(g) { return g.date === item.date; });
+        if (!day) { day = { date: item.date, snaps: [] }; days.push(day); }
+        day.snaps.push(item);
+    });
 
-        // 左侧: 日期 + AI/规则徽章
-        var left = summaryEl('div');
-        var dateEl = summaryEl('div', '', item.date);
-        dateEl.style.cssText = 'font-weight:600; color:var(--text); font-size:14px;';
-        left.appendChild(dateEl);
-        var badgeColor = item.aiFailed ? 'var(--yellow)' : 'var(--green)';
-        var badge = summaryEl('span', '', item.aiFailed ? '规则版' : 'AI版');
-        badge.style.cssText = 'display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; margin-top:3px; background:' + badgeColor + '22; color:' + badgeColor + '; border:1px solid ' + badgeColor + '55;';
-        left.appendChild(badge);
-        row.appendChild(left);
+    frag.appendChild(summaryEl('div', 'summary-text',
+        '📅 历史总结共 ' + items.length + ' 条快照 / ' + days.length + ' 天（按日期+时刻递增，最新在底部）— 点击任意一条查看完整总结'));
+    frag.appendChild(summaryEl('div', 'summary-text muted-hint',
+        '同一天多次更新可生成多个时刻快照（如 09:30 / 15:20），记录保存在 data/' + summaryEscapeHtml(App.currentProject) + '.daily-summaries.json'));
 
-        // 右侧: 总体状态概览 + 统计
-        var right = summaryEl('div');
-        right.style.cssText = 'flex:1; min-width:0;';
-        if (item.overview) {
-            var ov = summaryEl('div', 'summary-text muted-hint', item.overview);
-            ov.style.cssText = 'font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;';
-            right.appendChild(ov);
-        } else {
-            right.appendChild(summaryEl('div', 'muted-hint', '(无AI总结，仅规则版数据)'));
-        }
-        var meta = 'Domain ' + item.counts.domains + ' · Critical ' + item.counts.criticalBugs + ' · Bug ' + item.counts.allBugs + ' · 准出 ' + item.counts.criteriaPass + '/' + item.counts.criteriaTotal;
-        if (item.updatedAt) meta += ' · 更新 ' + String(item.updatedAt).split('T')[0];
-        var metaEl = summaryEl('div', 'muted-hint', meta);
-        metaEl.style.cssText = 'font-size:11px; color:var(--muted); margin-top:4px;';
-        right.appendChild(metaEl);
-        row.appendChild(right);
+    days.forEach(function(day) {
+        // 日期组头
+        var head = summaryEl('div', 'summary-text');
+        head.style.cssText = 'font-weight:600; color:var(--accent); font-size:13px; margin:12px 0 6px; border-bottom:1px dashed var(--border); padding-bottom:4px;';
+        head.textContent = '📅 ' + day.date + ' (' + day.snaps.length + ' 个时刻)';
+        frag.appendChild(head);
 
-        row.appendChild(summaryEl('span', '', '查看 →'));
-        frag.appendChild(row);
+        day.snaps.forEach(function(item) {
+            var row = summaryEl('div', 'summary-history-row');
+            row.style.cssText = 'display:flex; align-items:flex-start; gap:12px; padding:8px 12px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; margin-bottom:6px; cursor:pointer;';
+            row.addEventListener('click', function() { viewSummaryHistory(item.date, item.time || ''); });
+
+            // 左侧: 时刻 + AI/规则徽章
+            var left = summaryEl('div');
+            var timeEl = summaryEl('div', '', item.time || '全天');
+            timeEl.style.cssText = 'font-weight:600; color:var(--text); font-size:13px; min-width:44px;';
+            left.appendChild(timeEl);
+            var badgeColor = item.aiFailed ? 'var(--yellow)' : 'var(--green)';
+            var badge = summaryEl('span', '', item.aiFailed ? '规则版' : 'AI版');
+            badge.style.cssText = 'display:inline-block; padding:0 8px; border-radius:10px; font-size:11px; margin-top:3px; background:' + badgeColor + '22; color:' + badgeColor + '; border:1px solid ' + badgeColor + '55;';
+            left.appendChild(badge);
+            row.appendChild(left);
+
+            // 右侧: 总体状态概览 + 统计
+            var right = summaryEl('div');
+            right.style.cssText = 'flex:1; min-width:0;';
+            if (item.overview) {
+                var ov = summaryEl('div', 'summary-text muted-hint', item.overview);
+                ov.style.cssText = 'font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;';
+                right.appendChild(ov);
+            } else {
+                right.appendChild(summaryEl('div', 'muted-hint', '(无AI总结，仅规则版数据)'));
+            }
+            var meta = 'Domain ' + item.counts.domains + ' · Critical ' + item.counts.criticalBugs + ' · Bug ' + item.counts.allBugs + ' · 准出 ' + item.counts.criteriaPass + '/' + item.counts.criteriaTotal;
+            if (item.updatedAt) meta += ' · 更新 ' + String(item.updatedAt).split('T')[0];
+            var metaEl = summaryEl('div', 'muted-hint', meta);
+            metaEl.style.cssText = 'font-size:11px; color:var(--muted); margin-top:4px;';
+            right.appendChild(metaEl);
+            row.appendChild(right);
+
+            row.appendChild(summaryEl('span', '', '查看 →'));
+            frag.appendChild(row);
+        });
     });
 
     container.appendChild(frag);
 }
 
-// 查看某天历史: 拉取全量记录 → 复用 AI总结/数据明细 渲染
-async function viewSummaryHistory(date) {
+// 查看某天某个时刻的历史快照: 拉取该日全部快照 → 定位 time → 复用 AI总结/数据明细 渲染
+async function viewSummaryHistory(date, time) {
     var contentEl = document.getElementById('daily-summary-content');
     if (!contentEl) return;
-    contentEl.innerHTML = '<div style="color: var(--muted); font-size: 14px; padding: 30px; text-align:center;">⏳ 加载 ' + summaryEscapeHtml(date) + ' 总结...</div>';
+    contentEl.innerHTML = '<div style="color: var(--muted); font-size: 14px; padding: 30px; text-align:center;">⏳ 加载 ' + summaryEscapeHtml(date) + (time ? ' ' + summaryEscapeHtml(time) : '') + ' 总结...</div>';
     try {
         var res = await apiCall('/api/data/daily-summary/history/' + encodeURIComponent(date) + '?project=' + encodeURIComponent(App.currentProject), { cache: 'no-store' });
         if (!res || !res.success) throw new Error((res && res.error) || '加载失败');
-        var item = res.item;
-        window._summaryResult = { success: true, date: item.date, skeleton: item.skeleton, ai: item.ai, aiFailed: item.aiFailed };
+        var snaps = res.items || [];
+        var item = snaps.find(function(s) { return (s.time || '') === (time || ''); }) || snaps[snaps.length - 1];
+        window._summaryResult = { success: true, date: item.date, time: item.time || '', skeleton: item.skeleton, ai: item.ai, aiFailed: item.aiFailed };
         var st = document.getElementById('daily-summary-status');
         if (st) {
-            st.textContent = '📅 查看历史总结: ' + date + (item.aiFailed ? ' (规则版)' : '');
+            st.textContent = '📅 查看历史快照: ' + item.date + (item.time ? ' ' + item.time : ' 全天') + (item.aiFailed ? ' (规则版)' : '');
             st.style.color = 'var(--accent)';
         }
         if (item.aiFailed || !item.ai) switchSummaryTab('data');
