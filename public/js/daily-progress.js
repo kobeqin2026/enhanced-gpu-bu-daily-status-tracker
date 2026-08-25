@@ -1,5 +1,11 @@
 // Daily progress tracking
 
+// 当前时刻 HH:MM (自动时间戳)
+function nowHHMM() {
+    var now = new Date();
+    return String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+}
+
 function addDailyProgress() {
     var date = document.getElementById('daily-date-input').value;
     var time = document.getElementById('daily-time-input').value;
@@ -10,10 +16,9 @@ function addDailyProgress() {
         alert('请填写日期、Domain和工作内容');
         return;
     }
-    // 未填时间则取当前时刻 (支持同一天多次更新: 每次更新记录 HH:MM)
+    // 未填时间则取当前时刻 (自动打时间戳: 同一天多次更新每次记录 HH:MM)
     if (!time) {
-        var now = new Date();
-        time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        time = nowHHMM();
     }
     
     var domainEntry = App.data.domains.find(function(d) { return d.name === domain; });
@@ -32,7 +37,8 @@ function addDailyProgress() {
     renderDailyProgress(App.data.dailyProgress);
 
     document.getElementById('daily-date-input').value = '';
-    document.getElementById('daily-time-input').value = '';
+    // 自动打时间戳: 添加后重置为当前时刻, 连续添加多条记录时时刻自动前进
+    document.getElementById('daily-time-input').value = nowHHMM();
     document.getElementById('daily-domain-select').value = '';
     document.getElementById('daily-content-input').value = '';
     
@@ -196,3 +202,9 @@ function resetDailyProgressFilters() {
     App.currentDailyProgressFilters = {};
     renderDailyProgress(App.data.dailyProgress);
 }
+
+// 页面加载即自动打上当前时间戳 (脚本位于 body 末尾, DOM 已就绪)
+(function() {
+    var t = document.getElementById('daily-time-input');
+    if (t && !t.value) t.value = nowHHMM();
+})();

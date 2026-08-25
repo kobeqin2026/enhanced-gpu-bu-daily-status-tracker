@@ -30,6 +30,9 @@ function openDailySummaryModal() {
     modal.style.display = 'flex';
     // 默认今天当前时刻
     document.getElementById('daily-summary-date').value = summaryNowLocal();
+    // 全天汇总日期默认今天
+    var exportDate = document.getElementById('daily-summary-export-date');
+    if (exportDate) exportDate.value = summaryTodayStr();
     document.getElementById('daily-summary-status').textContent = '';
     generateDailySummary();
 }
@@ -393,33 +396,107 @@ function buildSummaryMarkdown(result) {
     return L.join('\n');
 }
 
-function copyDailySummaryMarkdown() {
-    if (!window._summaryResult) { alert('请先生成总结'); return; }
-    var md = buildSummaryMarkdown(window._summaryResult);
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(md).then(function() {
-            var st = document.getElementById('daily-summary-status');
-            st.textContent = '✓ 已复制到剪贴板';
-            st.style.color = 'var(--green)';
-        }).catch(function() {
-            // fallback
-            var ta = document.createElement('textarea');
-            ta.value = md;
-            document.body.appendChild(ta);
-            ta.select();
-            try { document.execCommand('copy'); } catch (e) {}
-            document.body.removeChild(ta);
-            document.getElementById('daily-summary-status').textContent = '✓ 已复制';
-        });
-    } else {
+// 复制文本到剪贴板 (含旧浏览器 fallback), 状态提示
+function copyTextToClipboard(text, okMsg) {
+    function fallback() {
         var ta = document.createElement('textarea');
-        ta.value = md;
+        ta.value = text;
         document.body.appendChild(ta);
         ta.select();
         try { document.execCommand('copy'); } catch (e) {}
         document.body.removeChild(ta);
-        document.getElementById('daily-summary-status').textContent = '✓ 已复制';
+        var st = document.getElementById('daily-summary-status');
+        if (st) { st.textContent = okMsg || '✓ 已复制'; st.style.color = 'var(--green)'; }
     }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(fallback).catch(fallback);
+    } else {
+        fallback();
+    }
+}
+
+// 复制当前查看的快照 (单条) 为 Markdown
+function copyDailySummaryMarkdown() {
+    if (!window._summaryResult) { alert('请先生成总结'); return; }
+    var md = buildSummaryMarkdown(window._summaryResult);
+    var t = window._summaryResult.date + (window._summaryResult.time ? ' ' + window._summaryResult.time : ' 全天');
+    copyTextToClipboard(md, '✓ 已复制当前快照 (' + t + ')');
+}
+
+// 复制指定日期的全天汇总 Markdown (该日全部时刻快照合并)
+async function copyDaySummaryMarkdown() {
+    var date = document.getElementById('daily-summary-export-date').value;
+    if (!date) { alert('请先选择汇总日期'); return; }
+    var st = document.getElementById('daily-summary-status');
+    if (st) { st.textContent = '⏳ 正在汇总 ' + date + ' 全天快照...'; st.style.color = 'var(--muted)'; }
+    try {
+        var res = await apiCall('/api/data/daily-summary/history/' + encodeURIComponent(date) + '?project=' + encodeURIComponent(App.currentProject), { cache: 'no-store' });
+        if (!res || !res.success) throw new Error((res && res.error) || '加载失败');
+        var items = res.items || [];
+        if (!items.length) {
+            alert('该日期暂无历史总结快照，请先点击"生成总结"存档后再复制');
+            if (st) st.textContent = '';
+            return;
+        }
+        var md = buildDaySummaryMarkdown(date, items);
+        copyTextToClipboard(md, '✓ 已复制 ' + date + ' 全天汇总 (' + items.length + ' 个时刻快照)');
+    } catch (err) {
+        console.error('[DailySummary] copy day error:', err);
+        if (st) { st.textContent = '汇总失败: ' + err.message; st.style.color = 'var(--red)'; }
+    }
+}
+
+// 构建"全天汇总"Markdown: 该日期所有时刻快照合并成一份
+function buildDaySummaryMarkdown(date, items) {
+    var L = [];
+    var skel0 = items[0] && items[0].skeleton || {};
+    var projectName = (skel0.project && skel0.project.name) ? skel0.project.name : App.currentProject;
+    var timeline = (skel0.project && skel0.project.startDate) ? (' (BU: ' + skel0.project.startDate + ' ~ ' + (skel0.project.endDate || '-') + ')') : '';
+    L.push('# ' + projectName + ' Daily Bring-up 状态总结 — ' + date + ' 全天汇总' + timeline);
+    L.push('');
+    L.push('> 共 ' + items.length + ' 个时刻快照：' + items.map(function(i) { return i.time || '全天'; }).join(' / '));
+    L.push('');
+
+    // 快照时间线
+    L.push('## ⏱ 快照时间线');
+    items.forEach(function(i) {
+        var badge = i.aiFailed ? '规则版' : 'AI版';
+        var upd = i.updatedAt ? (' (更新 ' + String(i.updatedAt).split('T')[0] + ')') : '';
+        var overview = (i.ai && i.ai.overallStatus) ? ': ' + i.ai.overallStatus.replace(/\s+/g, ' ').slice(0, 120) : '';
+        L.push('- **' + (i.time || '全天') + '** [' + badge + ']' + upd + overview);
+    });
+    L.push('');
+
+    // 每个快照一节
+    items.forEach(function(i) {
+        var ai = i.ai || {};
+        var skel = i.skeleton || {};
+        L.push('---');
+        L.push('## ⏱ 快照 ' + (i.time || '全天'));
+        L.push('');
+        if (ai.overallStatus) { L.push('### 📌 总体状态'); L.push(ai.overallStatus); L.push(''); }
+        // 各 domain 当天进展 (有进度记录的)
+        var doms = (skel.domainSummaries || []).filter(function(d) { return d.dayProgress && d.dayProgress.length; });
+        if (doms.length) {
+            L.push('### 🧩 Domain 进展 (' + doms.length + ')');
+            doms.forEach(function(d) {
+                L.push('- **' + d.name + '** (' + (d.owner || '无') + ', ' + (d.statusLabel || d.status || '') + (d.startDate || d.endDate ? ', 执行: ' + (d.startDate || '?') + ' ~ ' + (d.endDate || '?') : '') + ')');
+                d.dayProgress.forEach(function(p) {
+                    if (p.time) L.push('    - [' + p.time + '] ' + (p.workDone || '') + (p.nextSteps ? ' → 下一步: ' + p.nextSteps : '') + (p.blockers ? ' ⛔ 阻塞: ' + p.blockers : ''));
+                    else L.push('    - ' + (p.workDone || '') + (p.nextSteps ? ' → 下一步: ' + p.nextSteps : '') + (p.blockers ? ' ⛔ 阻塞: ' + p.blockers : ''));
+                });
+            });
+            L.push('');
+        }
+        if (ai.riskAndNextSteps) { L.push('### ⚠️ 风险与下一步'); L.push(ai.riskAndNextSteps); L.push(''); }
+        var c = skel.criteria || { total: 0 };
+        L.push('### ✅ BU准出 (' + (c.total || 0) + '条)');
+        if (ai.criteriaVerdict) L.push(ai.criteriaVerdict);
+        else if (c.total === 0) L.push('未配置BU准出标准');
+        else L.push(c.allPass ? '全部通过' : '通过' + c.pass + '/不通过' + c.fail + '/未就绪' + c.notReady);
+        L.push('');
+    });
+    return L.join('\n');
 }
 
 // ==================== 历史总结 (递增存储, 查看bringup 14天进度) ====================

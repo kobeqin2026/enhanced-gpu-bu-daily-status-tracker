@@ -660,7 +660,10 @@
                 <label style="font-size: 13px; color: var(--text);">总结时刻</label>
                 <input type="datetime-local" id="daily-summary-date" class="daily-date-input" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 13px;" />
                 <button class="add-btn" onclick="generateDailySummary()" style="padding: 5px 14px; font-size: 13px;" id="daily-summary-gen-btn">生成总结</button>
-                <button class="add-btn" onclick="copyDailySummaryMarkdown()" style="padding: 5px 14px; font-size: 13px; background: linear-gradient(135deg,#9b59b6,#6a5cff) !important;" id="daily-summary-copy-btn">📋 复制Markdown</button>
+                <label style="font-size: 13px; color: var(--text);">汇总日期</label>
+                <input type="date" id="daily-summary-export-date" class="daily-date-input" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 13px;" />
+                <button class="add-btn" onclick="copyDaySummaryMarkdown()" style="padding: 5px 14px; font-size: 13px; background: linear-gradient(135deg,#9b59b6,#6a5cff) !important;" id="daily-summary-copyday-btn">📋 复制全天Markdown</button>
+                <button class="add-btn" onclick="copyDailySummaryMarkdown()" style="padding: 5px 14px; font-size: 13px; background: linear-gradient(135deg,#9b59b6,#6a5cff) !important;" id="daily-summary-copy-btn">📋 复制当前快照</button>
                 <span id="daily-summary-status" style="font-size: 12px; color: var(--muted);"></span>
             </div>
             <div style="padding: 8px 20px 0; display: flex; gap: 8px; border-bottom: 1px solid var(--border);" class="summary-tabs">
@@ -982,9 +985,9 @@
     <script src="/js/projects.js?v=5.6.1"></script>
     <script src="/js/domains.js"></script>
     <script src="/js/bugs.js?v=5.6.2"></script>
-    <script src="/js/daily-progress.js?v=2"></script>
+    <script src="/js/daily-progress.js?v=3"></script>
     <script src="/js/bu-exit-criteria.js?v=5.3.0"></script>
-    <script src="/js/daily-summary.js?v=5.6.4"></script>
+    <script src="/js/daily-summary.js?v=5.6.5"></script>
     <script src="/js/import.js"></script>
     <script src="/js/app.js"></script>
     <script src="/js/gate.js"></script>
