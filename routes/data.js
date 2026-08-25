@@ -25,7 +25,9 @@ function domainKeyOf(name) {
     var norm = normDomainKey(name);
     return normDomainKey(CRITERIA_DOMAIN_MAP[norm] || name);
 }
-// 就地修正 data.domains: 满足准出标准(全部pass)的 domain → status=completed + endDate=当天(首次)
+// 就地修正 data.domains:
+//  全部pass → status=completed + endDate=当天(首次)
+//  不再全部pass且当前completed → 回退 not-started + 清空 endDate (双向一致)
 // 返回是否有变化
 function reconcileDomainCompletion(data) {
     var changed = false;
@@ -37,9 +39,15 @@ function reconcileDomainCompletion(data) {
         if (!cList.length) return;
         var total = cList.length;
         var pass = cList.filter(function(c) { return c.status === 'pass'; }).length;
-        if (pass === total) {
+        var allPass = (pass === total);
+        if (allPass) {
             if (dm.status !== 'completed') { dm.status = 'completed'; dm.endDate = dm.endDate || today; changed = true; }
             else if (!dm.endDate) { dm.endDate = today; changed = true; }
+        } else if (dm.status === 'completed') {
+            // 标准不再全部pass: 回退未开始 + 清空结束时间
+            dm.status = 'not-started';
+            if (dm.endDate) dm.endDate = '';
+            changed = true;
         }
     });
     return changed;
