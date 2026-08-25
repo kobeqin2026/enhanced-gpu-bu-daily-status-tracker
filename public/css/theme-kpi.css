@@ -145,6 +145,8 @@ select option:hover, select option:checked { background-color: var(--accent) !im
     background: var(--panel) !important; color: var(--text) !important;
     border-top: 2px solid var(--accent) !important; font-weight: 600 !important;
 }
+.summary-history-row { transition: border-color .15s ease, background .15s ease; }
+.summary-history-row:hover { background: var(--panel) !important; border-color: var(--accent) !important; }
 .summary-content { color: var(--text) !important; }
 .summary-card {
     background: var(--panel2) !important; border: 1px solid var(--border) !important;
