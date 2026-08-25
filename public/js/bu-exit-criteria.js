@@ -74,6 +74,31 @@ function populateDomainOwnerDropdowns() {
     });
 }
 
+// BU Exit Criteria 域名 → 域概览 (Domain Overview) 域名 的别名映射
+// 目的: sign-off owner 与域概览负责人 (JIRA组件lead) 对应, 而不显示 Confluence 页面手填值
+var CRITERIA_DOMAIN_MAP = {
+    'firmware': 'FW',
+    'pcie': 'PCIE',
+    'ethernet': 'ETH',
+    'diagnostic': 'Diag',
+    'ucie': 'UCIE',
+    'iodie': 'IOD', 'iodieethernet': 'IOD', 'iodcl': 'IOD', 'iodieucie': 'IOD',
+    'dft': 'JTAG'
+};
+
+function normDomainName(s) {
+    return String(s || '').trim().toLowerCase().replace(/[\s\-/]/g, '');
+}
+
+// 解析 criteria 的显示 owner: 优先域概览对应域负责人 (JIRA/Confluence 组件lead), 未匹配回退 criteria 自带值
+function resolveCriteriaOwner(criteria, domains) {
+    var key = CRITERIA_DOMAIN_MAP[normDomainName(criteria.domain)] || normDomainName(criteria.domain);
+    key = normDomainName(key); // alias 值 (如 'FW'/'Diag') 同样规范化后再比较
+    var dom = (domains || []).find(function(d) { return normDomainName(d.name) === key; });
+    if (dom && dom.owner) return dom.owner;
+    return criteria.signoffOwner || criteria.owner || '-';
+}
+
 function renderBUExitCriteria(criteriaList) {
     var tbody = getTableBody('bu-exit-criteria-body');
     
@@ -89,7 +114,8 @@ function renderBUExitCriteria(criteriaList) {
                          criteria.status === 'fail' ? 'severity-highest' : 'status-completed';
         
         var domainEntry = App.data.domains.find(function(d) { return d.name === criteria.domain; });
-        var displayOwner = domainEntry ? domainEntry.owner : (criteria.owner || '-');
+        // sign-off owner 与域概览负责人对应 (含域名别名映射), 未匹配回退 criteria.signoffOwner/owner
+        var displayOwner = resolveCriteriaOwner(criteria, App.data.domains);
         
         var displayIndex = criteria.index !== undefined ? criteria.index : (idx + 1);
         
@@ -143,6 +169,9 @@ function renderBUExitCriteria(criteriaList) {
 
     // Check if all criteria pass → show success banner
     updateBUSuccessBanner(criteriaList);
+
+    // 域概览"满足准出标准"进度条联动: 准出标准状态/增删/批量导入变化后同步重渲染域表
+    if (typeof renderDomains === 'function') renderDomains(App.data.domains);
 }
 
 function updateBUSuccessBanner(criteriaList) {

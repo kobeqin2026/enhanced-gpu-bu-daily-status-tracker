@@ -51,6 +51,43 @@ function renderDomains(domains) {
         }
         row.appendChild(statusCell);
         
+        // 执行开始时间 cell (admin: date input 即时保存; 其他: 只读文本)
+        var startCell = document.createElement('td');
+        if (isAdmin()) {
+            var startInput = document.createElement('input');
+            startInput.type = 'date';
+            startInput.className = 'domain-date-input';
+            startInput.value = domain.startDate || '';
+            startInput.addEventListener('change', function() {
+                updateDomainTime(domain.id, 'startDate', this.value);
+            });
+            startCell.appendChild(startInput);
+        } else {
+            startCell.textContent = domain.startDate || '';
+        }
+        row.appendChild(startCell);
+        
+        // 执行结束时间 cell
+        var endCell = document.createElement('td');
+        if (isAdmin()) {
+            var endInput = document.createElement('input');
+            endInput.type = 'date';
+            endInput.className = 'domain-date-input';
+            endInput.value = domain.endDate || '';
+            endInput.addEventListener('change', function() {
+                updateDomainTime(domain.id, 'endDate', this.value);
+            });
+            endCell.appendChild(endInput);
+        } else {
+            endCell.textContent = domain.endDate || '';
+        }
+        row.appendChild(endCell);
+        
+        // 满足准出标准 cell: 从 BU Exit Criteria 按 domain 聚合, 进度条 绿=pass/红=fail/灰=未执行
+        var criteriaCell = document.createElement('td');
+        criteriaCell.appendChild(buildCriteriaProgress(domain.name));
+        row.appendChild(criteriaCell);
+        
         // Notes cell (safe)
         var notesCell = document.createElement('td');
         notesCell.textContent = domain.notes || '';
@@ -96,6 +133,8 @@ function editDomain(domainId) {
     document.getElementById('edit-domain-name').value = domain.name;
     document.getElementById('edit-domain-owner').value = domain.owner;
     document.getElementById('edit-domain-status').value = domain.status;
+    document.getElementById('edit-domain-start-date').value = domain.startDate || '';
+    document.getElementById('edit-domain-end-date').value = domain.endDate || '';
     document.getElementById('edit-domain-notes').value = domain.notes;
     
     // 负责人从 JIRA 用户列表选择(按 domain.jiraProject, 缺省 BR200)
@@ -159,6 +198,12 @@ function saveEditedDomain() {
     domain.name = document.getElementById('edit-domain-name').value.trim();
     domain.owner = document.getElementById('edit-domain-owner').value.trim();
     domain.status = document.getElementById('edit-domain-status').value;
+    domain.startDate = document.getElementById('edit-domain-start-date').value || '';
+    domain.endDate = document.getElementById('edit-domain-end-date').value || '';
+    if (domain.startDate && domain.endDate && domain.startDate > domain.endDate) {
+        alert('执行开始时间不能晚于执行结束时间');
+        return;
+    }
     domain.notes = document.getElementById('edit-domain-notes').value.trim();
     
     saveAndRefresh('edit-domain-modal', renderDomains, 'domains', function() { App.currentEditDomainId = null; });
@@ -178,6 +223,23 @@ function updateDomainStatus(domainId, newStatus) {
         persistData();
         renderDomains(App.data.domains);
     }
+}
+
+// inline 更新 domain 执行时间 (startDate/endDate), 带先后关系校验
+function updateDomainTime(domainId, field, value) {
+    var domain = App.data.domains.find(function(d) { return d.id === domainId; });
+    if (!domain) return;
+    if (value) {
+        var other = field === 'startDate' ? 'endDate' : 'startDate';
+        if (domain[other] && ((field === 'startDate' && value > domain[other]) || (field === 'endDate' && value < domain[other]))) {
+            alert('执行开始时间不能晚于执行结束时间');
+            renderDomains(App.data.domains); // 回滚重渲染
+            return;
+        }
+    }
+    domain[field] = value;
+    persistData();
+    renderDomains(App.data.domains);
 }
 
 function deleteDomain(domainId) {
@@ -202,6 +264,8 @@ function addNewDomain() {
         name: newDomainName,
         owner: newDomainOwner || 'TBD',
         status: 'not-started',
+        startDate: '',
+        endDate: '',
         notes: ''
     };
     
@@ -210,6 +274,59 @@ function addNewDomain() {
     document.getElementById('new-domain-name').value = '';
     document.getElementById('new-domain-owner').value = '';
     persistData();
+}
+
+// ===== 满足准出标准 进度条 =====
+// 从 BU Exit Criteria 按 domain 聚合 (复用 bu-exit-criteria.js 的域名别名映射)
+function criteriaDomainKey(name) {
+    var norm = function(s) { return String(s || '').trim().toLowerCase().replace(/[\s\-/]/g, ''); };
+    var map = (typeof CRITERIA_DOMAIN_MAP !== 'undefined') ? CRITERIA_DOMAIN_MAP : {};
+    return norm(map[norm(name)] || name);
+}
+
+// @param {string} domainName - 域概览中的域名
+// @returns {HTMLElement} 进度条容器 (绿=pass / 红=fail / 灰=not-ready)
+function buildCriteriaProgress(domainName) {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex; align-items:center; gap:6px; min-width:140px;';
+
+    var cList = (App.data.buExitCriteria || []).filter(function(c) {
+        return criteriaDomainKey(c.domain) === criteriaDomainKey(domainName);
+    });
+    var total = cList.length;
+    var pass = cList.filter(function(c) { return c.status === 'pass'; }).length;
+    var fail = cList.filter(function(c) { return c.status === 'fail'; }).length;
+    var notReady = total - pass - fail;
+
+    if (total === 0) {
+        wrap.textContent = '—';
+        wrap.title = '该域无准出标准';
+        return wrap;
+    }
+
+    var bar = document.createElement('div');
+    bar.style.cssText = 'flex:1; height:8px; border-radius:4px; background:#3a4157; overflow:hidden; display:flex;';
+    var segs = [
+        { n: pass, color: '#2ecc71' },      // 绿: 通过
+        { n: fail, color: '#e74c3c' },      // 红: 不通过
+        { n: notReady, color: '#6b7280' }   // 灰: 未执行
+    ];
+    segs.forEach(function(seg) {
+        if (seg.n > 0) {
+            var el = document.createElement('div');
+            el.style.cssText = 'height:100%; background:' + seg.color + ';';
+            el.style.width = (seg.n / total * 100) + '%';
+            bar.appendChild(el);
+        }
+    });
+    wrap.appendChild(bar);
+
+    var label = document.createElement('span');
+    label.textContent = pass + '/' + total;
+    label.style.cssText = 'font-size:12px; color:#8b93a7; white-space:nowrap;';
+    wrap.appendChild(label);
+    wrap.title = '准出标准共 ' + total + ' 条: 通过 ' + pass + ' / 不通过 ' + fail + ' / 未执行 ' + notReady;
+    return wrap;
 }
 
 // ===== JIRA 组件同步(组件 = Domain, lead = owner) =====

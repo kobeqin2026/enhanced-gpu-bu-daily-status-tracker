@@ -12,11 +12,11 @@
     <link rel="stylesheet" href="/css/components.css">
     <link rel="stylesheet" href="/css/tables.css">
     <link rel="stylesheet" href="/css/domains.css">
-    <link rel="stylesheet" href="/css/bugs.css">
+    <link rel="stylesheet" href="/css/bugs.css?v=5.6.0">
     <link rel="stylesheet" href="/css/daily-progress.css">
     <link rel="stylesheet" href="/css/bu-exit-criteria.css?v=5.3.0">
     <link rel="stylesheet" href="/css/responsive.css">
-    <link rel="stylesheet" href="/css/theme-kpi.css?v=4">
+    <link rel="stylesheet" href="/css/theme-kpi.css?v=5">
     <style id="theme-inline">
         /* ═══ 与 kpi-portal 统一深色主题 (内联, 优先级最高, 防缓存/加载顺序问题) ═══ */
         html, body {
@@ -59,9 +59,11 @@
                         .daily-progress-table tr:nth-child(even) {
                             background-color: var(--panel2) !important;
                         }
-                        .status-table tr:nth-child(even) td, .tasks-table tr:nth-child(even) td,
-                        .bu-exit-criteria-table tr:nth-child(even) td, .bug-table tr:nth-child(even) td,
-                        .daily-progress-table tr:nth-child(even) td {
+                        .status-table tr:nth-child(even) td:not([class^="severity-"]):not([class^="status-"]),
+                        .tasks-table tr:nth-child(even) td:not([class^="severity-"]):not([class^="status-"]),
+                        .bu-exit-criteria-table tr:nth-child(even) td:not([class^="severity-"]):not([class^="status-"]),
+                        .bug-table tr:nth-child(even) td:not([class^="severity-"]):not([class^="status-"]),
+                        .daily-progress-table tr:nth-child(even) td:not([class^="severity-"]):not([class^="status-"]) {
                             background-color: var(--panel2) !important;
                         }
                         .daily-progress-input-form, .bug-form, .task-form, .domain-form {
@@ -141,6 +143,35 @@
         .modal-content { background: #171d2b !important; border: 1px solid #2a3350 !important; border-radius: 14px !important; }
         .modal-header { border-bottom-color: #2a3350 !important; }
         input[type="date"] { color-scheme: dark !important; }
+        /* 一键总结 modal */
+        .summary-tab-btn { background: #1d2436 !important; border: 1px solid #2a3350 !important; color: #8b93a7 !important; border-radius: 8px 8px 0 0 !important; padding: 7px 18px !important; font-size: 13px !important; cursor: pointer !important; border-bottom: none !important; }
+        .summary-tab-btn.active { background: #171d2b !important; color: #e6e9f2 !important; border-top: 2px solid #4f8cff !important; font-weight: 600 !important; }
+        .summary-content { color: #e6e9f2 !important; }
+        .summary-card { background: #1d2436 !important; border: 1px solid #2a3350 !important; border-radius: 10px !important; padding: 12px 16px !important; margin-bottom: 12px !important; border-left: 3px solid #8b93a7 !important; }
+        .summary-card.card-accent-blue { border-left-color: #4f8cff !important; }
+        .summary-card.card-accent-green { border-left-color: #3ddc84 !important; }
+        .summary-card.card-accent-red { border-left-color: #ff5c5c !important; }
+        .summary-card.card-accent-yellow { border-left-color: #ffc53d !important; }
+        .summary-card-title { font-size: 14px !important; font-weight: 600 !important; color: #e6e9f2 !important; margin-bottom: 8px !important; }
+        .summary-text { font-size: 13px !important; line-height: 1.7 !important; color: #e6e9f2 !important; white-space: pre-wrap !important; }
+        .muted-hint { color: #8b93a7 !important; font-size: 12px !important; }
+        .summary-list { display: flex; flex-direction: column; gap: 7px; }
+        .summary-domain-row { display: flex; gap: 10px; font-size: 13px; }
+        .summary-domain-name { font-weight: 600; color: #4f8cff; min-width: 130px; flex-shrink: 0; }
+        .summary-domain-summary { color: #e6e9f2; }
+        .summary-bug-row { border: 1px solid #2a3350; border-radius: 8px; padding: 8px 10px; background: rgba(255,92,92,.05); }
+        .summary-bug-head { font-size: 13px; margin-bottom: 4px; }
+        .bug-key { font-weight: 700; color: #ff5c5c; font-family: monospace; }
+        .bug-meta { color: #8b93a7; font-size: 12px; }
+        .debug-progress-text { font-size: 13px; color: #e6e9f2; line-height: 1.6; margin-top: 3px; }
+        .debug-progress-src { font-size: 11px; color: #8b93a7; margin-top: 2px; }
+        .critical-highlight-box { border-left: 3px solid #ff5c5c; padding-left: 12px; }
+        .progress-line { font-size: 13px; line-height: 1.6; color: #e6e9f2; }
+        .summary-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .summary-table th { background: #171d2b !important; color: #e6e9f2 !important; font-weight: 600 !important; padding: 7px 9px !important; border: 1px solid #2a3350 !important; text-align: left !important; }
+        .summary-table td { padding: 6px 9px !important; border: 1px solid #2a3350 !important; color: #e6e9f2 !important; vertical-align: top !important; }
+        .summary-table tbody tr:nth-child(even) td { background-color: #1d2436 !important; }
+        .summary-control-bar .add-btn:disabled { opacity: .5; cursor: not-allowed; }
     </style>
 </head>
 <body class="gated">
@@ -381,6 +412,7 @@
             </span>
             <br>
             <strong>最后更新：</strong> <span id="last-update">2026年3月3日</span>
+            <button class="add-btn" onclick="openDailySummaryModal()" style="margin-left:12px; padding:4px 14px; font-size:13px;">📊 一键总结Daily状态</button>
         </div>
         
         <!-- Sync Status Indicator -->
@@ -409,7 +441,7 @@
             </div>
         </div>
         
-        <h2>域概览 (Domain Overview)</h2>
+        <h2>Domain Overview Status</h2>
         <div class="status-table-wrapper">
             <table class="status-table">
                 <thead>
@@ -417,6 +449,9 @@
                         <th>域 (Domain)</th>
                         <th>负责人 (Owner)</th>
                         <th>状态 (Status)</th>
+                        <th>执行开始时间</th>
+                        <th>执行结束时间</th>
+                        <th>满足准出标准</th>
                         <th>备注 (Notes)</th>
                         <th>操作</th>
                     </tr>
@@ -456,7 +491,7 @@
             </div>
         </div>
         
-        <h2>Bug跟踪 (Bug Tracking)</h2>
+        <h2>BU Bug tracking</h2>
         
         <!-- Bug Filter section -->
         <div class="filter-section">
@@ -466,6 +501,7 @@
                 <input type="text" id="filter-bug-domain" class="filter-input" placeholder="Domain">
                 <input type="text" id="filter-bug-description" class="filter-input" placeholder="描述">
                 <select id="filter-bug-severity" class="filter-input">
+                    <option value="critical" selected>仅Critical (Highest/High)</option>
                     <option value="">所有严重性</option>
                     <option value="highest">Highest</option>
                     <option value="high">High</option>
@@ -483,11 +519,18 @@
                 </select>
                 <input type="text" id="filter-bug-owner" class="filter-input" placeholder="负责人">
             </div>
-            <div class="filter-row" style="margin-top: 10px; align-items: center;">
+            <div class="filter-row" style="margin-top: 10px; align-items: center; flex-wrap: wrap; gap: 15px;">
                 <label style="font-size: 14px; display: flex; align-items: center; gap: 5px; cursor: pointer;">
                     <input type="checkbox" id="filter-bug-show-closed" style="width: 16px; height: 16px; cursor: pointer;" onchange="applyBugFilters()">
                     <span>显示已关闭/已拒绝Bug</span>
                 </label>
+                <label style="font-size: 14px; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                    <input type="checkbox" id="filter-bug-bu-range" checked style="width: 16px; height: 16px; cursor: pointer;" onchange="applyBugFilters()">
+                    <span>仅显示BU执行时间内的Bug</span>
+                </label>
+            </div>
+            <div class="filter-row" style="margin-top: 8px; font-size: 13px; color: #8b93a7;">
+                <span id="bu-bug-range-hint"></span>
             </div>
             <div class="filter-buttons">
                 <button class="filter-btn" onclick="applyBugFilters()">应用筛选</button>
@@ -502,6 +545,7 @@
                         <th data-sort="bugId">Bug ID</th>
                         <th data-sort="domain">域 (Domain)</th>
                         <th data-sort="description">描述 (Description)</th>
+                        <th>调试进度 (Debug Progress)</th>
                         <th data-sort="severity">严重性 (Severity)</th>
                         <th data-sort="status">状态 (Status)</th>
                         <th data-sort="reportDate">报告日期</th>
@@ -604,6 +648,30 @@
         </div>
     </div>
 
+    <!-- Daily Summary Modal (一键总结) -->
+    <div id="daily-summary-modal" class="modal">
+        <div class="modal-content" style="max-width: 960px; width: 94%; max-height: 88vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <div class="modal-title">📊 Daily Bring-up 状态总结</div>
+                <span class="close" onclick="closeDailySummaryModal()">&times;</span>
+            </div>
+            <div style="padding: 10px 20px 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;" class="summary-control-bar">
+                <label style="font-size: 13px; color: var(--text);">总结日期</label>
+                <input type="date" id="daily-summary-date" class="daily-date-input" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 13px;" />
+                <button class="add-btn" onclick="generateDailySummary()" style="padding: 5px 14px; font-size: 13px;" id="daily-summary-gen-btn">生成总结</button>
+                <button class="add-btn" onclick="copyDailySummaryMarkdown()" style="padding: 5px 14px; font-size: 13px; background: linear-gradient(135deg,#9b59b6,#6a5cff) !important;" id="daily-summary-copy-btn">📋 复制Markdown</button>
+                <span id="daily-summary-status" style="font-size: 12px; color: var(--muted);"></span>
+            </div>
+            <div style="padding: 8px 20px 0; display: flex; gap: 8px; border-bottom: 1px solid var(--border);" class="summary-tabs">
+                <button class="summary-tab-btn active" id="summary-tab-ai" onclick="switchSummaryTab('ai')">✨ AI总结</button>
+                <button class="summary-tab-btn" id="summary-tab-data" onclick="switchSummaryTab('data')">📋 数据明细</button>
+            </div>
+            <div id="daily-summary-content" style="flex:1; overflow-y:auto; padding: 16px 20px;" class="summary-content">
+                <div id="daily-summary-loading" style="color: var(--muted); font-size: 14px; padding: 30px; text-align:center;">正在生成总结...</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Domain Edit Modal -->
     <div id="edit-domain-modal" class="modal">
         <div class="modal-content">
@@ -632,6 +700,14 @@
                     <option value="blocked">受阻</option>
                     <option value="completed">已完成</option>
                 </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">执行开始时间</label>
+                <input type="date" id="edit-domain-start-date" class="domain-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">执行结束时间</label>
+                <input type="date" id="edit-domain-end-date" class="domain-input">
             </div>
             <div class="form-group">
                 <label class="form-label">备注</label>
@@ -692,6 +768,28 @@
                 <button class="modal-btn modal-delete-btn" onclick="deleteBugFromModal()">删除</button>
                 <button class="modal-btn modal-cancel-btn" onclick="closeEditBugModal()">取消</button>
                 <button class="modal-btn modal-save-btn" onclick="saveEditedBug()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug Progress Edit Modal -->
+    <div id="edit-progress-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">调试进度 (Debug Progress)</div>
+                <span class="close" onclick="closeEditProgressModal()">&times;</span>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Bug ID</label>
+                <input type="text" id="edit-progress-bugid" class="bug-id-input" disabled>
+            </div>
+            <div class="form-group">
+                <label class="form-label">调试进展（可手工输入或由AI从JIRA评论归纳）</label>
+                <textarea id="edit-progress-text" class="progress-textarea" rows="4" placeholder="例如：已定位为PCIe链路训练失败，正在验证PHY配置..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-cancel-btn" onclick="closeEditProgressModal()">取消</button>
+                <button class="modal-btn modal-save-btn" onclick="saveEditedProgress()">保存</button>
             </div>
         </div>
     </div>
@@ -875,17 +973,19 @@
         </div>
     </div>
     <!-- JS modules (order matters: globals -> utils -> data -> auth -> projects -> domains -> bugs -> daily-progress -> bu-exit-criteria -> import -> app) -->
-    <script src="/js/globals.js"></script>
+    <script src="/js/globals.js?v=5.6.1"></script>
     <script src="/js/utils.js"></script>
     <script src="/js/data.js?v=5.5.6"></script>
     <script src="/js/auth.js?v=5.5.6"></script>
-    <script src="/js/projects.js"></script>
+    <script src="/js/projects.js?v=5.6.1"></script>
     <script src="/js/domains.js"></script>
-    <script src="/js/bugs.js"></script>
+    <script src="/js/bugs.js?v=5.6.2"></script>
     <script src="/js/daily-progress.js"></script>
     <script src="/js/bu-exit-criteria.js?v=5.3.0"></script>
+    <script src="/js/daily-summary.js?v=5.6.2"></script>
     <script src="/js/import.js"></script>
     <script src="/js/app.js"></script>
+    <script src="/js/gate.js"></script>
 
     <!-- Bug CSV Import Modal -->
     <div id="bug-import-modal" class="modal">

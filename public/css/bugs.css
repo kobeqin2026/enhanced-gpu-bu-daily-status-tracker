@@ -35,3 +35,96 @@
     color: #444444 !important;
     border-color: #aaaaaa !important;
 }
+
+/* ==================== Debug Progress Column ==================== */
+.bug-table .debug-progress-cell {
+    max-width: 320px;
+    min-width: 180px;
+    word-break: break-word;
+    white-space: normal;
+    line-height: 1.45;
+    text-align: left;
+    vertical-align: top;
+}
+.bug-table .debug-progress-cell .debug-progress-text {
+    display: block;
+    font-size: 12.5px;
+}
+.bug-table .debug-progress-cell .debug-progress-meta {
+    display: block;
+    font-size: 11px;
+    color: #7f8c8d;
+    margin-top: 2px;
+}
+.bug-table .debug-progress-cell .progress-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+.bug-table .debug-progress-cell .progress-actions button {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background: #f8f9fa;
+    color: #333;
+    cursor: pointer;
+}
+.bug-table .debug-progress-cell .progress-actions button:hover {
+    background: #e9ecef;
+}
+.bug-table .debug-progress-cell .progress-actions button.progress-ai-btn {
+    border-color: #8e44ad;
+    color: #8e44ad;
+    background: #fbf5ff;
+}
+.bug-table .debug-progress-cell .progress-actions button.progress-ai-btn:hover {
+    background: #f3e8ff;
+}
+.bug-table .debug-progress-cell .progress-ai-spin {
+    display: inline-block;
+    margin-right: 4px;
+    animation: progress-spin 1s linear infinite;
+}
+@keyframes progress-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+/* Dark theme overrides (theme-kpi inline block) */
+.debug-progress-cell .progress-actions button {
+    background: var(--panel2, #f8f9fa);
+    color: var(--text, #333);
+    border-color: var(--border, #ccc);
+}
+.debug-progress-cell .progress-actions button.progress-ai-btn {
+    background: var(--panel2, #fbf5ff);
+    border-color: var(--accent, #8e44ad);
+    color: var(--accent, #8e44ad);
+}
+.debug-progress-cell .progress-ai-spin {
+    /* keep default */
+}
+.debug-progress-cell .debug-progress-meta {
+    color: var(--muted, #7f8c8d);
+}
+
+/* Debug progress modal textarea */
+.progress-textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 8px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13.5px;
+    color: #2c3e50;
+    background: #fff;
+    resize: vertical;
+    box-sizing: border-box;
+}
+.progress-textarea:focus {
+    outline: none;
+    border-color: #409EFF;
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.15);
+}
