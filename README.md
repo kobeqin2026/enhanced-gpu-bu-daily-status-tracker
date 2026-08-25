@@ -22,7 +22,7 @@
 ### 核心功能
 - **多项目切换**: 支持创建和切换多个项目
 - **域概览 (Domain Overview)**: 管理所有技术领域，支持状态更新（仅管理员可编辑）
-- **Bug跟踪 (Bug Tracking)**: 完整的Bug生命周期管理，支持严重性分级、CSV批量导入、JIRA集成导入
+- **BU Bug tracking**: 完整的Bug生命周期管理，支持严重性分级、CSV批量导入、JIRA集成导入
 - **JIRA集成 (JIRA Integration)**: 从 JIRA Server/Cloud/Data Center 自动拉取 Bug，支持项目选择、字段映射、智能合并
 - **每日进度跟踪 (Daily Progress Tracking)**: 按日期和Domain记录每日工作进展
 - **BU准出标准 (BU Exit Criteria)**: 定义和管理每个Domain的准出标准

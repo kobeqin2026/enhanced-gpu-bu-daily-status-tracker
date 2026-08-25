@@ -1,24 +1,10 @@
 {
-  "user": {
-    "username": "user",
-    "role": "user",
-    "name": "普通用户",
-    "token": "7e534629a8e3a863fabc9cf391f4429a",
-    "createdAt": 1777256036208
-  },
   "jtag": {
     "username": "jtag",
     "role": "domain_owner",
     "name": "JTAG",
     "token": "f8c87cbda2368d2f765183b31c8e90d9",
     "createdAt": 1785897070800
-  },
-  "admin": {
-    "username": "admin",
-    "role": "admin",
-    "name": "管理员",
-    "token": "82de36c5b9dff073c25095a87b8dc620",
-    "createdAt": 1786959074819
   },
   "pcie": {
     "username": "pcie",
@@ -27,11 +13,18 @@
     "token": "e247e7f627c0815e1bcd6e7ecc20f795",
     "createdAt": 1786350378870
   },
+  "admin": {
+    "username": "admin",
+    "role": "admin",
+    "name": "管理员",
+    "token": "1060c42357c9fcff01101f9365499ff1",
+    "createdAt": 1787562971467
+  },
   "kobe": {
     "username": "kobe",
     "role": "admin",
     "name": "Kobe",
-    "token": "cf2b91d9932e7c94ed0f4e733010b4aa",
-    "createdAt": 1786958420354
+    "token": "ac6466b4d9e36bc130592af03cbb6de8",
+    "createdAt": 1787549791563
   }
 }
