@@ -6,25 +6,25 @@
     "token": "f8c87cbda2368d2f765183b31c8e90d9",
     "createdAt": 1785897070800
   },
-  "hbm": {
-    "username": "hbm",
-    "role": "domain_owner",
-    "name": "HBM",
-    "token": "5bcd1500223f9f6a6752dddeb9f8ccae",
-    "createdAt": 1787725147145
-  },
   "admin": {
     "username": "admin",
     "role": "admin",
     "name": "管理员",
-    "token": "c6e055619875988081fcfbb648357d0f",
-    "createdAt": 1787725072225
+    "token": "3004aaab094facf9994f2bfbeb60cf72",
+    "createdAt": 1787737896984
   },
   "pcie": {
     "username": "pcie",
     "role": "domain_owner",
     "name": "PCIe",
-    "token": "a0781bb19e63e689ba5b061e484ee6ea",
-    "createdAt": 1787725311402
+    "token": "badfaef1aaac48ddd6e753038a8451c7",
+    "createdAt": 1787725948403
+  },
+  "kobe": {
+    "username": "kobe",
+    "role": "admin",
+    "name": "Kobe",
+    "token": "d08732ff1283e3da5a00a3f561d03fc0",
+    "createdAt": 1787726862502
   }
 }
