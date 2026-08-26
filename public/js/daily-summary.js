@@ -23,11 +23,14 @@ function summaryNowLocal() {
     return date + 'T' + time;
 }
 
-// 打开总结弹窗 (默认自动生成一次; 传 {noAuto:true} 为纯查看, 不触发 LLM)
+// 打开总结弹窗 (默认自动生成一次; 传 {noAuto:true} 为纯查看, 不触发 LLM, 且只保留 历史总结/数据明细 两个 tab)
 function openDailySummaryModal(opts) {
     var modal = document.getElementById('daily-summary-modal');
     if (!modal) return;
     modal.style.display = 'flex';
+    // 查看模式隐藏 AI 总结 tab (一键总结/生成时恢复显示)
+    var aiTabBtn = document.getElementById('summary-tab-ai');
+    if (aiTabBtn) aiTabBtn.style.display = (opts && opts.noAuto) ? 'none' : 'inline-block';
     // 默认今天当前时刻
     document.getElementById('daily-summary-date').value = summaryNowLocal();
     // 全天汇总日期默认今天
@@ -713,7 +716,8 @@ function renderSummaryHistory(items) {
             right.style.cssText = 'flex:1; min-width:0;';
             if (item.overview) {
                 var ov = summaryEl('div', 'summary-text muted-hint', item.overview);
-                ov.style.cssText = 'font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;';
+                // 完整展示多行 (不截断), 少下拉即可看全概要
+                ov.style.cssText = 'font-size:12.5px; color:var(--muted); line-height:1.65; white-space:pre-wrap; margin-top:2px;';
                 right.appendChild(ov);
             } else {
                 right.appendChild(summaryEl('div', 'muted-hint', '(无AI总结，仅规则版数据)'));
@@ -749,7 +753,10 @@ async function viewSummaryHistory(date, time) {
             st.textContent = '📅 查看历史快照: ' + item.date + (item.time ? ' ' + item.time : ' 全天') + (item.aiFailed ? ' (规则版)' : '');
             st.style.color = 'var(--accent)';
         }
-        if (item.aiFailed || !item.ai) switchSummaryTab('data');
+        // 查看模式(仅历史+数据两tab)下点击快照 → 展示数据明细; 否则按原逻辑(AI优先)
+        var aiTabBtn = document.getElementById('summary-tab-ai');
+        var aiTabHidden = aiTabBtn ? getComputedStyle(aiTabBtn).display === 'none' : true;
+        if (aiTabHidden || item.aiFailed || !item.ai) switchSummaryTab('data');
         else switchSummaryTab('ai');
     } catch (err) {
         console.error('[DailySummary] history view error:', err);
