@@ -54,6 +54,18 @@ function switchSummaryTab(tab) {
     else if (tab === 'history') loadSummaryHistory();
 }
 
+// 查看BU daily状态: 人为触发一次总结 (打开查看窗口 + 立即以当前时刻生成并存档, 不等待定时自动总结)
+function manualGenerateDailySummary() {
+    openDailySummaryModal();
+    var dt = document.getElementById('daily-summary-date');
+    if (dt) {
+        var now = new Date();
+        var pad = function(n) { return String(n).padStart(2, '0'); };
+        dt.value = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+    }
+    generateDailySummary();
+}
+
 // 生成总结
 async function generateDailySummary() {
     var dateTime = document.getElementById('daily-summary-date').value;

@@ -418,7 +418,10 @@
             </span>
             <br>
             <strong>最后更新：</strong> <span id="last-update">2026年3月3日</span>
-            <button class="add-btn" onclick="openDailySummaryModal()" style="margin-left:12px; padding:4px 14px; font-size:13px;">📊 一键总结Daily状态</button>
+            <span style="display:inline-block; margin-top:8px;">
+            <button class="add-btn" onclick="manualGenerateDailySummary()" style="margin-right:8px; padding:4px 14px; font-size:13px; background: linear-gradient(135deg,#2ecc71,#27ae60) !important;" title="人为触发一次当天总结并查看">📋 查看BU daily状态</button>
+            <button class="add-btn" onclick="openDailySummaryModal()" style="padding:4px 14px; font-size:13px;">📊 一键总结Daily状态</button>
+            </span>
         </div>
         
         <!-- Sync Status Indicator -->
@@ -993,7 +996,7 @@
     <script src="/js/bugs.js?v=5.6.2"></script>
     <script src="/js/daily-progress.js?v=4"></script>
     <script src="/js/bu-exit-criteria.js?v=5.4.0"></script>
-    <script src="/js/daily-summary.js?v=5.6.10"></script>
+    <script src="/js/daily-summary.js?v=5.6.11"></script>
     <script src="/js/import.js"></script>
     <script src="/js/app.js?v=1"></script>
     <script src="/js/gate.js?v=3"></script>
