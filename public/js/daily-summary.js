@@ -23,8 +23,8 @@ function summaryNowLocal() {
     return date + 'T' + time;
 }
 
-// 打开总结弹窗
-function openDailySummaryModal() {
+// 打开总结弹窗 (默认自动生成一次; 传 {noAuto:true} 为纯查看, 不触发 LLM)
+function openDailySummaryModal(opts) {
     var modal = document.getElementById('daily-summary-modal');
     if (!modal) return;
     modal.style.display = 'flex';
@@ -34,6 +34,12 @@ function openDailySummaryModal() {
     var exportDate = document.getElementById('daily-summary-export-date');
     if (exportDate) exportDate.value = summaryTodayStr();
     document.getElementById('daily-summary-status').textContent = '';
+    if (opts && opts.noAuto) {
+        // 纯查看: 不触发 LLM, 内容区提示
+        var contentEl = document.getElementById('daily-summary-content');
+        if (contentEl) contentEl.innerHTML = '<div style="color: var(--muted); font-size: 14px; padding: 30px; text-align:center;">📊 如需生成当前时刻总结，请点击「一键总结Daily状态」或下方「生成总结」按钮<br>（历史总结请查看「📅 历史总结」tab）</div>';
+        return;
+    }
     generateDailySummary();
 }
 
@@ -54,9 +60,14 @@ function switchSummaryTab(tab) {
     else if (tab === 'history') loadSummaryHistory();
 }
 
-// 查看BU daily状态: 人为触发一次总结 (打开查看窗口 + 立即以当前时刻生成并存档, 不等待定时自动总结)
+// 查看BU daily状态: 纯查看 (打开查看窗口, 不触发 LLM 总结)
 function manualGenerateDailySummary() {
-    openDailySummaryModal();
+    openDailySummaryModal({ noAuto: true });
+}
+
+// 一键总结Daily状态: 打开查看窗口并触发一次 LLM 总结 (以当前时刻生成并存档)
+function oneClickDailySummary() {
+    openDailySummaryModal({ noAuto: true });
     var dt = document.getElementById('daily-summary-date');
     if (dt) {
         var now = new Date();
