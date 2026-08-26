@@ -547,6 +547,18 @@ async function copyDaySummaryMarkdown() {
     }
 }
 
+// BU 第 N 天 (从项目 BU 开始日算起): 返回 'BU 第 N 天' 或 ''
+function buDayOf(date, proj) {
+    try {
+        if (!proj || !proj.startDate || !date) return '';
+        var s0 = new Date(String(proj.startDate).slice(0, 10) + 'T00:00:00');
+        var t0 = new Date(String(date).slice(0, 10) + 'T00:00:00');
+        if (isNaN(s0.getTime()) || isNaN(t0.getTime())) return '';
+        var diff = Math.round((t0.getTime() - s0.getTime()) / 86400000) + 1;
+        return diff >= 1 ? 'BU 第 ' + diff + ' 天' : '';
+    } catch (e) { return ''; }
+}
+
 // 构建"全天归纳汇总"Markdown: LLM 归纳(整体进展/亮点/风险/建议) + 实时各Domain全天动态
 // @param {string} date - 'YYYY-MM-DD'
 // @param {Array} snapshots - [{time, aiFailed, overall}] 历史时刻快照索引
@@ -558,7 +570,7 @@ function buildDaySummaryMarkdown(date, snapshots, summary, aiFailed) {
     var proj = (App.projectsList || []).find(function(p) { return p.id === App.currentProject; });
     var projectName = (proj && proj.name) ? proj.name : App.currentProject;
     var timeline = (proj && proj.startDate) ? (' (BU: ' + proj.startDate + ' ~ ' + (proj.endDate || '-') + ')') : '';
-    L.push('# ' + projectName + ' Daily Bring-up 状态总结 — ' + date + ' 全天归纳汇总' + timeline);
+    L.push('# ' + projectName + ' Daily Bring-up 状态总结 — ' + date + ' 全天归纳汇总' + (buDayOf(date, proj) ? '（' + buDayOf(date, proj) + '）' : '') + timeline);
     L.push('');
     L.push('> ' + (aiFailed ? '⚠ 规则降级版（LLM归纳失败，基于实时数据）' : '✨ AI 归纳') + ' ｜ 历史快照 ' + (snapshots.length ? snapshots.length + ' 个' : '0 个（该日尚未生成总结快照，基于当前实时数据归纳）') + (snapshots.length ? '：' + snapshots.map(function(s) { return s.time; }).join(' / ') : ''));
     L.push('');
@@ -609,11 +621,35 @@ function buildDaySummaryMarkdown(date, snapshots, summary, aiFailed) {
     });
     L.push('');
 
-    // 5. BU准出 (实时)
+    // 5. BU准出 (实时: 统计 + 分域明细 + 未通过项)
     var crit = derived.criteria || {};
     L.push('## ✅ BU准出标准 (' + (derived.totalDomains || 0) + ' 个域, ' + (derived.activeDomains || 0) + ' 个有进度)');
     if (crit.total === 0) L.push('- 未配置BU准出标准');
-    else L.push('- 共 ' + crit.total + ' 条：通过 ' + crit.pass + ' / 不通过 ' + crit.fail + ' / 未就绪 ' + crit.notReady + (crit.allPass ? ' → 全部通过 ✅' : ' → 未全部通过'));
+    else {
+        L.push('- 共 ' + crit.total + ' 条：通过 ' + crit.pass + ' / 不通过 ' + crit.fail + ' / 未就绪 ' + crit.notReady + (crit.allPass ? ' → 全部通过 ✅' : ' → 未全部通过'));
+        // 分域统计
+        var critByDomain = {};
+        (App.data.buExitCriteria || []).forEach(function(c) {
+            var dk = (typeof criteriaDomainKey === 'function') ? criteriaDomainKey(c.domain) : String(c.domain || '').trim();
+            if (!critByDomain[dk]) critByDomain[dk] = { pass: 0, fail: 0, notReady: 0, fails: [] };
+            var st = String(c.status || '').toLowerCase();
+            if (st === 'pass') critByDomain[dk].pass++;
+            else if (st === 'fail') { critByDomain[dk].fail++; critByDomain[dk].fails.push(c.criteria || c.name || ''); }
+            else critByDomain[dk].notReady++;
+        });
+        var critLines = Object.keys(critByDomain).map(function(dk) {
+            var g = critByDomain[dk];
+            return dk + '(通过' + g.pass + '/不通过' + g.fail + '/未就绪' + g.notReady + ')';
+        });
+        if (critLines.length) L.push('- 各域: ' + critLines.join('；'));
+        var allFails = [];
+        Object.keys(critByDomain).forEach(function(dk) {
+            critByDomain[dk].fails.forEach(function(f) {
+                allFails.push(dk + ': ' + f);
+            });
+        });
+        if (allFails.length) L.push('- ⚠ 未通过项(' + allFails.length + '): ' + allFails.join('；'));
+    }
     L.push('');
 
     // 6. Critical Bug (实时: critical + BU 时间轴内 + 未关闭)
@@ -632,6 +668,20 @@ function buildDaySummaryMarkdown(date, snapshots, summary, aiFailed) {
     cb.forEach(function(b) {
         L.push('- **' + (b.bugId || '-') + '** [' + (b.domain || 'TBD') + '] ' + (b.statusLabel || b.status || '') + (b.owner ? ' / ' + b.owner : '') + (b.debugProgress ? ' — ' + b.debugProgress : ''));
     });
+    L.push('');
+
+    // 6.5 完整 Bug List (实时, 全部)
+    var allBugs = App.data.bugs || [];
+    L.push('## 🐛 Bug List (全部 ' + allBugs.length + ' 条)');
+    if (!allBugs.length) {
+        L.push('- 无');
+    } else {
+        L.push('| Bug ID | Domain | Severity | Status | Owner |');
+        L.push('| --- | --- | --- | --- | --- |');
+        allBugs.forEach(function(b) {
+            L.push('| ' + (b.bugId || '-') + ' | ' + (b.domain || 'TBD') + ' | ' + (b.severity || '-') + ' | ' + (b.statusLabel || b.status || '-') + ' | ' + (b.owner || '-') + ' |');
+        });
+    }
     L.push('');
 
     // 7. 快照索引 (历史时刻一句话概览)
