@@ -12,5 +12,12 @@
     "name": "PCIe",
     "token": "dde0b681d6f56f8ec8285407d21a790a",
     "createdAt": 1787658370684
+  },
+  "admin": {
+    "username": "admin",
+    "role": "admin",
+    "name": "管理员",
+    "token": "b64e22d91ff3412f015c64b0c29d0757",
+    "createdAt": 1787706885719
   }
 }
