@@ -100,7 +100,15 @@
       "criteria": "1bit/2bit ECC",
       "owner": "李四",
       "status": "not-ready"
+    },
+    {
+      "id": "criteria-1787725289832",
+      "index": 7,
+      "domain": "PCIe",
+      "criteria": "",
+      "owner": "张三",
+      "status": "not-ready"
     }
   ],
-  "lastUpdated": "2026/8/25 19:45:36"
+  "lastUpdated": "2026/8/26 14:21:39"
 }

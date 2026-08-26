@@ -10,21 +10,21 @@
     "username": "hbm",
     "role": "domain_owner",
     "name": "HBM",
-    "token": "1549bc0c813203fb4d5edd75f5279719",
-    "createdAt": 1787708773565
+    "token": "5bcd1500223f9f6a6752dddeb9f8ccae",
+    "createdAt": 1787725147145
   },
   "admin": {
     "username": "admin",
     "role": "admin",
     "name": "管理员",
-    "token": "7a74378d43666558a08b7969a4bc6c20",
-    "createdAt": 1787722990326
+    "token": "c6e055619875988081fcfbb648357d0f",
+    "createdAt": 1787725072225
   },
-  "kobe": {
-    "username": "kobe",
-    "role": "admin",
-    "name": "Kobe",
-    "token": "408926c34ca2863370c40ccff4118e32",
-    "createdAt": 1787722263110
+  "pcie": {
+    "username": "pcie",
+    "role": "domain_owner",
+    "name": "PCIe",
+    "token": "a0781bb19e63e689ba5b061e484ee6ea",
+    "createdAt": 1787725311402
   }
 }
