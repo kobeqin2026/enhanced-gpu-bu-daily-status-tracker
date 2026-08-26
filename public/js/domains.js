@@ -94,20 +94,22 @@ function renderDomains(domains) {
         notesCell.textContent = domain.notes || '';
         row.appendChild(notesCell);
         
-        // Actions cell (编辑: admin 或 domain owner 自己的 domain; 删除: 仅 admin)
+        // Actions cell (编辑: 仅 admin 或该 domain 的 owner 创建; 其他 domain 操作列留空=只读; 删除: 仅 admin)
         var actionsCell = document.createElement('td');
-        var editBtn = document.createElement('button');
-        editBtn.className = 'edit-btn' + (editable ? ' visible' : '');
-        editBtn.textContent = '编辑';
-        editBtn.addEventListener('click', function() { editDomain(domain.id); });
-        actionsCell.appendChild(editBtn);
-        
-        var isAdminUser = isAdmin();
-        var deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-btn' + (isAdminUser ? ' visible' : '');
-        deleteBtn.textContent = '删除';
-        deleteBtn.addEventListener('click', function() { deleteDomain(domain.id); });
-        actionsCell.appendChild(deleteBtn);
+        if (editable) {
+            var editBtn = document.createElement('button');
+            editBtn.className = 'edit-btn';
+            editBtn.textContent = '编辑';
+            editBtn.addEventListener('click', function() { editDomain(domain.id); });
+            actionsCell.appendChild(editBtn);
+        }
+        if (isAdmin()) {
+            var deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.textContent = '删除';
+            deleteBtn.addEventListener('click', function() { deleteDomain(domain.id); });
+            actionsCell.appendChild(deleteBtn);
+        }
         
         row.appendChild(actionsCell);
         tbody.appendChild(row);
