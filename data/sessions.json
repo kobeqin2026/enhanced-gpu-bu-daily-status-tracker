@@ -12,5 +12,19 @@
     "name": "PCIe",
     "token": "5e970f36445799bf6b68e0e7abbe33f8",
     "createdAt": 1787708258770
+  },
+  "hbm": {
+    "username": "hbm",
+    "role": "domain_owner",
+    "name": "HBM",
+    "token": "1549bc0c813203fb4d5edd75f5279719",
+    "createdAt": 1787708773565
+  },
+  "admin": {
+    "username": "admin",
+    "role": "admin",
+    "name": "管理员",
+    "token": "1708aea2faec56dc5ff16bf1c4693b2b",
+    "createdAt": 1787708983232
   }
 }
