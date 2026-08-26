@@ -239,6 +239,28 @@ function renderSummaryAI(result) {
         frag.appendChild(summaryCard('⚠️ 风险与下一步', summaryEl('div', 'summary-text', ai.riskAndNextSteps), 'card-accent-yellow'));
     }
 
+    // 当天各 Domain 进度明细 (AI 总结下方补充详细行, 每条进度一行带时刻)
+    var dsums = (result.skeleton && result.skeleton.domainSummaries) || [];
+    var hasProg = dsums.some(function(d) { return d.dayProgress && d.dayProgress.length; });
+    if (hasProg) {
+        var progCard = summaryCard('📋 当天各 Domain 进度明细', null, 'card-accent-blue');
+        var progBody = summaryEl('div', 'summary-list');
+        dsums.forEach(function(d) {
+            if (!d.dayProgress || !d.dayProgress.length) return;
+            var head = summaryEl('div', 'summary-domain-name', d.name);
+            head.style.marginTop = '6px';
+            progBody.appendChild(head);
+            d.dayProgress.forEach(function(p) {
+                var line = '🕐 ' + (p.time || '') + ' ' + (p.workDone || '');
+                if (p.nextSteps) line += ' → ' + p.nextSteps;
+                if (p.blockers) line += ' ⛔ ' + p.blockers;
+                progBody.appendChild(summaryEl('div', 'debug-progress-text', line));
+            });
+        });
+        progCard.appendChild(progBody);
+        frag.appendChild(progCard);
+    }
+
     // 全部 bug 汇总提示
     if (result.skeleton && result.skeleton.allBugs) {
         var totalHint = summaryEl('div', 'summary-text muted-hint',
