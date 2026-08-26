@@ -221,46 +221,68 @@ router.post('/daily-summary/save', auth.authenticateToken, async function(req, r
     }
 });
 
-// POST /api/data/daily-summary/summarize-day - 全天快照 LLM 归纳汇总
-// 把该日期所有时刻快照合并归纳为一份连续进展报告; LLM 失败降级规则版
+// POST /api/data/daily-summary/summarize-day - 全天 LLM 归纳汇总 (实时数据优先)
+// 基于当天全部当前进度记录(实时, 含新增未生成快照的记录) + 历史时刻快照AI概览做归纳;
+// LLM 失败降级规则版
 // Body: { projectId, date: 'YYYY-MM-DD' }
-// 返回: { success, date, summary: {dayOverview, highlights[], risks[], nextSteps[], derived}, aiFailed }
+// 返回: { success, date, summary: {dayOverview, highlights[], risks[], nextSteps[], derived}, aiFailed, snapshots: [{time, aiFailed, overall}] }
 router.post('/daily-summary/summarize-day', auth.authenticateToken, async function(req, res) {
     try {
         var projectId = (req.body && req.body.projectId) || req.query.project || 'gpu-bringup';
         var date = (req.body && req.body.date) || '';
         if (!date) return res.status(400).json({ success: false, error: '缺少 date' });
 
-        var list = await projects.loadDailySummaries(projectId);
-        var snaps = list.filter(function(r) { return r.date === date; });
-        if (!snaps.length) return res.status(404).json({ success: false, error: '该日期暂无历史总结快照' });
+        // 1) 实时数据: 该日全部进度 (不依赖历史快照 → 新添加的进度也纳入归纳)
+        var data = await loadProjectData(projectId);
+        var projectInfo = null;
+        try {
+            var found = (await projects.getProjects()).find(function(p) { return p.id === projectId; });
+            if (found) {
+                projectInfo = {
+                    name: found.name || projectId,
+                    description: found.description || '',
+                    startDate: found.startDate || '',
+                    endDate: found.endDate || ''
+                };
+            }
+        } catch (e) { console.error('[DailySummary] summarize-day load projects info error:', e.message); }
+        if (!projectInfo) projectInfo = { name: projectId, description: '', startDate: '', endDate: '' };
+        // 全天快照口径 (无 time = 当天全部记录)
+        var skeleton = dailySummary.buildDailySkeleton(data, date, projectInfo);
 
-        // 拼快照文本: 每个快照 = 时刻 + AI总体/风险 + 规则明细(截断控制长度)
-        var dayMarkdown = snaps.map(function(s, i) {
-            var L = [];
-            L.push('## 快照 ' + (s.time || '全天') + ' (第' + (i + 1) + '/' + snaps.length + '个)');
-            if (s.ai && s.ai.overallStatus) L.push('AI总体: ' + s.ai.overallStatus);
-            if (s.ai && s.ai.riskAndNextSteps) L.push('AI风险/下一步: ' + s.ai.riskAndNextSteps);
-            var rulesText = '';
-            try { rulesText = dailySummary.skeletonToText(s.skeleton || {}); } catch (e) { rulesText = ''; }
-            if (rulesText) L.push('规则明细:\n' + rulesText.substring(0, 1500));
-            return L.join('\n');
-        }).join('\n\n');
+        // 2) 历史快照 AI 参考 (该日已有快照 → 附概览时间线; 无快照也能工作)
+        var snaps = [];
+        try { snaps = (await projects.loadDailySummaries(projectId)).filter(function(r) { return r.date === date; }); } catch (e) { snaps = []; }
 
-        // 规则派生摘要 (LLM 失败时的降级信息源)
-        var last = snaps[snaps.length - 1];
-        var lastSkel = last.skeleton || {};
-        var domSummaries = lastSkel.domainSummaries || [];
-        var crit = lastSkel.criteria || {};
+        // 3) 拼 LLM 上下文: 实时规则文本(去HTML) + 历史快照 AI 摘要
+        var L = [];
+        L.push('以下是 ' + date + ' 当天全部实时进度数据' + (snaps.length ? ('，以及该日 ' + snaps.length + ' 个历史总结快照的AI概览') : '') + '，请归纳这份全天进展汇总。');
+        try {
+            var rulesText = String(dailySummary.skeletonToText(skeleton)).replace(/<[^>]+>/g, '').replace(/\s+\n/g, '\n').substring(0, 5000);
+            L.push('【当天实时数据】\n' + rulesText);
+        } catch (e) { L.push('【当天实时数据】(构建失败: ' + e.message + ')'); }
+        if (snaps.length) {
+            var tl = snaps.map(function(s) {
+                var aiLine = (s.ai && s.ai.overallStatus) ? String(s.ai.overallStatus).replace(/\s+/g, ' ').trim() : '(该快照为规则版)';
+                return (s.time || '全天') + ' 快照: ' + aiLine;
+            }).join('\n');
+            L.push('【该日历史时刻快照 AI 概览】\n' + tl);
+        }
+        var dayMarkdown = L.join('\n\n');
+
+        // 4) 规则派生摘要 (实时骨架; LLM 失败时的降级信息源)
+        var domSummaries = skeleton.domainSummaries || [];
+        var crit = skeleton.criteria || {};
+        var lastSnap = snaps.length ? snaps[snaps.length - 1] : null;
         var derived = {
-            mode: last.aiFailed ? '规则版' : 'AI版',
-            lastTime: last.time || '全天',
-            lastOverall: (last.ai && last.ai.overallStatus) ? last.ai.overallStatus : '',
+            mode: lastSnap ? (lastSnap.aiFailed ? '规则版' : 'AI版') : '实时版',
+            lastTime: lastSnap ? (lastSnap.time || '全天') : '全天',
+            lastOverall: (lastSnap && lastSnap.ai && lastSnap.ai.overallStatus) ? lastSnap.ai.overallStatus : '',
             activeDomains: domSummaries.filter(function(d) { return d.dayProgress && d.dayProgress.length; }).length,
             totalDomains: domSummaries.length,
             criteria: { total: crit.total || 0, pass: crit.pass || 0, fail: crit.fail || 0, notReady: crit.notReady || 0, allPass: !!crit.allPass },
-            criticalBugs: (lastSkel.criticalBugs || []).length,
-            allBugs: (lastSkel.allBugs || []).length
+            criticalBugs: (skeleton.criticalBugs || []).length,
+            allBugs: (skeleton.allBugs || []).length
         };
 
         var summary = null;
@@ -274,29 +296,41 @@ router.post('/daily-summary/summarize-day', auth.authenticateToken, async functi
             aiFailed = true;
         }
 
-        // 降级: 规则版 (聚合所有快照的 AI 摘要, 保证复制内容不为空)
+        // 5) 降级: 规则版 (实时进度要点 + 快照 AI 摘要, 保证复制内容不为空)
         if (!summary) {
             var ruleHighlights = [];
             var ruleRisks = [];
+            domSummaries.forEach(function(dm) {
+                (dm.dayProgress || []).forEach(function(p) {
+                    var t = (p.time ? '[' + p.time + '] ' : '');
+                    if (p.workDone) ruleHighlights.push(dm.name + ' ' + t + p.workDone);
+                    if (p.nextSteps) ruleHighlights.push(dm.name + ' 下一步: ' + p.nextSteps);
+                    if (p.blockers) ruleRisks.push(dm.name + ' 阻塞: ' + p.blockers);
+                });
+            });
             snaps.forEach(function(s) {
                 if (s.ai && s.ai.overallStatus) {
-                    ruleHighlights.push('[' + (s.time || '全天') + '] ' + String(s.ai.overallStatus).replace(/\s+/g, ' ').trim());
-                }
-                if (s.ai && s.ai.riskAndNextSteps) {
-                    ruleRisks.push('[' + (s.time || '全天') + '] ' + String(s.ai.riskAndNextSteps).replace(/\s+/g, ' ').trim());
+                    ruleHighlights.push('[' + (s.time || '全天') + '快照] ' + String(s.ai.overallStatus).replace(/\s+/g, ' ').trim());
                 }
             });
             summary = {
-                dayOverview: derived.lastOverall ||
-                    ('当天共 ' + snaps.length + ' 个时刻快照 (' + snaps.map(function(s) { return s.time || '全天'; }).join(' / ') + ')，各时刻概览见"主要进展"。'),
+                dayOverview: '当天共 ' + ruleHighlights.length + ' 条进度记录' + (snaps.length ? (' / ' + snaps.length + ' 个时刻快照') : '') + '，详见"主要进展"。',
                 highlights: ruleHighlights,
                 risks: ruleRisks,
                 nextSteps: []
             };
         }
         summary.derived = derived;
-        logOperation(req.user.username, 'CREATE', 'daily-summary-day', { projectId: projectId, date: date, snaps: snaps.length, aiFailed: aiFailed });
-        res.json({ success: true, date: date, summary: summary, aiFailed: aiFailed });
+        // 快照索引 (前端展示用)
+        var snapshotList = snaps.map(function(s) {
+            return {
+                time: s.time || '全天',
+                aiFailed: !!s.aiFailed,
+                overall: (s.ai && s.ai.overallStatus) ? String(s.ai.overallStatus).replace(/\s+/g, ' ').trim().slice(0, 80) : ''
+            };
+        });
+        logOperation(req.user.username, 'CREATE', 'daily-summary-day', { projectId: projectId, date: date, snaps: snaps.length, realtime: true, aiFailed: aiFailed });
+        res.json({ success: true, date: date, summary: summary, aiFailed: aiFailed, snapshots: snapshotList });
     } catch (error) {
         logOperation(req.user.username, 'ERROR', 'daily-summary-day', { error: error.message });
         res.status(500).json({ success: false, error: error.message });
