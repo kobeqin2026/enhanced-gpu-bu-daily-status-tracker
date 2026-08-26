@@ -306,6 +306,7 @@ router.post('/daily-summary/summarize-day', auth.authenticateToken, async functi
         if (!summary) {
             var ruleHighlights = [];
             var ruleRisks = [];
+            var rulePerDomains = [];
             domSummaries.forEach(function(dm) {
                 (dm.dayProgress || []).forEach(function(p) {
                     var t = (p.time ? '[' + p.time + '] ' : '');
@@ -313,6 +314,16 @@ router.post('/daily-summary/summarize-day', auth.authenticateToken, async functi
                     if (p.nextSteps) ruleHighlights.push(dm.name + ' 下一步: ' + p.nextSteps);
                     if (p.blockers) ruleRisks.push(dm.name + ' 阻塞: ' + p.blockers);
                 });
+                // 规则压缩: 每个有进度的 domain 一条归纳句 (分号合并记录)
+                if (dm.dayProgress && dm.dayProgress.length) {
+                    var parts = dm.dayProgress.map(function(p) {
+                        var s = (p.time ? p.time + ' ' : '') + p.workDone;
+                        if (p.nextSteps) s += '(下一步:' + p.nextSteps + ')';
+                        if (p.blockers) s += '(阻塞:' + p.blockers + ')';
+                        return s;
+                    });
+                    rulePerDomains.push({ domain: dm.name, summary: parts.join('；') });
+                }
             });
             snaps.forEach(function(s) {
                 if (s.ai && s.ai.overallStatus) {
@@ -323,7 +334,8 @@ router.post('/daily-summary/summarize-day', auth.authenticateToken, async functi
                 dayOverview: '当天共 ' + ruleHighlights.length + ' 条进度记录' + (snaps.length ? (' / ' + snaps.length + ' 个时刻快照') : '') + '，详见"主要进展"。',
                 highlights: ruleHighlights,
                 risks: ruleRisks,
-                nextSteps: []
+                nextSteps: [],
+                perDomains: rulePerDomains
             };
         }
         summary.derived = derived;
