@@ -6,11 +6,11 @@
     "token": "f8c87cbda2368d2f765183b31c8e90d9",
     "createdAt": 1785897070800
   },
-  "admin": {
-    "username": "admin",
-    "role": "admin",
-    "name": "管理员",
-    "token": "19d86958e80d69fd44d5a6b75b10c797",
-    "createdAt": 1787707596906
+  "pcie": {
+    "username": "pcie",
+    "role": "domain_owner",
+    "name": "PCIe",
+    "token": "5e970f36445799bf6b68e0e7abbe33f8",
+    "createdAt": 1787708258770
   }
 }
