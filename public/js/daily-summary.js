@@ -35,9 +35,8 @@ function openDailySummaryModal(opts) {
     if (exportDate) exportDate.value = summaryTodayStr();
     document.getElementById('daily-summary-status').textContent = '';
     if (opts && opts.noAuto) {
-        // 纯查看: 不触发 LLM, 内容区提示
-        var contentEl = document.getElementById('daily-summary-content');
-        if (contentEl) contentEl.innerHTML = '<div style="color: var(--muted); font-size: 14px; padding: 30px; text-align:center;">📊 如需生成当前时刻总结，请点击「一键总结Daily状态」或下方「生成总结」按钮<br>（历史总结请查看「📅 历史总结」tab）</div>';
+        // 纯查看: 不触发 LLM, 直接展示历史快照列表 (已有的全部快照, 点击查看详情)
+        switchSummaryTab('history');
         return;
     }
     generateDailySummary();
