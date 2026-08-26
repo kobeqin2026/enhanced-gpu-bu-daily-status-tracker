@@ -24,7 +24,14 @@
     "username": "admin",
     "role": "admin",
     "name": "管理员",
-    "token": "70faeef2feceb179fe253dd7d1266868",
-    "createdAt": 1787716320989
+    "token": "facf134d8d14ea4290541c40c977b168",
+    "createdAt": 1787722607069
+  },
+  "kobe": {
+    "username": "kobe",
+    "role": "admin",
+    "name": "Kobe",
+    "token": "408926c34ca2863370c40ccff4118e32",
+    "createdAt": 1787722263110
   }
 }
