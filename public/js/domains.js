@@ -20,68 +20,29 @@ function renderDomains(domains) {
         ownerCell.textContent = domain.owner || '';
         row.appendChild(ownerCell);
         
-        // Status cell (admin 或 domain owner 自己的 domain 可编辑; 其他只读)
+        // Status cell (只读显示; 修改统一通过操作列编辑按钮 → 弹窗)
         var editable = canEditDomain(domain.name);
         var statusCell = document.createElement('td');
-        if (editable) {
-            var select = document.createElement('select');
-            select.className = 'status-select';
-            select.style.backgroundColor = statusColor;
-            select.style.color = 'white';
-            select.setAttribute('data-domain-id', domain.id);
-            select.addEventListener('change', function() {
-                updateDomainStatus(domain.id, this.value);
-            });
-            ['not-started', 'in-progress', 'blocked', 'completed'].forEach(function(s) {
-                var opt = document.createElement('option');
-                opt.value = s;
-                opt.textContent = App.statusText[s];
-                if (domain.status === s) opt.selected = true;
-                select.appendChild(opt);
-            });
-            statusCell.appendChild(select);
-        } else {
-            var span = document.createElement('span');
-            span.className = 'status-display';
-            span.style.backgroundColor = statusColor;
-            span.style.color = 'white';
-            span.style.padding = '4px 8px';
-            span.style.borderRadius = '4px';
-            span.textContent = statusDisplay;
-            statusCell.appendChild(span);
-        }
+        var span = document.createElement('span');
+        span.className = 'status-display';
+        span.style.backgroundColor = statusColor;
+        span.style.color = 'white';
+        span.style.padding = '4px 8px';
+        span.style.borderRadius = '4px';
+        span.textContent = statusDisplay;
+        statusCell.appendChild(span);
         row.appendChild(statusCell);
         
-        // 执行开始时间 cell (admin/owner: date input 即时保存; 其他: 只读文本)
+        // 执行开始时间 cell (只读文本)
         var startCell = document.createElement('td');
-        if (editable) {
-            var startInput = document.createElement('input');
-            startInput.type = 'date';
-            startInput.className = 'domain-date-input';
-            startInput.value = domain.startDate || '';
-            startInput.addEventListener('change', function() {
-                updateDomainTime(domain.id, 'startDate', this.value);
-            });
-            startCell.appendChild(startInput);
-        } else {
-            startCell.textContent = domain.startDate || '';
-        }
+        startCell.className = 'domain-date-display';
+        startCell.textContent = domain.startDate || '';
         row.appendChild(startCell);
         
-        // 执行结束时间 cell
+        // 执行结束时间 cell (只读文本)
         var endCell = document.createElement('td');
-        if (editable) {
-            var endInput = document.createElement('input');
-            endInput.type = 'date';
-            endInput.className = 'domain-date-input';
-            endInput.value = domain.endDate || '';
-            endInput.addEventListener('change', function() {
-                updateDomainTime(domain.id, 'endDate', this.value);
-            });
-            endCell.appendChild(endInput);
-        } else {
-            endCell.textContent = domain.endDate || '';
-        }
+        endCell.className = 'domain-date-display';
+        endCell.textContent = domain.endDate || '';
         row.appendChild(endCell);
         
         // 满足准出标准 cell: 从 BU Exit Criteria 按 domain 聚合, 进度条 绿=pass/红=fail/灰=未执行
