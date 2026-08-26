@@ -60,6 +60,27 @@ function switchSummaryTab(tab) {
     if (tab === 'ai' && window._summaryResult) renderSummaryAI(window._summaryResult);
     else if (tab === 'data' && window._summaryResult) renderSummaryData(window._summaryResult);
     else if (tab === 'history') loadSummaryHistory();
+    else if (tab === 'data') {
+        // 查看模式: 尚无当前快照 → 自动加载最新一条历史快照的数据明细
+        if (content) content.innerHTML = '<div style="color: var(--muted); font-size: 14px; padding: 30px; text-align:center;">⏳ 加载最新快照数据明细...</div>';
+        loadLatestSummary().then(function(item) {
+            if (item) viewSummaryHistory(item.date, item.time || '');
+            else if (content) content.innerHTML = '<div style="color: var(--muted); font-size: 14px; padding: 30px; text-align:center;">暂无历史快照，「一键总结Daily状态」生成后即可查看数据明细</div>';
+        });
+    }
+}
+
+// 获取最新一条历史快照的 date/time (查看模式"数据明细"tab 无当前快照时使用)
+async function loadLatestSummary() {
+    try {
+        var res = await apiCall('/api/data/daily-summary/history?project=' + encodeURIComponent(App.currentProject), { cache: 'no-store' });
+        if (!res || !res.success || !res.items || !res.items.length) return null;
+        var last = res.items[res.items.length - 1];
+        return { date: last.date, time: last.time || '' };
+    } catch (e) {
+        console.error('[DailySummary] loadLatestSummary error:', e.message);
+        return null;
+    }
 }
 
 // 查看BU daily状态: 纯查看 (打开查看窗口, 不触发 LLM 总结)
