@@ -592,7 +592,7 @@ async function loadSummaryHistory() {
     }
 }
 
-// 渲染历史列表: 按日期分组, 组内同一日期的多个时刻快照按 time 升序 (同一天多次更新 → 多次总结)
+// 渲染历史列表: 按日期分组 (最近日期在最上方), 组内同一日期的多个时刻快照按 time 升序 (同一天多次更新 → 多次总结)
 function renderSummaryHistory(items) {
     var container = document.getElementById('daily-summary-content');
     if (!container) return;
@@ -614,10 +614,12 @@ function renderSummaryHistory(items) {
     });
 
     frag.appendChild(summaryEl('div', 'summary-text',
-        '📅 历史总结共 ' + items.length + ' 条快照 / ' + days.length + ' 天（按日期+时刻递增，最新在底部）— 点击任意一条查看完整总结'));
+        '📅 历史总结共 ' + items.length + ' 条快照 / ' + days.length + ' 天（最近日期在最上方，组内按时刻递增）— 点击任意一条查看完整总结'));
     frag.appendChild(summaryEl('div', 'summary-text muted-hint',
         '同一天多次更新可生成多个时刻快照（如 09:30 / 15:20），记录保存在 data/' + summaryEscapeHtml(App.currentProject) + '.daily-summaries.json'));
 
+    // 日期降序: 最近的日期排最上方
+    days.sort(function(a, b) { return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0); });
     days.forEach(function(day) {
         // 日期组头
         var head = summaryEl('div', 'summary-text');
