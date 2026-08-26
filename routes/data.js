@@ -99,54 +99,57 @@ router.post('/', auth.authenticateToken, async function(req, res) {
     }
 });
 
-// POST /api/data/daily-summary - 一键总结 daily bringup 状态 (方案C: 规则骨架 + LLM 润色)
-// Body: { projectId 或 ?project=, date: 'YYYY-MM-DD' (默认今天), time: 'HH:MM' (可选, 同一天多次更新时按截至该时刻取快照) }
-// 返回: { success, date, time, skeleton, ai (LLM润色结果), aiFailed }
+// 生成每日总结 (规则骨架 + LLM 润色) — 供路由与定时自动总结复用
+async function generateDailySummaryInternal(projectId, date, time) {
+    var data = await loadProjectData(projectId);
+
+    // 项目元信息 (BU执行时间)
+    var projectInfo = {};
+    try {
+        var projectList = await projects.loadProjects();
+        var found = (projectList || []).find(function(p) { return p.id === projectId; });
+        if (found) {
+            projectInfo = {
+                name: found.name || projectId,
+                description: found.description || '',
+                startDate: found.startDate || '',
+                endDate: found.endDate || ''
+            };
+        }
+    } catch (e) {
+        console.error('[DailySummary] load projects info error:', e.message);
+    }
+
+    // 1. 规则骨架 (纯规则, 保证准确; time 决定当日快照口径)
+    var skeleton = dailySummary.buildDailySkeleton(data, date, projectInfo, time);
+    var skeletonText = dailySummary.skeletonToText(skeleton);
+
+    // 2. LLM 润色 (失败降级: aiFailed=true, 前端只展示规则版)
+    var ai = null;
+    var aiFailed = false;
+    try {
+        ai = await diagnosis.summarizeDailyStatus(skeleton, skeletonText);
+        if (!ai.overallStatus && (!ai.domainSummaries || ai.domainSummaries.length === 0)) {
+            aiFailed = true;
+            ai = null;
+        }
+    } catch (err) {
+        console.error('[DailySummary] LLM 润色失败,降级为规则版:', err.message);
+        aiFailed = true;
+        ai = null;
+    }
+
+    return { success: true, date: date, time: time, skeleton: skeleton, ai: ai, aiFailed: aiFailed };
+}
+
+// POST /api/data/daily-summary - 一键总结 daily bringup 状态 (手动/人为触发)
 router.post('/daily-summary', auth.authenticateToken, async function(req, res) {
     try {
         var projectId = (req.body && req.body.projectId) || req.query.project || 'gpu-bringup';
         var date = (req.body && req.body.date) || new Date().toISOString().split('T')[0];
         var time = (req.body && req.body.time) || '';
-
-        var data = await loadProjectData(projectId);
-
-        // 项目元信息 (BU执行时间)
-        var projectInfo = {};
-        try {
-            var projectList = await projects.loadProjects();
-            var found = (projectList || []).find(function(p) { return p.id === projectId; });
-            if (found) {
-                projectInfo = {
-                    name: found.name || projectId,
-                    description: found.description || '',
-                    startDate: found.startDate || '',
-                    endDate: found.endDate || ''
-                };
-            }
-        } catch (e) {
-            console.error('[DailySummary] load projects info error:', e.message);
-        }
-
-        // 1. 规则骨架 (纯规则, 保证准确; time 决定当日快照口径)
-        var skeleton = dailySummary.buildDailySkeleton(data, date, projectInfo, time);
-        var skeletonText = dailySummary.skeletonToText(skeleton);
-
-        // 2. LLM 润色 (失败降级: aiFailed=true, 前端只展示规则版)
-        var ai = null;
-        var aiFailed = false;
-        try {
-            ai = await diagnosis.summarizeDailyStatus(skeleton, skeletonText);
-            if (!ai.overallStatus && (!ai.domainSummaries || ai.domainSummaries.length === 0)) {
-                aiFailed = true;
-                ai = null;
-            }
-        } catch (err) {
-            console.error('[DailySummary] LLM 润色失败,降级为规则版:', err.message);
-            aiFailed = true;
-            ai = null;
-        }
-
-        res.json({ success: true, date: date, time: time, skeleton: skeleton, ai: ai, aiFailed: aiFailed });
+        var result = await generateDailySummaryInternal(projectId, date, time);
+        res.json(result);
     } catch (error) {
         console.error('[DailySummary] error:', error.message);
         res.status(500).json({ success: false, error: error.message });
@@ -341,3 +344,5 @@ router.post('/daily-summary/summarize-day', auth.authenticateToken, async functi
 });
 
 module.exports = router;
+// 内部生成函数导出 (供 server.js 定时自动总结复用)
+router.generateDailySummaryInternal = generateDailySummaryInternal;
