@@ -594,38 +594,51 @@ function buildDaySummaryMarkdown(date, snapshots, summary, aiFailed) {
     rs.forEach(function(r) { L.push('- ' + r); });
     L.push('');
 
-    // 4. 各 Domain 全天动态 (实时数据: 该日全部进度记录按 domain 聚合、按时刻排序; 含新增未生成快照的记录)
+    // 4. 各 Domain 全天动态 (LLM 归纳每 domain 全天进展; LLM 失败时降级为规则压缩一句, 不逐条罗列)
     L.push('## 📋 各 Domain 全天动态');
-    var domMap = {};
-    (App.data.dailyProgress || []).forEach(function(p) {
-        if ((p.date || '') !== date) return;
-        var nm = p.domain || '未知';
-        if (!domMap[nm]) {
-            var dm = (App.data.domains || []).find(function(d) { return d.name === nm; });
-            domMap[nm] = { name: nm, owner: (dm && dm.owner) || '', statusLabel: (dm && (App.statusText && App.statusText[dm.status])) ? App.statusText[dm.status] : (dm ? dm.status : ''), startDate: (dm && dm.startDate) || '', endDate: (dm && dm.endDate) || '', recs: [] };
-        }
-        domMap[nm].recs.push({ time: p.time || '', workDone: p.content || p.workDone || '', nextSteps: p.nextSteps || '', blockers: p.blockers || '' });
-    });
-    var domNames = Object.keys(domMap);
-    if (!domNames.length) { L.push('- 当天各Domain均无进度记录'); }
-    domNames.forEach(function(nm) {
-        var d = domMap[nm];
-        d.recs.sort(function(a, b) { return a.time < b.time ? -1 : (a.time > b.time ? 1 : 0); });
-        L.push('### ' + nm + ' (' + (d.owner || '无') + ', ' + d.statusLabel + (d.startDate || d.endDate ? ', 执行: ' + (d.startDate || '?') + ' ~ ' + (d.endDate || '?') : '') + ')');
-        d.recs.forEach(function(p) {
-            var line = '- ' + (p.time ? '[' + p.time + '] ' : '') + p.workDone;
-            if (p.nextSteps) line += ' → 下一步: ' + p.nextSteps;
-            if (p.blockers) line += ' ⛔ 阻塞: ' + p.blockers;
-            L.push(line);
+    var perDomains = (summary && summary.perDomains) || [];
+    if (perDomains.length) {
+        perDomains.forEach(function(pd) {
+            var dmInfo = (App.data.domains || []).find(function(d) { return String(d.name).trim() === String(pd.domain).trim(); });
+            var statusLabel = dmInfo ? ((App.statusText && App.statusText[dmInfo.status]) || dmInfo.status) : '';
+            L.push('### ' + pd.domain + (dmInfo ? ' (' + (dmInfo.owner || '无') + (statusLabel ? ', ' + statusLabel : '') + ')' : ''));
+            L.push('- ' + pd.summary);
         });
-    });
+    } else {
+        // 降级: 规则压缩 (每个 domain 合并为一句, 不逐条复制)
+        var domMap = {};
+        (App.data.dailyProgress || []).forEach(function(p) {
+            if ((p.date || '') !== date) return;
+            var nm = p.domain || '未知';
+            if (!domMap[nm]) {
+                var dm = (App.data.domains || []).find(function(d) { return d.name === nm; });
+                domMap[nm] = { name: nm, owner: (dm && dm.owner) || '', statusLabel: (dm && (App.statusText && App.statusText[dm.status])) ? App.statusText[dm.status] : (dm ? dm.status : ''), startDate: (dm && dm.startDate) || '', endDate: (dm && dm.endDate) || '', recs: [] };
+            }
+            domMap[nm].recs.push({ time: p.time || '', workDone: p.content || p.workDone || '', nextSteps: p.nextSteps || '', blockers: p.blockers || '' });
+        });
+        var domNames = Object.keys(domMap);
+        if (!domNames.length) { L.push('- 当天各Domain均无进度记录'); }
+        domNames.forEach(function(nm) {
+            var d = domMap[nm];
+            d.recs.sort(function(a, b) { return a.time < b.time ? -1 : (a.time > b.time ? 1 : 0); });
+            var parts = d.recs.map(function(p) {
+                var s = (p.time ? p.time + ' ' : '') + p.workDone;
+                if (p.nextSteps) s += '(下一步:' + p.nextSteps + ')';
+                if (p.blockers) s += '(阻塞:' + p.blockers + ')';
+                return s;
+            });
+            L.push('### ' + nm + ' (' + (d.owner || '无') + ', ' + d.statusLabel + (d.startDate || d.endDate ? ', 执行: ' + (d.startDate || '?') + ' ~ ' + (d.endDate || '?') : '') + ')');
+            L.push('- ' + parts.join('；'));
+        });
+    }
     L.push('');
 
-    // 5. BU准出 (实时: 统计 + 分域明细 + 未通过项)
+    // 5. BU准出 (实时: 汇总统计 + 分域表格 + 未通过项)
     var crit = derived.criteria || {};
     L.push('## ✅ BU准出标准 (' + (derived.totalDomains || 0) + ' 个域, ' + (derived.activeDomains || 0) + ' 个有进度)');
-    if (crit.total === 0) L.push('- 未配置BU准出标准');
-    else {
+    if (crit.total === 0) {
+        L.push('- 未配置BU准出标准');
+    } else {
         L.push('- 共 ' + crit.total + ' 条：通过 ' + crit.pass + ' / 不通过 ' + crit.fail + ' / 未就绪 ' + crit.notReady + (crit.allPass ? ' → 全部通过 ✅' : ' → 未全部通过'));
         // 分域统计
         var critByDomain = {};
@@ -637,18 +650,27 @@ function buildDaySummaryMarkdown(date, snapshots, summary, aiFailed) {
             else if (st === 'fail') { critByDomain[dk].fail++; critByDomain[dk].fails.push(c.criteria || c.name || ''); }
             else critByDomain[dk].notReady++;
         });
-        var critLines = Object.keys(critByDomain).map(function(dk) {
+        // 表格
+        L.push('');
+        L.push('| Domain | 通过 | 不通过 | 未就绪 | 判定 |');
+        L.push('| --- | --- | --- | --- | --- |');
+        Object.keys(critByDomain).sort().forEach(function(dk) {
             var g = critByDomain[dk];
-            return dk + '(通过' + g.pass + '/不通过' + g.fail + '/未就绪' + g.notReady + ')';
+            var stotal = g.pass + g.fail + g.notReady;
+            var verdict = (stotal > 0 && g.fail === 0 && g.notReady === 0) ? '✅ 达标' : (g.fail > 0 ? '❌ 未达标' : '⏳ 进行中');
+            L.push('| ' + dk + ' | ' + g.pass + ' | ' + g.fail + ' | ' + g.notReady + ' | ' + verdict + ' |');
         });
-        if (critLines.length) L.push('- 各域: ' + critLines.join('；'));
+        L.push('| **合计 (' + crit.total + ')** | **' + crit.pass + '** | **' + crit.fail + '** | **' + crit.notReady + '** | ' + (crit.allPass ? '✅ 全部通过' : '❌ 未全部通过') + ' |');
         var allFails = [];
         Object.keys(critByDomain).forEach(function(dk) {
             critByDomain[dk].fails.forEach(function(f) {
                 allFails.push(dk + ': ' + f);
             });
         });
-        if (allFails.length) L.push('- ⚠ 未通过项(' + allFails.length + '): ' + allFails.join('；'));
+        if (allFails.length) {
+            L.push('');
+            L.push('- ⚠ 未通过项(' + allFails.length + '): ' + allFails.join('；'));
+        }
     }
     L.push('');
 
