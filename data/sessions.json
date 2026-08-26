@@ -6,13 +6,6 @@
     "token": "f8c87cbda2368d2f765183b31c8e90d9",
     "createdAt": 1785897070800
   },
-  "pcie": {
-    "username": "pcie",
-    "role": "domain_owner",
-    "name": "PCIe",
-    "token": "5e970f36445799bf6b68e0e7abbe33f8",
-    "createdAt": 1787708258770
-  },
   "hbm": {
     "username": "hbm",
     "role": "domain_owner",
@@ -24,8 +17,8 @@
     "username": "admin",
     "role": "admin",
     "name": "管理员",
-    "token": "facf134d8d14ea4290541c40c977b168",
-    "createdAt": 1787722607069
+    "token": "7a74378d43666558a08b7969a4bc6c20",
+    "createdAt": 1787722990326
   },
   "kobe": {
     "username": "kobe",
