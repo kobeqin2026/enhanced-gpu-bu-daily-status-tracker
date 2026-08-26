@@ -406,25 +406,46 @@ function buildSummaryMarkdown(result) {
     return L.join('\n');
 }
 
-// 复制文本到剪贴板 (含旧浏览器 fallback), 状态提示
+// 复制文本到剪贴板 (兼容 http 非安全上下文), 状态提示
+// 注意: http 内网下 navigator.clipboard 不可用 → execCommand fallback; 失败时弹出可手动复制的文本框, 绝不静默"已复制"
 function copyTextToClipboard(text, okMsg) {
+    var st = document.getElementById('daily-summary-status');
+    function showOk() {
+        if (st) { st.textContent = okMsg || '✓ 已复制'; st.style.color = 'var(--green)'; }
+    }
+    function showFail() {
+        if (st) { st.textContent = '⚠ 浏览器拒绝自动复制，请在弹出文本框内 Ctrl+A / Ctrl+C 手动复制'; st.style.color = 'var(--red)'; }
+        var box = document.getElementById('manual-copy-box');
+        if (!box) {
+            box = document.createElement('textarea');
+            box.id = 'manual-copy-box';
+            box.style.cssText = 'position:fixed; top:64px; right:16px; width:440px; height:320px; z-index:10000; background:#0d1117; color:#e6e9f2; border:1px solid #2a3350; border-radius:8px; padding:10px; font-size:12px; font-family:monospace; resize:both;';
+            box.setAttribute('readonly', '');
+            document.body.appendChild(box);
+        }
+        box.value = text;
+        box.focus();
+        box.select();
+    }
     function fallback() {
         var ta = document.createElement('textarea');
         ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-1000px';
+        ta.style.opacity = '0';
         document.body.appendChild(ta);
-        ta.select();
-        try { document.execCommand('copy'); } catch (e) {}
+        var ok = false;
+        try { ta.focus(); ta.select(); ok = document.execCommand('copy'); } catch (e) { ok = false; }
         document.body.removeChild(ta);
-        var st = document.getElementById('daily-summary-status');
-        if (st) { st.textContent = okMsg || '✓ 已复制'; st.style.color = 'var(--green)'; }
+        if (ok) showOk(); else showFail();
     }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(fallback).catch(fallback);
+    if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(showOk).catch(fallback);
     } else {
         fallback();
     }
 }
-
 // 复制当前查看的快照 (单条) 为 Markdown
 function copyDailySummaryMarkdown() {
     if (!window._summaryResult) { alert('请先生成总结'); return; }
