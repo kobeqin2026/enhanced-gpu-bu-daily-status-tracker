@@ -41,8 +41,11 @@ function reconcileDomainCompletion(data) {
         var pass = cList.filter(function(c) { return c.status === 'pass'; }).length;
         var allPass = (pass === total);
         if (allPass) {
-            if (dm.status !== 'completed') { dm.status = 'completed'; dm.endDate = dm.endDate || today; changed = true; }
-            else if (!dm.endDate) { dm.endDate = today; changed = true; }
+            // 自动完成: 仅从未开始/无状态自动置完成; 用户手动保留的进行中/受阻不覆盖
+            if (dm.status !== 'completed' && dm.status !== 'in-progress' && dm.status !== 'blocked') {
+                dm.status = 'completed'; dm.endDate = dm.endDate || today; changed = true;
+            }
+            else if (dm.status === 'completed' && !dm.endDate) { dm.endDate = today; changed = true; }
         } else if (dm.status === 'completed') {
             // 标准不再全部pass: 回退未开始 + 清空结束时间
             dm.status = 'not-started';
