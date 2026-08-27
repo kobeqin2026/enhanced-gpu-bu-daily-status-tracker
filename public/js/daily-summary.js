@@ -541,7 +541,14 @@ async function copyDaySummaryMarkdown() {
     // 第1步: 生成全天归纳内容
     var date = document.getElementById('daily-summary-export-date').value;
     if (!date) { alert('请先选择汇总日期'); return; }
-    if (st) { st.textContent = '⏳ 正在LLM归纳 ' + date + ' 全天数据 (约5-15秒)...'; st.style.color = 'var(--muted)'; }
+    if (st) { st.textContent = '⏳ 正在LLM归纳 ' + date + ' 全天数据（含各域逐条总结，通常10-30秒）...'; st.style.color = 'var(--muted)'; }
+    var t0 = Date.now();
+    var waitTimer = setInterval(function() {
+        // 实时反馈已用时 (LLM 耗时不定, 避免用户以为卡死)
+        if (!st || window._pendingDayCopy) { clearInterval(waitTimer); return; }
+        var sec = Math.round((Date.now() - t0) / 1000);
+        st.textContent = '⏳ 正在LLM归纳 ' + date + ' 全天数据（含各域逐条总结，通常10-30秒）... 已等待 ' + sec + 's';
+    }, 1000);
     try {
         var summRes = await apiCall('/api/data/daily-summary/summarize-day?project=' + encodeURIComponent(App.currentProject), {
             method: 'POST',
@@ -553,6 +560,7 @@ async function copyDaySummaryMarkdown() {
         var snapshots = summRes.snapshots || [];
         var md = buildDaySummaryMarkdown(date, snapshots, summary, !!summRes.aiFailed);
         var snapCount = snapshots.length;
+        clearInterval(waitTimer);
         window._pendingDayCopy = {
             text: md,
             okMsg: '✓ 已复制 ' + date + ' 全天归纳汇总 (' + snapCount + ' 个时刻快照' + (summRes.aiFailed ? ', 规则降级版' : ', AI归纳') + ')'
@@ -564,6 +572,7 @@ async function copyDaySummaryMarkdown() {
             st.style.color = 'var(--green)';
         }
     } catch (err) {
+        clearInterval(waitTimer);
         console.error('[DailySummary] copy day error:', err);
         if (st) { st.textContent = '汇总失败: ' + err.message; st.style.color = 'var(--red)'; }
     }
