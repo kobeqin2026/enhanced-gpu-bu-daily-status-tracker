@@ -522,12 +522,25 @@ function copyDailySummaryMarkdown() {
     copyTextToClipboard(md, '✓ 已复制当前快照 (' + t + ')');
 }
 
-// 复制指定日期的全天归纳汇总 Markdown
-// LLM 基于"当天全部实时进度数据"(含新增未生成快照的记录) + 历史时刻快照AI概览 归纳
+// 复制指定日期的全天归纳汇总 Markdown — 两步复制:
+// 第1步(点击): LLM 归纳构建内容并准备 (异步, 手势上下文已失效) → 提示再次点击
+// 第2步(再次点击): 用户手势内同步写入剪贴板, 成功率高 (http 内网 execCommand 需要手势)
+window._pendingDayCopy = null;
+
 async function copyDaySummaryMarkdown() {
+    var st = document.getElementById('daily-summary-status');
+    // 第2步: 内容已就绪 → 手势内写入剪贴板
+    if (window._pendingDayCopy) {
+        var p = window._pendingDayCopy;
+        window._pendingDayCopy = null;
+        var btn2 = document.getElementById('daily-summary-copyday-btn');
+        if (btn2) { btn2.style.boxShadow = ''; btn2.textContent = '📋 复制全天Markdown'; }
+        copyTextToClipboard(p.text, p.okMsg);
+        return;
+    }
+    // 第1步: 生成全天归纳内容
     var date = document.getElementById('daily-summary-export-date').value;
     if (!date) { alert('请先选择汇总日期'); return; }
-    var st = document.getElementById('daily-summary-status');
     if (st) { st.textContent = '⏳ 正在LLM归纳 ' + date + ' 全天数据 (约5-15秒)...'; st.style.color = 'var(--muted)'; }
     try {
         var summRes = await apiCall('/api/data/daily-summary/summarize-day?project=' + encodeURIComponent(App.currentProject), {
@@ -540,7 +553,16 @@ async function copyDaySummaryMarkdown() {
         var snapshots = summRes.snapshots || [];
         var md = buildDaySummaryMarkdown(date, snapshots, summary, !!summRes.aiFailed);
         var snapCount = snapshots.length;
-        copyTextToClipboard(md, '✓ 已复制 ' + date + ' 全天归纳汇总 (' + snapCount + ' 个时刻快照' + (summRes.aiFailed ? ', 规则降级版' : ', AI归纳') + ')');
+        window._pendingDayCopy = {
+            text: md,
+            okMsg: '✓ 已复制 ' + date + ' 全天归纳汇总 (' + snapCount + ' 个时刻快照' + (summRes.aiFailed ? ', 规则降级版' : ', AI归纳') + ')'
+        };
+        var btn = document.getElementById('daily-summary-copyday-btn');
+        if (btn) { btn.style.boxShadow = '0 0 0 2px var(--green), 0 0 8px rgba(61,220,132,.5)'; btn.textContent = '📋 点击复制（内容已就绪）'; }
+        if (st) {
+            st.textContent = '✅ 全天汇总完成 (' + snapCount + ' 个时刻快照' + (summRes.aiFailed ? ', 规则降级版' : ', AI归纳') + ')，请再次点击『复制全天Markdown』按钮写入剪贴板';
+            st.style.color = 'var(--green)';
+        }
     } catch (err) {
         console.error('[DailySummary] copy day error:', err);
         if (st) { st.textContent = '汇总失败: ' + err.message; st.style.color = 'var(--red)'; }
