@@ -33,13 +33,13 @@ function renderDomains(domains) {
         statusCell.appendChild(span);
         row.appendChild(statusCell);
         
-        // 执行开始时间 cell (只读文本)
+        // BU开始时间 cell (只读文本)
         var startCell = document.createElement('td');
         startCell.className = 'domain-date-display';
         startCell.textContent = domain.startDate || '';
         row.appendChild(startCell);
         
-        // 执行结束时间 cell (只读文本)
+        // BU准出时间 cell (只读文本)
         var endCell = document.createElement('td');
         endCell.className = 'domain-date-display';
         endCell.textContent = domain.endDate || '';
@@ -49,6 +49,13 @@ function renderDomains(domains) {
         var criteriaCell = document.createElement('td');
         criteriaCell.appendChild(buildCriteriaProgress(domain.name));
         row.appendChild(criteriaCell);
+        
+        // 测试用例进度 cell: 异步从后端聚合 JIRA Sub-task 统计, 按组件=Domain 填充 (加载中先占位)
+        var tcCell = document.createElement('td');
+        tcCell.className = 'tc-progress-cell';
+        tcCell.setAttribute('data-domain-name', domain.name || '');
+        tcCell.textContent = '…';
+        row.appendChild(tcCell);
         
         // Notes cell (safe)
         var notesCell = document.createElement('td');
@@ -77,6 +84,7 @@ function renderDomains(domains) {
     });
     
     populateDomainDropdowns();
+    fillTestcaseProgressCells();
 }
 
 // 🔍 搜索 JIRA 用户补全负责人候选
@@ -168,7 +176,7 @@ function saveEditedDomain() {
     domain.startDate = document.getElementById('edit-domain-start-date').value || '';
     domain.endDate = document.getElementById('edit-domain-end-date').value || '';
     if (domain.startDate && domain.endDate && domain.startDate > domain.endDate) {
-        alert('执行开始时间不能晚于执行结束时间');
+        alert('BU开始时间不能晚于BU准出时间');
         return;
     }
     domain.notes = document.getElementById('edit-domain-notes').value.trim();
@@ -201,7 +209,7 @@ function updateDomainTime(domainId, field, value) {
     if (value) {
         var other = field === 'startDate' ? 'endDate' : 'startDate';
         if (domain[other] && ((field === 'startDate' && value > domain[other]) || (field === 'endDate' && value < domain[other]))) {
-            alert('执行开始时间不能晚于执行结束时间');
+            alert('BU开始时间不能晚于BU准出时间');
             renderDomains(App.data.domains); // 回滚重渲染
             return;
         }
@@ -255,9 +263,9 @@ function criteriaDomainKey(name) {
     return norm(map[norm(name)] || name);
 }
 
-// ===== 状态一致性: 准出标准全部 pass → 自动置为已完成 + 记录执行结束时间 =====
+// ===== 状态一致性: 准出标准全部 pass → 自动置为已完成 + 记录 BU准出时间 =====
 // 一旦某 domain 的 BU 准出标准全部通过(pass==total), 状态自动变为 completed(已完成),
-// 并记录当下日期为执行结束时间(endDate; 仅首次完成时写入, 不覆盖已有值)。
+// 并记录当下日期为 BU准出时间(endDate; 仅首次完成时写入, 不覆盖已有值)。
 // 反向: 标准被改回(不再全部pass)且当前为 completed → 自动回退为 not-started(未开始)并清空 endDate。
 // 在所有写操作(persistData)前调用; 返回是否有变化。
 function reconcileDomainCompletion() {
@@ -278,7 +286,7 @@ function reconcileDomainCompletion() {
             }
             else if (dm.status === 'completed' && !dm.endDate) { dm.endDate = today; changed = true; }
         } else if (dm.status === 'completed') {
-            // 标准不再全部pass: 回退为未开始并清空执行结束时间 (双向一致)
+            // 标准不再全部pass: 回退为未开始并清空 BU准出时间 (双向一致)
             dm.status = 'not-started';
             if (dm.endDate) { dm.endDate = ''; changed = true; }
             else { changed = true; }
@@ -334,6 +342,112 @@ function buildCriteriaProgress(domainName) {
     wrap.appendChild(label);
     wrap.title = '准出标准共 ' + total + ' 条: 通过 ' + pass + ' / 不通过 ' + fail + ' / 未执行 ' + notReady;
     return wrap;
+}
+
+// ===== 测试用例进度 (BU测试计划 JIRA Sub-task 统计, 组件=Domain) =====
+// 数据源: 后端 GET /api/data/testcase-progress (服务端聚合 JIRA, 状态归一: done=Validated / inprogress=进行中+Blocked / todo=Opened / waived=WAIVED)
+// 按项目缓存: 切项目重新拉取; renderDomains 重渲染时秒填缓存, 不重复请求; 失败下次渲染可重试。
+var _tcCache = {};    // {projectId: {byComponent:{...}, updatedAt}}
+var _tcFetching = {}; // {projectId: true}
+
+// 渲染单个单元格: 有统计显示 完成/执行中 + 迷你进度条, 否则占位
+function renderTcCell(cell, byComponent) {
+    var name = cell.getAttribute('data-domain-name');
+    if (!name) return;
+    var stats = byComponent[name] || null;
+    if (!stats) {
+        // 忽略大小写兜底 (JIRA 组件名大小写敏感坑: UCIe ≠ UCIE)
+        var lower = String(name).toLowerCase();
+        for (var k in byComponent) {
+            if (String(k).toLowerCase() === lower) { stats = byComponent[k]; break; }
+        }
+    }
+    if (!stats || stats.total === 0) {
+        cell.textContent = '—';
+        // matched=false = JIRA 项目里没有该域对应组件; matched=true 则是有组件但 0 条用例
+        cell.title = (!stats || stats.matched === false) ? 'JIRA 项目中无该域对应组件' : '该域测试用例 0 条';
+        return;
+    }
+    // 进度条(对齐满足准出标准条): 颜色分段 绿=pass(通过) / 红=fail(失败) / 灰=未进行; 右侧纯数字标签 完成/总数
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex; align-items:center; gap:6px; min-width:140px;';
+    var bar = document.createElement('div');
+    bar.style.cssText = 'flex:1; height:8px; border-radius:4px; background:#3a4157; overflow:hidden; display:flex;';
+    var segs = [
+        { n: stats.done, color: '#2ecc71' },
+        { n: stats.fail, color: '#e74c3c' },
+        { n: stats.todo, color: '#6b7280' }
+    ];
+    segs.forEach(function(seg) {
+        if (seg.n > 0) {
+            var el = document.createElement('div');
+            el.style.cssText = 'height:100%; background:' + seg.color + ';';
+            el.style.width = (seg.n / stats.total * 100) + '%';
+            bar.appendChild(el);
+        }
+    });
+    wrap.appendChild(bar);
+    // 纯数字标签: 完成数/总用例数 (无文字)
+    var label = document.createElement('span');
+    label.textContent = stats.done + '/' + stats.total;
+    label.style.cssText = 'font-size:12px; color:#8b93a7; white-space:nowrap;';
+    wrap.appendChild(label);
+    cell.textContent = '';
+    cell.appendChild(wrap);
+    // 悬停: 按所有状态完整显示 (通过/失败/未进行/执行中/豁免)
+    cell.title = '共 ' + stats.total + ' 条：通过 ' + stats.done + ' · 失败 ' + stats.fail +
+        ' · 未进行 ' + stats.todo + ' · 执行中 ' + stats.inprogress + ' · 豁免 ' + stats.waived;
+}
+
+// 用缓存刷新当前表格全部测试用例进度单元格 (renderDomains 重渲染后立即回填)
+function fillTcCellsFromCache(projectId) {
+    var cache = _tcCache[projectId];
+    if (!cache) return;
+    var rows = document.querySelectorAll('#domains-body tr');
+    rows.forEach(function(tr) {
+        var cell = tr.querySelector('.tc-progress-cell');
+        if (cell) renderTcCell(cell, cache.byComponent);
+    });
+}
+
+// 入口: 有缓存立即填; 无缓存/失败后触发一次拉取 (每项目最多并发一次)
+function fillTestcaseProgressCells() {
+    var projectId = App.currentProject;
+    if (!projectId) return;
+    fillTcCellsFromCache(projectId);
+    if (_tcCache[projectId] || _tcFetching[projectId]) return;
+    _tcFetching[projectId] = true;
+    fetch('/api/data/testcase-progress?project=' + encodeURIComponent(projectId), {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(j) {
+        _tcFetching[projectId] = false;
+        if (j && j.success && j.byComponent) {
+            _tcCache[projectId] = { byComponent: j.byComponent, updatedAt: j.updatedAt };
+            fillTcCellsFromCache(projectId);
+        } else {
+            markTcCellsError((j && j.error) ? j.error : '未知错误');
+        }
+    })
+    .catch(function(err) {
+        _tcFetching[projectId] = false;
+        markTcCellsError(String(err && err.message ? err.message : err));
+    });
+}
+
+// 拉取失败: 未填充的单元格标记 ⚠ + 悬浮错误原因 (下次 renderDomains 自动重试)
+function markTcCellsError(msg) {
+    var rows = document.querySelectorAll('#domains-body tr');
+    rows.forEach(function(tr) {
+        var cell = tr.querySelector('.tc-progress-cell');
+        if (cell && cell.textContent === '…') {
+            cell.textContent = '⚠';
+            cell.title = '测试用例进度获取失败: ' + msg;
+        }
+    });
 }
 
 // ===== JIRA 组件同步(组件 = Domain, lead = owner) =====

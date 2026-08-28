@@ -364,7 +364,7 @@ function renderSummaryData(result) {
         }
         return [d.name || '-', d.owner || '-', { _html: statusBadgeHtml(d.statusLabel || d.status || '-', statusKind) }, d.startDate || '-', d.endDate || '-', doneCell];
     });
-    domCard.appendChild(summaryTable(['Domain', '负责人', '状态', '执行开始', '执行结束', '今日进展 / 下一步 / 阻塞'], domRows));
+    domCard.appendChild(summaryTable(['Domain', '负责人', '状态', 'BU开始', 'BU准出', '今日进展 / 下一步 / 阻塞'], domRows));
     frag.appendChild(domCard);
 
     // 2. BU准出标准

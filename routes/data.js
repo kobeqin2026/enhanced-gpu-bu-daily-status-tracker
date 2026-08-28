@@ -10,9 +10,10 @@ var diagnosis = require('../lib/diagnosis');
 
 var loadProjectData = projects.loadProjectData;
 var saveProjectData = projects.saveProjectData;
+var loadProjects = projects.loadProjects;
 var logOperation = logger.logOperation;
 
-// ===== Domain 状态一致性: 准出标准全部 pass → completed + 记录执行结束时间 =====
+// ===== Domain 状态一致性: 准出标准全部 pass → completed + 记录 BU准出时间 =====
 // 域名别名映射与前端 bu-exit-criteria.js 的 CRITERIA_DOMAIN_MAP 保持一致
 var CRITERIA_DOMAIN_MAP = {
     'firmware': 'FW', 'pcie': 'PCIE', 'ethernet': 'ETH', 'diagnostic': 'Diag',
@@ -351,6 +352,183 @@ router.post('/daily-summary/summarize-day', auth.authenticateToken, async functi
         res.json({ success: true, date: date, summary: summary, aiFailed: aiFailed, snapshots: snapshotList });
     } catch (error) {
         logOperation(req.user.username, 'ERROR', 'daily-summary-day', { error: error.message });
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ===== 测试用例进度 (BU测试计划 JIRA Sub-task 统计, 组件=Domain) =====
+// 数据源: JIRA 项目 (domain.jiraProject, 缺省 BR200 — 与 8089 jira-testcase、kpi-portal 相同)
+// 语义: 每个 domain 的测试用例 = 该项目下挂组件=域名 的 Sub-task 用例
+// 状态映射 (BR200 workflow: Opened → 进行中 → Validated/Blocked/WAIVED):
+//   Validated → done(执行完毕); 进行中/Blocked → inprogress(执行中); Opened → todo(待执行); WAIVED → waived(豁免)
+var JIRA_BASE = process.env['JIRA_BASE_URL'] || 'https://jira01.birentech.com';
+var JIRA_PAT = process.env['JIRA_PAT'] || '';
+var DEFAULT_TC_PROJECT = process.env['DOMAIN_SOURCE_PROJECT'] || 'BR200';
+// 域名→JIRA组件真实名 别名 (组件名与域概览名不一致时; 键=normDomainKey(域名): 小写+去空白/横线)
+// BR200 实际组件名 'SW' ↔ 域概览 'SW Model'
+var TC_COMPONENT_ALIAS = { 'swmodel': 'SW' };
+
+function jiraGet(path) {
+    return new Promise(function(resolve) {
+        var https = require('https');
+        var u = new URL(JIRA_BASE + path);
+        var req = https.request({
+            hostname: u.hostname,
+            path: u.pathname + u.search,
+            method: 'GET',
+            headers: { 'Authorization': 'Bearer ' + JIRA_PAT, 'Accept': 'application/json' }
+        }, function(resp) {
+            var buf = '';
+            resp.setEncoding('utf8');
+            resp.on('data', function(c) { buf += c; });
+            resp.on('end', function() {
+                try {
+                    var j = JSON.parse(buf);
+                    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+                        resolve({ ok: false, status: resp.statusCode, error: j.errorMessages ? j.errorMessages.join('; ') : buf.slice(0, 200) });
+                    } else {
+                        resolve({ ok: true, data: j });
+                    }
+                } catch (e) {
+                    resolve({ ok: false, status: resp.statusCode, error: 'JSON parse failed' });
+                }
+            });
+        });
+        req.setTimeout(30000, function() { req.destroy(); });
+        req.on('error', function(e) { resolve({ ok: false, error: e.message }); });
+        req.end();
+    });
+}
+
+// 分页拉取全部 JIRA issue (fields 数组)
+async function jiraSearchAll(jql, fields) {
+    var all = [];
+    var startAt = 0;
+    var page = 100;
+    var fieldStr = (fields || []).join(',');
+    for (;;) {
+        var q = '/rest/api/2/search?jql=' + encodeURIComponent(jql) +
+            '&fields=' + encodeURIComponent(fieldStr) +
+            '&startAt=' + startAt + '&maxResults=' + page;
+        var r = await jiraGet(q);
+        if (!r.ok) {
+            throw new Error('JIRA查询失败: ' + (r.error || ('HTTP ' + r.status)));
+        }
+        var issues = (r.data && r.data.issues) || [];
+        all = all.concat(issues);
+        var total = (r.data && r.data.total) || 0;
+        startAt += issues.length;
+        if (startAt >= total || issues.length === 0) break;
+    }
+    return all;
+}
+
+// 收集某 Test Plan 及其 outward 关联(Relates)子 Test Plan 的 key 集合 (BFS: visited 防环, 深度≤4, 数量≤60)
+// 与 kpi-portal collectPlanTree 同款语义 — 子计划用 issuelinks outwardIssue 表达
+async function collectPlanTree(rootKey) {
+    var collected = [rootKey];
+    var visited = {}; visited[rootKey] = true;
+    var level = [rootKey];
+    for (var d = 0; d < 4 && level.length; d++) {
+        if (collected.length >= 60) break;
+        var results = await Promise.all(level.map(function(k) {
+            return jiraGet('/rest/api/2/issue/' + encodeURIComponent(k) + '?fields=issuelinks')
+                .then(function(r) { return (r.ok && r.data && r.data.fields && r.data.fields.issuelinks) || []; })
+                .catch(function() { return []; });
+        }));
+        var next = [];
+        results.forEach(function(links) {
+            links.forEach(function(l) {
+                if (l.outwardIssue && l.outwardIssue.key && !visited[l.outwardIssue.key]) {
+                    visited[l.outwardIssue.key] = true;
+                    collected.push(l.outwardIssue.key);
+                    next.push(l.outwardIssue.key);
+                }
+            });
+        });
+        level = next;
+    }
+    return collected;
+}
+
+// 测试用例状态归一: done=完成(Validated) / fail=失败(Blocked/受阻/Fail/失败) / inprogress=执行中(进行中) / todo=未执行(Opened) / waived=豁免(WAIVED)
+// 进度条语义(对齐满足准出标准条): 绿=完成(pass) 红=失败(fail) 灰=未执行(todo); 执行中不渲染
+function normalizeTestCaseStatus(status) {
+    if (!status) return 'todo';
+    var name = String(status.name || status || '').toLowerCase();
+    if (name.indexOf('waive') !== -1 || name.indexOf('wont') !== -1) return 'waived';
+    if (name.indexOf('valid') !== -1 || name.indexOf('done') !== -1 || name.indexOf('close') !== -1 || name.indexOf('resolve') !== -1) return 'done';
+    if (name.indexOf('fail') !== -1 || name.indexOf('失败') !== -1 || name.indexOf('block') !== -1 || name.indexOf('受阻') !== -1) return 'fail';
+    if (name.indexOf('progress') !== -1 || name.indexOf('进行中') !== -1 || name.indexOf('test') !== -1 || name.indexOf('review') !== -1 || name.indexOf('开发') !== -1) return 'inprogress';
+    return 'todo';
+}
+
+// GET /api/data/testcase-progress?project=br288y[&plan=BR288Y-1] — 各 domain 测试用例进度 (组件=Domain)
+// 数据源解析: 项目配置 projects.json 的 jiraProject/testPlan 优先 (br288y → BR288Y / BR288Y-1);
+//   无项目配置时回退 domain.jiraProject 分组(缺省 BR200); plan 未配置则统计项目全部 Sub-task。
+// plan 树 = 顶层 Test Plan + outward(Relates)子 Test Plan; 用例限定 parent in 树内 key (BU 测试计划范围)
+router.get('/testcase-progress', async function(req, res) {
+    try {
+        var projectId = req.query.project || 'gpu-bringup';
+        var data = await loadProjectData(projectId);
+        var domains = Array.isArray(data.domains) ? data.domains : [];
+        // 项目级配置 (jiraProject + testPlan)
+        var projList = await loadProjects();
+        var projCfg = (projList || []).find(function(p) { return p.id === projectId; }) || {};
+        var cfgJiraProject = String(projCfg.jiraProject || '').trim().toUpperCase();
+        var cfgPlan = String(projCfg.testPlan || '').trim().toUpperCase();
+        var byProj = {};
+        if (cfgJiraProject) {
+            byProj[cfgJiraProject] = domains.map(function(d) { return d.name; });
+        } else {
+            // 回退: 按各 domain 自带的 jiraProject 分组 (缺省 BR200)
+            domains.forEach(function(d) {
+                var p = String(d.jiraProject || DEFAULT_TC_PROJECT).trim().toUpperCase();
+                (byProj[p] = byProj[p] || []).push(d.name);
+            });
+        }
+        var projects = {};   // {BR288Y:{total, plan, components:{原始组件名:{total,done,inprogress,todo,waived}}}}
+        var byComponent = {}; // {域名:{matched,total,done,inprogress,todo,waived}}
+        for (var p in byProj) {
+            var planQuery = cfgJiraProject ? cfgPlan : String(req.query.plan || '').trim().toUpperCase();
+            var jql;
+            if (planQuery) {
+                var treeKeys = await collectPlanTree(planQuery);
+                jql = 'project = ' + p + ' AND issuetype = Sub-task AND parent in (' + treeKeys.join(', ') + ')';
+            } else {
+                jql = 'project = ' + p + ' AND issuetype = Sub-task';
+            }
+            var issues = await jiraSearchAll(jql, ['components', 'status']);
+            var compAgg = {};
+            issues.forEach(function(iss) {
+                var comps = (iss.fields.components && iss.fields.components.length) ? iss.fields.components : [{ name: '未分配' }];
+                var c = normalizeTestCaseStatus(iss.fields.status);
+                comps.forEach(function(cp) {
+                    var nm = String(cp.name || '未分配');
+                    var st = compAgg[nm] || (compAgg[nm] = { total: 0, done: 0, fail: 0, inprogress: 0, todo: 0, waived: 0 });
+                    st.total++;
+                    st[c]++;
+                });
+            });
+            projects[p] = { total: issues.length, plan: planQuery || null, planKeys: planQuery ? treeKeys.length : null, components: compAgg };
+            // 域名匹配: 先精确 → 忽略大小写 → 别名表 (TC_COMPONENT_ALIAS)
+            var ciIndex = {};
+            Object.keys(compAgg).forEach(function(k) { ciIndex[String(k).toLowerCase()] = k; });
+            byProj[p].forEach(function(dn) {
+                var key = compAgg[dn] ? dn : (ciIndex[String(dn).toLowerCase()] || '');
+                if (!key) {
+                    var alias = TC_COMPONENT_ALIAS[normDomainKey(dn)];
+                    if (alias && compAgg[alias]) key = alias;
+                }
+                if (key && compAgg[key]) {
+                    byComponent[dn] = Object.assign({ matched: true }, compAgg[key]);
+                } else {
+                    byComponent[dn] = { matched: false, total: 0, done: 0, fail: 0, inprogress: 0, todo: 0, waived: 0 };
+                }
+            });
+        }
+        res.json({ success: true, updatedAt: new Date().toISOString(), projects: projects, byComponent: byComponent });
+    } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });
