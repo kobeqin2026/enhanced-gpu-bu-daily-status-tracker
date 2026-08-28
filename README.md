@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
-![Version](https://img.shields.io/badge/version-v5.5.5-blue)
+![Version](https://img.shields.io/badge/version-v6.0.0-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -26,6 +26,9 @@
 - **JIRA集成 (JIRA Integration)**: 从 JIRA Server/Cloud/Data Center 自动拉取 Bug，支持项目选择、字段映射、智能合并
 - **每日进度跟踪 (Daily Progress Tracking)**: 按日期和Domain记录每日工作进展
 - **BU准出标准 (BU Exit Criteria)**: 定义和管理每个Domain的准出标准
+- **每日状态时刻快照与自动总结**: 按「日期+时刻」生成/回看每日进度总结快照，BU 执行期内 09:30/17:30 自动生成，支持一键复制全天汇总 Markdown（LLM 逐域归纳 + 准出分域表格 + Bug 清单）
+- **测试用例进度列 (Domain Overview)**: 从 JIRA 顶层 Test Plan 树实时聚合各 Domain 测试用例（通过/失败/执行中/未执行/豁免），进度条 + done/total 数字展示
+- **Domain 状态自动一致 (准出标准驱动)**: 全部 Pass 自动 Completed 并记录 BU 准出时间，解除后自动回退，不覆盖手动状态
 - **JIRA Bug Dashboard**: 独立可视化页面（`/jira-dashboard.html`），提供JIRA Bug统计与分析
 
 ### 技术特性
@@ -37,6 +40,8 @@
 - **速率限制**: express-rate-limit 中间件，通用 120次/分钟/IP，诊断接口 10次/分钟/IP
 - **全局变量封装**: 前端状态统一封装到 App 命名空间，减少全局污染
 - **并发安全**: 文件锁机制、自动备份（含旧备份清理）、数据校验，支持10-20人并发
+- **LLM 稳健性**: 自动重试(3次) + 4 策略 JSON 容错解析（含括号栈补全恢复截断）+ max_tokens 8000，LLM 失败自动降级规则版且内容不为空
+- **统一登录**: 本地账号校验失败时自动回退硬件平台账号库（admin→管理员、owner→域负责人），多系统共享账号体系
 - **混合数据架构**: 优先从服务器加载数据，API失败时自动使用本地缓存
 - **JWT认证**: 基于Token的用户认证，httpOnly Cookie安全传输
 - **密码安全**: bcrypt 哈希存储（10 rounds），支持旧密码自动升级
@@ -185,6 +190,65 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v6.0.0 (2026-08-27)
+**BU 执行期核心迭代：每日状态时刻快照与自动总结体系 / Domain 测试用例进度列 / Domain 状态自动一致 / 三级权限体系与统一登录 / 深色主题统一**
+
+#### 🕐 每日状态时刻快照与自动总结体系 (daily-summary)
+
+**1. 进度记录支持时刻（HH:MM）**
+- 每日进度新增 `time` 字段，同一天多次更新可按时刻生成不同总结，形成 BU 14 天进度时间线
+- 补录时可手动指定时刻，老记录无时刻视为全天有效
+
+**2. 快照存储与回看**
+- 快照按「日期 + 时刻」存储：同日期同时刻重新生成 = 覆盖更新；同日期不同时刻 = 新增快照
+- 历史列表按日期降序、组内时刻升序展示，每条带 AI 版/规则版徽章、概览与统计（Domain/Critical/全部 Bug/准出通过）
+- 「📋 查看BU daily状态」= 纯查看历史与数据明细，绝不触发 LLM；「📊 一键总结Daily状态」= 恰好生成一次当前时刻快照并存档
+
+**3. 一键复制全天汇总 Markdown**
+- 输出结构：标题（含 BU 第 N 天 + BU 时间窗）→ 整体进展/主要进展/风险（LLM）→ 各 Domain 全天动态（**LLM 逐域归纳**，非逐条罗列）→ BU 准出标准分域表格（通过/不通过/未就绪 + 合计 + 未通过项明细）→ Critical Bug + 全量 Bug 清单
+- 两步复制机制：异步 LLM 生成完成后按钮变「点击复制（内容已就绪）」，第二次点击在用户手势内同步写入剪贴板，规避 http 非安全上下文下 async 手势失效；失败时提供手动复制框兜底
+- 等待反馈：LLM 生成期间状态栏每秒刷新已等待秒数
+
+**4. BU 定时自动总结**
+- 服务端定时器在 BU 执行窗口内每天 09:30 / 17:30 自动生成并归档当天时刻快照（generatedBy=auto）
+- 三层防重：进程内同日同时刻防抖 + BU 窗口过滤 + 已有快照检查；仅对白名单项目生效
+
+**5. LLM 稳健性**
+- 根因修复：`max_tokens` 2000 → 8000（perDomains 逐域归纳输出超长被截断导致 JSON 未闭合 → 误判为失败）
+- 新增括号栈补全容错解析（补引号 + 逆向闭合未闭合的 `{`/`[`），覆盖字符串/数组/对象三种截断场景
+- 自动重试 3 次（空返回/解析失败/网络中断），失败仍保证降级规则版内容非空
+
+#### 🧪 Domain 测试用例进度列 (2026-08-27)
+
+- 后端新增 `GET /api/data/testcase-progress?project=X`：从 JIRA 项目顶层 Test Plan（BR288Y-1）BFS 展开全部关联子计划（visited 防环、深度/数量上限），JQL `parent in (树内key)` 限定树范围，按组件（=Domain）聚合 Sub-task 用例
+- 状态五桶归一：**通过**=Validated、**失败**=Blocked/受阻/Fail、**执行中**=进行中、**未执行**=Opened、**豁免**=WAIVED；多组件用例重复计入各自组件
+- 前端进度条与「满足准出标准」条完全同款（绿/红/灰三段 + 执行中留白），右侧纯数字 `done/total`，悬停显示完整分布与失败详情；数据源由 `data/projects.json` 的 `jiraProject` + `testPlan` 配置驱动，项目级前端缓存
+- 表头/编辑弹窗/汇总表列名统一：执行开始时间 → **BU开始时间**、执行结束时间 → **BU准出时间**
+
+#### 🔄 Domain 状态双向一致（准出标准驱动）
+
+- 某 Domain 的 BU 准出标准**全部 Pass** → 自动置为 Completed 并记录 BU准出时间（当天），仅当原状态为未开始/无状态时触发，**不覆盖**手动设置的进行中/受阻
+- 解除全 Pass 的 Completed → 自动回退为未开始并清空 BU准出时间
+- 前端提交前预校正 + 后端 POST 权威落库双重保障，无准出标准的 Domain 不受影响
+
+#### 🔐 三级权限体系与统一登录
+
+- 新增 **domain_owner** 角色（本地账号或硬件平台回退的 owner）：仅可为自己名下 Domain 添加每日进度，行内编辑/删除/BU准出/Bug管理/用户管理均仅 admin 可用
+- 登录失败自动回退硬件平台账号库校验（admin→管理员、owner→域负责人），多系统共享账号
+- 操作列按钮改为条件渲染（无权限不渲染，杜绝"按钮可见但无效"）；区块级功能（添加 Domain/Bug）容器级 admin-only 隐藏
+- 登录门 + 项目选择门三步流程；新建项目支持从现有项目复制全部数据（copyFrom）
+
+#### 🌙 深色主题统一
+
+- 与统一门户（8090）同一套设计令牌：深蓝面板、霓虹色板；覆盖区块容器、表单控件、select 原生下拉面板（color-scheme:dark + appearance:none + option 样式）、Chrome 自动填充、日期控件等全部浅色泄漏点
+
+#### ⚙️ 其他
+
+- JIRA 组件一键同步为 Domain（组件=域名、组件 lead=负责人、组件描述=备注），负责人候选从 JIRA 组件负责人加载、支持关键字搜索补全
+- JIRA Bug Dashboard 标签/组件双维度独立筛选 + KPI 实时联动
+- 固定右上角用户栏：任意页面登录态与退出入口常驻可见
+- 服务端禁用 ETag + 全 API no-store，前端 fetch 显式 no-store，根治二次访问 304 导致的页面卡"加载中"
 
 ### v5.5.5 (2026-07-22)
 **JIRA Dashboard 筛选增强: 标签/组件双维度筛选 + KPI实时联动 + 动画修复**
@@ -1550,5 +1614,5 @@ MIT License
 
 ---
 
-**最后更新**: 2026年6月9日  
-**版本**: 5.5.2
+**最后更新**: 2026年8月27日  
+**版本**: 6.0.0

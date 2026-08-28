@@ -83,6 +83,25 @@
 保存指定项目的全部数据（需要认证）。
 - **Body**: 同上结构。
 
+### GET /api/data/testcase-progress?project=<id>
+统计各 Domain 的测试用例进度（无认证，与 GET /api/data 一致）。
+- 数据源: JIRA 项目（`data/projects.json` 中项目配置的 `jiraProject` + `testPlan`，缺省按 domain.jiraProject 分组）
+- 逻辑: 从顶层 Test Plan 起 BFS 展开全部 outward "Relates" 关联子计划（visited 防环、深度≤4、数量≤60），JQL `project = X AND issuetype = Sub-task AND parent in (树内key)` 限定树范围，按组件聚合
+- 状态归一: `done`=Validated、`fail`=Blocked/受阻/Fail、`inprogress`=进行中、`todo`=Opened/其他、`waived`=WAIVED
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "updatedAt": "...",
+    "projects": {
+      "BR288Y": {
+        "total": 382, "plan": "BR288Y-1", "planKeys": 24,
+        "components": { "JTAG": { "total": 14, "done": 0, "fail": 0, "inprogress": 0, "todo": 14, "waived": 0 } }
+      }
+    }
+  }
+  ```
+
 ---
 
 ## 4. 用户管理 (Users)

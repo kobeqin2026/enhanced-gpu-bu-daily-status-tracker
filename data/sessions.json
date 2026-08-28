@@ -3,8 +3,8 @@
     "username": "jtag",
     "role": "domain_owner",
     "name": "JTAG",
-    "token": "f8c87cbda2368d2f765183b31c8e90d9",
-    "createdAt": 1785897070800
+    "token": "2843e99438baf5937fa3de3d3cc898c1",
+    "createdAt": 1787798143030
   },
   "admin": {
     "username": "admin",
@@ -17,14 +17,21 @@
     "username": "pcie",
     "role": "domain_owner",
     "name": "PCIe",
-    "token": "badfaef1aaac48ddd6e753038a8451c7",
-    "createdAt": 1787725948403
+    "token": "3191d65bdf7880faa8ff4c65f5d1ab26",
+    "createdAt": 1787823221604
   },
   "kobe": {
     "username": "kobe",
     "role": "admin",
     "name": "Kobe",
-    "token": "d08732ff1283e3da5a00a3f561d03fc0",
-    "createdAt": 1787726862502
+    "token": "15ff7f150c879e675735f3a2870e4e53",
+    "createdAt": 1787809250384
+  },
+  "slt": {
+    "username": "slt",
+    "role": "domain_owner",
+    "name": "SLT",
+    "token": "4d60575642d382c7d78ac332855abca9",
+    "createdAt": 1787822738735
   }
 }
