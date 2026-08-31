@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
-![Version](https://img.shields.io/badge/version-v6.0.0-blue)
+![Version](https://img.shields.io/badge/version-v1.0.0-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -190,6 +190,17 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v1.0.0 (2026-08-31) — 统一四平台版本管理
+
+**版本说明**：与 kpi-portal / jira-testcase-manager / hardware-reservation-platform 统一为 **v1.0.0** 版本管理（功能对应此前内部版本 v6.0.0）。
+
+**权限徽章三分支细化（三级权限 → 三类用户）**
+- **管理员**（hardware admin 回退）→ 红色「管理员」徽章，全功能可见。
+- **真域负责人**（role=domain_owner 且登录名在 `DOMAIN_OWNER_USER_KEY` 团队映射表）→ 橙色「Domain Owner」徽章，仅可编辑自己 domain + 添加/编辑 BU Exit Criteria。
+- **普通用户**（hardware `owner` 回退但登录名不在映射表，如 biren 只读账号）→ 绿色「普通用户」徽章，全站只读：每日进度输入区 `user-only` 隐藏、无任何编辑按钮。
+- 顶部用户栏 / 登录状态统一走三分支判定（`isRealDomainOwner()`），用户名优先显示**登录名**（hardware 回退用户的 display_name 可能是「普通用户」等通用文案）。
+- 名单与 kpi-portal `REAL_DOMAIN_OWNERS` 同一份（两处独立硬编码，改一处必须同步另一处）。
 
 ### v6.0.0 (2026-08-27)
 **BU 执行期核心迭代：每日状态时刻快照与自动总结体系 / Domain 测试用例进度列 / Domain 状态自动一致 / 三级权限体系与统一登录 / 深色主题统一**
