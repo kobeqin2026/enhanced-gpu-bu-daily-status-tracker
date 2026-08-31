@@ -60,7 +60,7 @@ function reconcileDomainCompletion(data) {
 // GET /api/data - get project data
 router.get('/', async function(req, res) {
     try {
-        var projectId = req.query.project || 'gpu-bringup';
+        var projectId = req.query.project || (process.env['DAILY_PROJECT'] || 'demo-daily');
         var data = await loadProjectData(projectId);
         // 显示层一致性: 满足准出标准的 domain 显示为已完成+结束时间 (不落库, 下次保存时持久化)
         reconcileDomainCompletion(data);
@@ -73,7 +73,7 @@ router.get('/', async function(req, res) {
 // POST /api/data - save project data (authenticated)
 router.post('/', auth.authenticateToken, async function(req, res) {
     try {
-        var projectId = req.body.projectId || req.query.project || 'gpu-bringup';
+        var projectId = req.body.projectId || req.query.project || (process.env['DAILY_PROJECT'] || 'demo-daily');
         var body = req.body;
         
         var data = {
@@ -146,7 +146,7 @@ async function generateDailySummaryInternal(projectId, date, time) {
 // POST /api/data/daily-summary - 一键总结 daily bringup 状态 (手动/人为触发)
 router.post('/daily-summary', auth.authenticateToken, async function(req, res) {
     try {
-        var projectId = (req.body && req.body.projectId) || req.query.project || 'gpu-bringup';
+        var projectId = (req.body && req.body.projectId) || req.query.project || (process.env['DAILY_PROJECT'] || 'demo-daily');
         var date = (req.body && req.body.date) || new Date().toISOString().split('T')[0];
         var time = (req.body && req.body.time) || '';
         var result = await generateDailySummaryInternal(projectId, date, time);
@@ -160,7 +160,7 @@ router.post('/daily-summary', auth.authenticateToken, async function(req, res) {
 // GET /api/data/daily-summary/history?project=xxx - 递增式历史总结列表 (按 date+time 升序, 轻量字段)
 router.get('/daily-summary/history', auth.authenticateToken, async function(req, res) {
     try {
-        var projectId = req.query.project || 'gpu-bringup';
+        var projectId = req.query.project || (process.env['DAILY_PROJECT'] || 'demo-daily');
         var list = await projects.loadDailySummaries(projectId);
         var items = list.map(function(r) {
             var skel = r.skeleton || {};
@@ -190,7 +190,7 @@ router.get('/daily-summary/history', auth.authenticateToken, async function(req,
 // GET /api/data/daily-summary/history/:date?project=xxx - 指定日期的全部快照 (同一天多次更新 → 多个时刻)
 router.get('/daily-summary/history/:date', auth.authenticateToken, async function(req, res) {
     try {
-        var projectId = req.query.project || 'gpu-bringup';
+        var projectId = req.query.project || (process.env['DAILY_PROJECT'] || 'demo-daily');
         var list = await projects.loadDailySummaries(projectId);
         var found = list.filter(function(r) { return r.date === req.params.date; });
         if (!found.length) return res.status(404).json({ success: false, error: '该日期暂无历史总结' });
@@ -205,7 +205,7 @@ router.get('/daily-summary/history/:date', auth.authenticateToken, async functio
 // Body: { projectId, date: 'YYYY-MM-DD', time: 'HH:MM'(可选), aiFailed, skeleton, ai }
 router.post('/daily-summary/save', auth.authenticateToken, async function(req, res) {
     try {
-        var projectId = (req.body && req.body.projectId) || req.query.project || 'gpu-bringup';
+        var projectId = (req.body && req.body.projectId) || req.query.project || (process.env['DAILY_PROJECT'] || 'demo-daily');
         if (!req.body || !req.body.date || !req.body.skeleton) {
             return res.status(400).json({ success: false, error: '缺少 date 或 skeleton' });
         }
@@ -235,7 +235,7 @@ router.post('/daily-summary/save', auth.authenticateToken, async function(req, r
 // 返回: { success, date, summary: {dayOverview, highlights[], risks[], nextSteps[], derived}, aiFailed, snapshots: [{time, aiFailed, overall}] }
 router.post('/daily-summary/summarize-day', auth.authenticateToken, async function(req, res) {
     try {
-        var projectId = (req.body && req.body.projectId) || req.query.project || 'gpu-bringup';
+        var projectId = (req.body && req.body.projectId) || req.query.project || (process.env['DAILY_PROJECT'] || 'demo-daily');
         var date = (req.body && req.body.date) || '';
         if (!date) return res.status(400).json({ success: false, error: '缺少 date' });
 
@@ -357,15 +357,15 @@ router.post('/daily-summary/summarize-day', auth.authenticateToken, async functi
 });
 
 // ===== 测试用例进度 (BU测试计划 JIRA Sub-task 统计, 组件=Domain) =====
-// 数据源: JIRA 项目 (domain.jiraProject, 缺省 BR200 — 与 8089 jira-testcase、kpi-portal 相同)
+// 数据源: JIRA 项目 (domain.jiraProject, 缺省见 env DOMAIN_SOURCE_PROJECT)
 // 语义: 每个 domain 的测试用例 = 该项目下挂组件=域名 的 Sub-task 用例
-// 状态映射 (BR200 workflow: Opened → 进行中 → Validated/Blocked/WAIVED):
+// 状态映射 (JIRA workflow: Opened → 进行中 → Validated/Blocked/WAIVED):
 //   Validated → done(执行完毕); 进行中/Blocked → inprogress(执行中); Opened → todo(待执行); WAIVED → waived(豁免)
-var JIRA_BASE = process.env['JIRA_BASE_URL'] || 'https://jira01.birentech.com';
+var JIRA_BASE = process.env['JIRA_BASE_URL'] || 'https://jira.example.com';
 var JIRA_PAT = process.env['JIRA_PAT'] || '';
-var DEFAULT_TC_PROJECT = process.env['DOMAIN_SOURCE_PROJECT'] || 'BR200';
+var DEFAULT_TC_PROJECT = process.env['DOMAIN_SOURCE_PROJECT'] || 'DEMO-TC';
 // 域名→JIRA组件真实名 别名 (组件名与域概览名不一致时; 键=normDomainKey(域名): 小写+去空白/横线)
-// BR200 实际组件名 'SW' ↔ 域概览 'SW Model'
+// JIRA 组件名 'SW' ↔ 域概览 'SW Model'
 var TC_COMPONENT_ALIAS = { 'swmodel': 'SW' };
 
 function jiraGet(path) {
@@ -463,13 +463,13 @@ function normalizeTestCaseStatus(status) {
     return 'todo';
 }
 
-// GET /api/data/testcase-progress?project=br288y[&plan=BR288Y-1] — 各 domain 测试用例进度 (组件=Domain)
-// 数据源解析: 项目配置 projects.json 的 jiraProject/testPlan 优先 (br288y → BR288Y / BR288Y-1);
-//   无项目配置时回退 domain.jiraProject 分组(缺省 BR200); plan 未配置则统计项目全部 Sub-task。
+// GET /api/data/testcase-progress?project=<项目>[&plan=<PLAN-1>] — 各 domain 测试用例进度 (组件=Domain)
+// 数据源解析: 项目配置 projects.json 的 jiraProject/testPlan 优先;
+//   无项目配置时回退 domain.jiraProject 分组(缺省 env); plan 未配置则统计项目全部 Sub-task。
 // plan 树 = 顶层 Test Plan + outward(Relates)子 Test Plan; 用例限定 parent in 树内 key (BU 测试计划范围)
 router.get('/testcase-progress', async function(req, res) {
     try {
-        var projectId = req.query.project || 'gpu-bringup';
+        var projectId = req.query.project || (process.env['DAILY_PROJECT'] || 'demo-daily');
         var data = await loadProjectData(projectId);
         var domains = Array.isArray(data.domains) ? data.domains : [];
         // 项目级配置 (jiraProject + testPlan)
@@ -481,13 +481,13 @@ router.get('/testcase-progress', async function(req, res) {
         if (cfgJiraProject) {
             byProj[cfgJiraProject] = domains.map(function(d) { return d.name; });
         } else {
-            // 回退: 按各 domain 自带的 jiraProject 分组 (缺省 BR200)
+            // 回退: 按各 domain 自带的 jiraProject 分组 (缺省 env)
             domains.forEach(function(d) {
                 var p = String(d.jiraProject || DEFAULT_TC_PROJECT).trim().toUpperCase();
                 (byProj[p] = byProj[p] || []).push(d.name);
             });
         }
-        var projects = {};   // {BR288Y:{total, plan, components:{原始组件名:{total,done,inprogress,todo,waived}}}}
+        var projects = {};   // {项目:{total, plan, components:{原始组件名:{total,done,inprogress,todo,waived}}}}
         var byComponent = {}; // {域名:{matched,total,done,inprogress,todo,waived}}
         for (var p in byProj) {
             var planQuery = cfgJiraProject ? cfgPlan : String(req.query.plan || '').trim().toUpperCase();

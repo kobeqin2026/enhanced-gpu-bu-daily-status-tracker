@@ -45,10 +45,10 @@ else
 fi
 
 # Test 3: Data Integrity
-# Checks if we can load data for the default 'gpu-bringup' project
-echo -n "3. Check Data Integrity ($BASE_URL/api/data?project=gpu-bringup)... "
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/data?project=gpu-bringup")
-RESPONSE=$(curl -s "$BASE_URL/api/data?project=gpu-bringup")
+# Checks if we can load data for the default 'demo-daily' project
+echo -n "3. Check Data Integrity ($BASE_URL/api/data?project=demo-daily)... "
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/data?project=demo-daily")
+RESPONSE=$(curl -s "$BASE_URL/api/data?project=demo-daily")
 # Check if response contains 'domains' key
 if [ "$HTTP_CODE" -eq 200 ] && echo "$RESPONSE" | grep -q '"domains"'; then
     echo "✅ PASS (HTTP 200, contains project data)"

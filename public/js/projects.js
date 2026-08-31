@@ -239,9 +239,8 @@ async function confirmDeleteProject() {
                 updateProjectURL(App.currentProject);
                 await loadDataFromAPI();
             } else {
-                App.currentProject = 'gpu-bringup';
-                localStorage.setItem('currentProject', App.currentProject);
-                updateProjectURL(App.currentProject);
+                App.currentProject = '';
+                localStorage.removeItem('currentProject');
                 App.data = App.getDefaultData();
                 App.renderAll();
             }

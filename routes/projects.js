@@ -24,7 +24,7 @@ router.get('/', async function(req, res) {
     }
 });
 
-// POST /api/projects - create project (admin only)
+// POST /api/projects - create project (CHANGE_ME only)
 router.post('/', auth.authenticateToken, auth.requireAdmin, async function(req, res) {
     try {
         var name = req.body.name;
@@ -53,7 +53,7 @@ router.post('/', auth.authenticateToken, auth.requireAdmin, async function(req, 
     }
 });
 
-// PUT /api/projects/:id - update project (admin only)
+// PUT /api/projects/:id - update project (CHANGE_ME only)
 router.put('/:id', auth.authenticateToken, auth.requireAdmin, async function(req, res) {
     try {
         var projectId = req.params.id;
@@ -88,7 +88,7 @@ router.put('/:id', auth.authenticateToken, auth.requireAdmin, async function(req
     }
 });
 
-// DELETE /api/projects/:id - delete project (admin only)
+// DELETE /api/projects/:id - delete project (CHANGE_ME only)
 router.delete('/:id', auth.authenticateToken, auth.requireAdmin, async function(req, res) {
     try {
         var projectId = req.params.id;

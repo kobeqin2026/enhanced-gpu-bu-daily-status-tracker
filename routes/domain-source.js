@@ -1,7 +1,7 @@
 // Domain sync from JIRA components (component = Domain)
 // 组件 = Domain, 组件 lead = Domain owner, 组件描述 = notes
-// 支持选择 JIRA 项目: ?jiraProject=BR200 (默认取 env DOMAIN_SOURCE_PROJECT 或 BR200)
-// JIRA 组件页: https://jira01.birentech.com/projects/BR200?selectedItem=com.atlassian.jira.jira-projects-plugin:components-page
+// 支持选择 JIRA 项目: ?jiraProject=<项目> (默认取 env DOMAIN_SOURCE_PROJECT)
+// JIRA 组件页: 按 env JIRA_BASE_URL 定位 components-page
 
 var express = require('express');
 var router = express.Router();
@@ -13,9 +13,9 @@ var loadProjectData = projects.loadProjectData;
 var saveProjectData = projects.saveProjectData;
 var logOperation = logger.logOperation;
 
-var JIRA_BASE = process.env['JIRA_BASE_URL'] || 'https://jira01.birentech.com';
+var JIRA_BASE = process.env['JIRA_BASE_URL'] || 'https://jira.example.com';
 var JIRA_PAT = process.env['JIRA_PAT'] || '';
-var DEFAULT_SOURCE_PROJECT = process.env['DOMAIN_SOURCE_PROJECT'] || 'BR200';
+var DEFAULT_SOURCE_PROJECT = process.env['DOMAIN_SOURCE_PROJECT'] || 'DEMO-TC';
 
 function jiraGet(path) {
     return new Promise(function(resolve) {
@@ -119,7 +119,7 @@ router.get('/domain-source', auth.authenticateToken, async function(req, res) {
 
 // POST /api/data/domain-source/sync?project=br288y&jiraProject=XXXX — 组件 upsert 进 domains
 router.post('/domain-source/sync', auth.authenticateToken, async function(req, res) {
-    var projectId = req.query.project || 'gpu-bringup';
+    var projectId = req.query.project || (process.env['DAILY_PROJECT'] || 'demo-daily');
     var jiraProj = sourceProject(req);
     try {
         var r = await jiraGet('/rest/api/2/project/' + jiraProj + '/components');

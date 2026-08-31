@@ -356,7 +356,7 @@ var selectedProject;
 /**
  * POST /api/data/bug-debug-progress/summarize
  * Fetch JIRA comments + description for a bug and summarize debug progress via LLM.
- * Body: { jiraKey: "BR200-123" }
+ * Body: { jiraKey: "EXAMPLE-123" }
  */
 router.post('/bug-debug-progress/summarize', auth.authenticateToken, async function(req, res) {
     try {
@@ -801,7 +801,7 @@ function fetchJiraBugs(authHeader, jql, maxResults) {
                             domain = componentNames[0];
                         }
 
-                        // Extract project key from issue key (e.g., MPW2-77 -> MPW2)
+                        // Extract project key from issue key (e.g., PROJ-77 -> PROJ)
                         var projectKey = '';
                         if (issue.key && issue.key.indexOf('-') !== -1) {
                             projectKey = issue.key.split('-')[0];
@@ -1231,7 +1231,7 @@ router.post('/diagnose-bug', auth.authenticateToken, async function(req, res) {
 function searchSimilarBugs(authHeader, bugInfo, sourceImageSummaries) {
     return new Promise(function(resolve, reject) {
         // Include comments in text for reference extraction and keyword matching
-        // This catches bug keys (e.g., BRHW110-1677) mentioned in comments like "same as BRHW110-1677"
+        // This catches bug keys (e.g., PROJ-1677) mentioned in comments
         var commentsText = '';
         if (bugInfo.comments && Array.isArray(bugInfo.comments) && bugInfo.comments.length > 0) {
             commentsText = ' ' + bugInfo.comments.map(function(c) { return (c.body || '') + ' ' + (c.author || ''); }).join(' ');
@@ -1306,7 +1306,7 @@ function searchSimilarBugs(authHeader, bugInfo, sourceImageSummaries) {
         });
 
         // Extract explicit bug key references from source bug text (summary + description + ALL comments)
-        // This catches cases like "参见 BRHW110-1677" or "Similar to .../browse/BRHW110-1677" in comments
+        // This catches cases like "参见 PROJ-1677" in comments
         var referencedBugKeys = extractBugKeyReferences(text);
         if (referencedBugKeys.length > 0) {
             console.log('[Diagnosis] Found bug key references in text:', referencedBugKeys.join(', '));
@@ -1349,7 +1349,7 @@ function searchSimilarBugs(authHeader, bugInfo, sourceImageSummaries) {
         // Fetch explicitly referenced bugs directly — NO status filter, ALWAYS include them
         // These bugs are specifically mentioned in the source bug's comments/description,
         // so they must appear in the related bugs list regardless of status or score.
-        // E.g., MPW2-181 comment: "Similar to .../browse/BRHW110-1677"
+        // E.g. comment: "Similar to .../browse/PROJ-1677"
         if (referencedBugKeys.length > 0) {
             referencedBugKeys.forEach(function(refKey) {
                 var refJql = 'key = "' + refKey + '"';
@@ -1578,7 +1578,7 @@ function searchSimilarBugs(authHeader, bugInfo, sourceImageSummaries) {
 
 /**
  * Extract explicit bug key references from text
- * Matches patterns like BRHW110-1677, MPW2-181, GPU1-42, etc.
+ * Matches patterns like PROJ-1677 (项目 key + 数字序号)
  */
 function extractBugKeyReferences(text) {
     if (!text) return [];

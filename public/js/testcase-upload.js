@@ -280,7 +280,7 @@ function renderLinkedPlans(plans) {
     plans.forEach(function(lp) {
         var typeClass = lp.issuetype === 'Test Plan' ? 'pc-type-testplan' : 'pc-type-task';
         html += '<div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #eee;">';
-        html += '<a href="https://jira01.birentech.com/browse/' + lp.key + '" target="_blank" style="font-weight:600; color:#3498db; text-decoration:none;">' + lp.key + '</a>';
+        html += '<a href="' + (App.jiraBaseUrl || '') + lp.key + '" target="_blank" style="font-weight:600; color:#3498db; text-decoration:none;">' + lp.key + '</a>';
         html += '<span class="pc-type ' + typeClass + '" style="font-size:10px;">' + lp.issuetype + '</span>';
         html += '<span style="font-size:13px; color:#333; flex:1;">' + escapeHtml(lp.summary) + '</span>';
         html += '<span style="font-size:12px; color:#666;">' + lp.status + '</span>';

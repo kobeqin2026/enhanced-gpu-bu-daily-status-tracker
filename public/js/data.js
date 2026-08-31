@@ -202,7 +202,7 @@ async function loadProjects() {
             showSyncStatus('⚠ 服务器不可用，使用本地项目列表', 'warning');
         } else {
             App.projectsList = [
-                { id: 'gpu-bringup', name: 'GPU Bring Up', description: '国产GPU芯片bring up每日追踪', createdAt: new Date().toISOString() }
+                { id: 'demo-daily', name: 'Demo Daily', description: 'daily demo project', createdAt: new Date().toISOString() }
             ];
         }
         renderProjectSelect();

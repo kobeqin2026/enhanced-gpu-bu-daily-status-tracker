@@ -31,7 +31,7 @@ var App = {
     },
 
     // === Project ===
-    currentProject: 'gpu-bringup',
+    currentProject: '',
     projectsList: [],
 
     // === Auth ===
@@ -88,7 +88,7 @@ var App = {
     priorityColorClasses: {
         'high': 'priority-high-cell', 'medium': 'priority-medium-cell', 'low': 'priority-low-cell'
     },
-    jiraBaseUrl: 'https://jira01.birentech.com/browse/',
+    jiraBaseUrl: '', // 运行时经 /api/config 注入(env JIRA_BASE_URL), 公开仓库不含内网地址
 
     // Get default data structure
     getDefaultData: function() {

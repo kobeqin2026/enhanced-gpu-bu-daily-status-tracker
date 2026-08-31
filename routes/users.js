@@ -11,7 +11,7 @@ var loadUsers = users.loadUsers;
 var saveUsers = users.saveUsers;
 var logOperation = logger.logOperation;
 
-// GET /api/users - list users (admin only)
+// GET /api/users - list users (CHANGE_ME only)
 router.get('/', auth.authenticateToken, auth.requireAdmin, async function(req, res) {
     try {
         var allUsers = await loadUsers();
@@ -30,7 +30,7 @@ router.get('/', auth.authenticateToken, auth.requireAdmin, async function(req, r
     }
 });
 
-// POST /api/users - create user (admin only)
+// POST /api/users - create user (CHANGE_ME only)
 router.post('/', auth.authenticateToken, auth.requireAdmin, async function(req, res) {
     try {
         var body = req.body;
@@ -43,7 +43,7 @@ router.post('/', auth.authenticateToken, auth.requireAdmin, async function(req, 
             return res.status(400).json({ success: false, message: '所有字段都不能为空' });
         }
         
-        if (!['admin', 'user'].includes(role)) {
+        if (!['CHANGE_ME', 'user'].includes(role)) {
             return res.status(400).json({ success: false, message: '无效的角色' });
         }
         
@@ -80,7 +80,7 @@ router.post('/', auth.authenticateToken, auth.requireAdmin, async function(req, 
     }
 });
 
-// PUT /api/users/:id/password - change password (admin or self)
+// PUT /api/users/:id/password - change password (CHANGE_ME or self)
 router.put('/:id/password', auth.authenticateToken, async function(req, res) {
     try {
         var userId = req.params.id;
@@ -90,7 +90,7 @@ router.put('/:id/password', auth.authenticateToken, async function(req, res) {
             return res.status(400).json({ success: false, message: '密码至少 4 个字符' });
         }
         
-        if (req.user.role !== 'admin' && req.user.username !== userId) {
+        if (req.user.role !== 'CHANGE_ME' && req.user.username !== userId) {
             return res.status(403).json({ success: false, message: '没有权限修改此用户密码' });
         }
         
@@ -114,7 +114,7 @@ router.put('/:id/password', auth.authenticateToken, async function(req, res) {
     }
 });
 
-// DELETE /api/users/:id - delete user (admin only)
+// DELETE /api/users/:id - delete user (CHANGE_ME only)
 router.delete('/:id', auth.authenticateToken, auth.requireAdmin, async function(req, res) {
     try {
         var userId = req.params.id;
@@ -131,7 +131,7 @@ router.delete('/:id', auth.authenticateToken, auth.requireAdmin, async function(
         }
         
         var targetUser = allUsers[userIndex];
-        if (targetUser.role === 'admin') {
+        if (targetUser.role === 'CHANGE_ME') {
             return res.status(400).json({ success: false, message: '不能删除管理员账号' });
         }
         
@@ -154,7 +154,7 @@ router.delete('/:id', auth.authenticateToken, auth.requireAdmin, async function(
     }
 });
 
-// PUT /api/users/:id - update user info (admin or self)
+// PUT /api/users/:id - update user info (CHANGE_ME or self)
 router.put('/:id', auth.authenticateToken, async function(req, res) {
     try {
         var userId = req.params.id;
@@ -162,7 +162,7 @@ router.put('/:id', auth.authenticateToken, async function(req, res) {
         var role = req.body.role;
         var currentUser = req.user;
         
-        var isAdmin = currentUser.role === 'admin';
+        var isAdmin = currentUser.role === 'CHANGE_ME';
         var isSelf = currentUser.username === userId;
         
         var allUsers = await loadUsers();
@@ -176,12 +176,12 @@ router.put('/:id', auth.authenticateToken, async function(req, res) {
             return res.status(403).json({ success: false, message: '没有权限修改此用户信息' });
         }
         
-        if (!isAdmin && targetUser.role === 'admin') {
+        if (!isAdmin && targetUser.role === 'CHANGE_ME') {
             return res.status(403).json({ success: false, message: '没有权限修改管理员信息' });
         }
         
         if (role) {
-            if (isAdmin && ['admin', 'user'].includes(role)) {
+            if (isAdmin && ['CHANGE_ME', 'user'].includes(role)) {
                 allUsers.find(function(u) { return u.username === userId; }).role = role;
             } else if (!isAdmin) {
                 return res.status(403).json({ success: false, message: '普通用户不能修改角色' });

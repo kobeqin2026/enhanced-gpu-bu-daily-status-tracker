@@ -25,7 +25,7 @@ echo ""
 echo "2️⃣  测试用户登录..."
 login_response=$(curl -s -X POST ${BASE_URL}/api/auth/login \
     -H "Content-Type: application/json" \
-    -d '{"username":"admin","password":"admin123"}')
+    -d '{"username":"CHANGE_ME","password":"CHANGE_ME"}')
 
 TOKEN=$(echo $login_response | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
 
@@ -47,7 +47,7 @@ echo "   ✅ 获取到 $project_count 个项目"
 # 4. 测试获取项目数据
 echo ""
 echo "4️⃣  测试获取项目数据..."
-data=$(curl -s "${BASE_URL}/api/data?project=gpu-bringup")
+data=$(curl -s "${BASE_URL}/api/data?project=demo-daily")
 if echo $data | grep -q "domains"; then
     echo "   ✅ 项目数据获取成功"
 else
@@ -59,7 +59,7 @@ fi
 echo ""
 echo "5️⃣  测试数据保存..."
 test_data='{
-    "projectId": "gpu-bringup",
+    "projectId": "demo-daily",
     "domains": [
         {"id":"test-1","name":"PCIe Test","owner":"测试","status":"in-progress","notes":"自动测试"}
     ],
@@ -92,8 +92,8 @@ echo "   ✅ 今日操作日志：$log_count 条"
 # 7. 测试数据导出
 echo ""
 echo "7️⃣  测试数据导出..."
-export_file="/tmp/gpu-bringup-export-$(date +%s).json"
-curl -s -o $export_file "${BASE_URL}/api/export/gpu-bringup" \
+export_file="/tmp/demo-daily-export-$(date +%s).json"
+curl -s -o $export_file "${BASE_URL}/api/export/demo-daily" \
     -H "Authorization: Bearer $TOKEN"
 
 if [ -f "$export_file" ] && [ -s "$export_file" ]; then

@@ -246,7 +246,7 @@ function updateLoginUI() {
     if (Dashboard.currentUser) {
         loginBtn.style.display = 'none';
         logoutBtn.style.display = 'inline-block';
-        var roleText = Dashboard.userRole === 'admin' ? '管理员' : (Dashboard.userRole === 'domain_owner' ? 'Domain Owner' : '用户');
+        var roleText = Dashboard.userRole === 'CHANGE_ME' ? '管理员' : (Dashboard.userRole === 'domain_owner' ? 'Domain Owner' : '用户');
         loginStatus.textContent = '欢迎, ' + Dashboard.currentUser + ' (' + roleText + ')';
     } else {
         loginBtn.style.display = 'inline-block';
@@ -965,7 +965,7 @@ function renderBugRows(bugs) {
 
         var tdKey = document.createElement('td');
         var keyLink = document.createElement('a');
-        keyLink.href = bug.jiraUrl || ('https://jira01.birentech.com/browse/' + bug.bugId);
+        keyLink.href = bug.jiraUrl || (App.jiraBaseUrl + bug.bugId);
         keyLink.target = '_blank';
         keyLink.className = 'jira-key-link';
         keyLink.textContent = bug.bugId;
@@ -1859,7 +1859,7 @@ function renderSearchResults(bugs, totalCount, keyword) {
         row1.className = 'search-result-row1';
 
         var keyLink = document.createElement('a');
-        keyLink.href = bug.jiraUrl || ('https://jira01.birentech.com/browse/' + bug.bugId);
+        keyLink.href = bug.jiraUrl || (App.jiraBaseUrl + bug.bugId);
         keyLink.target = '_blank';
         keyLink.className = 'search-result-key';
         highlightTextNodes(bug.bugId, keyword, keyLink);

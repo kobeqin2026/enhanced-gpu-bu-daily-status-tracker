@@ -478,9 +478,9 @@ async function importBUFromCSV() {
 
 function downloadBugTemplate() {
     var csv = '\uFEFF' + 'Bug ID,Domain,描述,严重性,状态,报告日期,负责人\n';
-    csv += 'MPW2-77,PCIe接口 (PCIe Interface),PCIe链路训练失败，卡在Gen1,High,open,2026-04-15,Ge Qiang\n';
-    csv += 'MPW2-78,HBM,HBM初始化报错ECC failure,Highest,open,2026-04-16,Xiaoming\n';
-    csv += 'MPW2-79,FW,Bootrom启动超时,Medium,open,,Haiping\n';
+    csv += 'PROJ-77,PCIe接口 (PCIe Interface),PCIe链路训练失败，卡在Gen1,High,open,2026-04-15,User A\n';
+    csv += 'PROJ-78,HBM,HBM初始化报错ECC failure,Highest,open,2026-04-16,User B\n';
+    csv += 'PROJ-79,FW,Bootrom启动超时,Medium,open,,User C\n';
     downloadCSV(csv, 'bug_import_template.csv');
 }
 

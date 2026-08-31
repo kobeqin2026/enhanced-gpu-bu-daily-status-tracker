@@ -25,7 +25,7 @@
   "bugs": [
     {
       "id": "bug-1",
-      "bugId": "MPW2-123",
+      "bugId": "DEMO-B-123",
       "domain": "硅验证 (Silicon Validation)",
       "description": "GPU核心频率不稳定",
       "severity": "highest",

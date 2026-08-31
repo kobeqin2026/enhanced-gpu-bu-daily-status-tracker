@@ -40,7 +40,7 @@ function enterDashboard() {
     if (gate) gate.style.display = 'none';
     var gateProj = document.getElementById('gate-project');
     if (gateProj) gateProj.style.display = 'none';
-    // 权限相关 UI (admin-only / user-only)
+    // 权限相关 UI (CHANGE_ME-only / user-only)
     if (typeof updateUIBasedOnRole === 'function') updateUIBasedOnRole();
     refreshMainData();
 }
@@ -85,7 +85,7 @@ async function showGateProject() {
     // 仅管理员显示"新建项目"入口
     var link = document.getElementById('gate-new-project-link');
     if (link) {
-        var isAdmin = (typeof App !== 'undefined' && App && App.userRole === 'admin');
+        var isAdmin = (typeof App !== 'undefined' && App && App.userRole === 'CHANGE_ME');
         link.style.display = isAdmin ? 'block' : 'none';
     }
     gateProj.style.display = 'flex';
@@ -204,8 +204,8 @@ function updateTopUserBar() {
     if (u) {
         // hardware 回退 owner 非域负责人 (不在 DOMAIN_OWNER_USER_KEY) = 普通用户
         var isRealOwner = (role === 'domain_owner' && typeof isRealDomainOwner === 'function' && isRealDomainOwner());
-        var roleText = role === 'admin' ? '管理员' : (isRealOwner ? 'Domain Owner' : '普通用户');
-        var roleColor = role === 'admin' ? '#e74c3c' : (isRealOwner ? '#e67e22' : '#27ae60');
+        var roleText = role === 'CHANGE_ME' ? '管理员' : (isRealOwner ? 'Domain Owner' : '普通用户');
+        var roleColor = role === 'CHANGE_ME' ? '#e74c3c' : (isRealOwner ? '#e67e22' : '#27ae60');
         nameEl.innerHTML = '👤 ' + escapeHtml(u) + ' <span style="display:inline-block; margin-left:8px; padding:2px 8px; border-radius:6px; font-size:12px; color:#fff; background:' + roleColor + ';">' + escapeHtml(roleText) + '</span>';
         bar.style.display = 'flex';
     } else {
@@ -226,7 +226,7 @@ function updateLoginUI() {
         var role = (typeof App !== 'undefined' && App) ? App.userRole : '';
         var uname = (typeof App !== 'undefined' && App) ? (App.currentUserUsername || App.currentUser) : u;
         var isRealOwner = (role === 'domain_owner' && typeof isRealDomainOwner === 'function' && isRealDomainOwner());
-        var roleText = role === 'admin' ? '管理员' : (isRealOwner ? 'Domain Owner' : '普通用户');
+        var roleText = role === 'CHANGE_ME' ? '管理员' : (isRealOwner ? 'Domain Owner' : '普通用户');
         if (loginStatus) loginStatus.textContent = '欢迎, ' + uname + ' (' + roleText + ')';
     } else {
         loginBtn.style.display = 'inline-block';

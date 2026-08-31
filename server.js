@@ -6,6 +6,20 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var rateLimit = require('express-rate-limit');
 
+// 加载本地环境变量(~/skills/.env; JIRA 地址/项目名/密钥均经此注入, 不入公开仓库)
+var fs = require('fs');
+var envFile = path.join(process.env.HOME || '', 'skills', '.env');
+if (fs.existsSync(envFile)) {
+    fs.readFileSync(envFile, 'utf8').split('\n').forEach(function(line) {
+        line = line.trim();
+        if (line && !line.startsWith('#') && line.indexOf('=') !== -1) {
+            var idx = line.indexOf('=');
+            var key = line.substring(0, idx).trim();
+            if (!process.env[key]) process.env[key] = line.substring(idx + 1).trim();
+        }
+    });
+}
+
 var sessions = require('./lib/sessions');
 var dataStore = require('./lib/dataStore');
 
@@ -60,7 +74,16 @@ app.use('/api/testcase', require('./routes/testcase'));
 app.use('/api/data', require('./routes/domain-source'));
 app.use('/api/data/diagnose-bug', diagnoseLimiter);
 
-// Logs route (admin only)
+// 运行配置下发(env 注入; 公开仓库默认仅占位示例, 真实值在 ~/skills/.env)
+app.get('/api/config', function(req, res) {
+    var jiraCfg = require('./lib/jiraConfig');
+    res.json({
+        jiraBaseUrl: jiraCfg.baseUrl.replace(/\/+$/, '') + '/browse/',
+        dailyProject: process.env.DAILY_PROJECT || 'demo-daily'
+    });
+});
+
+// Logs route (CHANGE_ME only)
 app.get('/api/logs/:date?', require('./middleware/auth').authenticateToken, require('./middleware/auth').requireAdmin, async function(req, res) {
     try {
         var date = req.params.date || new Date().toISOString().split('T')[0];

@@ -90,7 +90,7 @@ function saveAndRefresh(modalId, renderFn, dataKey, cleanupFn) {
 
 // ==================== Permission Helpers ====================
 
-function adminVisibleClass() {
+function CHANGE_MEVisibleClass() {
     return isAdmin() ? 'visible' : '';
 }
 
@@ -99,7 +99,7 @@ function userVisibleClass() {
 }
 
 // ==================== Domain Owner 权限辅助 ====================
-// domain_owner 只能编辑自己的 domain; admin 可编辑全部; 普通用户只读。
+// domain_owner 只能编辑自己的 domain; CHANGE_ME 可编辑全部; 普通用户只读。
 // hardware 库 owner 登录名 → domain 名规范化键 (与 CRITERIA_DOMAIN_MAP 同思路)
 var DOMAIN_OWNER_USER_KEY = {
     'board': 'board', 'firmware': 'fw', 'diag': 'diag', 'jtag': 'jtag', 'ethernet': 'eth',
@@ -111,10 +111,10 @@ function domainNormKey(s) {
     return String(s || '').trim().toLowerCase().replace(/[\s\-/]/g, '');
 }
 
-// 返回当前用户可编辑的 domain 名数组; admin → null(全部); 普通用户 → []
+// 返回当前用户可编辑的 domain 名数组; CHANGE_ME → null(全部); 普通用户 → []
 function ownedDomainNames() {
     if (!App) return [];
-    if (App.userRole === 'admin') return null;
+    if (App.userRole === 'CHANGE_ME') return null;
     if (App.userRole !== 'domain_owner') return [];
     var uname = String(App.currentUserUsername || '').toLowerCase();
     if (!uname) return [];
@@ -126,7 +126,7 @@ function ownedDomainNames() {
     return out;
 }
 
-// 当前用户能否编辑指定 domain (admin 恒可编辑); 支持别名归一: Firmware→FW, PCIe→PCIE 等 (与 CRITERIA_DOMAIN_MAP 一致)
+// 当前用户能否编辑指定 domain (CHANGE_ME 恒可编辑); 支持别名归一: Firmware→FW, PCIe→PCIE 等 (与 CRITERIA_DOMAIN_MAP 一致)
 function canEditDomain(domainName) {
     var owned = ownedDomainNames();
     if (owned === null) return true;

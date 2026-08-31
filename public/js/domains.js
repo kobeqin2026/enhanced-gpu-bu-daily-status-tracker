@@ -62,7 +62,7 @@ function renderDomains(domains) {
         notesCell.textContent = domain.notes || '';
         row.appendChild(notesCell);
         
-        // Actions cell (编辑: 仅 admin 或该 domain 的 owner 创建; 其他 domain 操作列留空=只读; 删除: 仅 admin)
+        // Actions cell (编辑: 仅 CHANGE_ME 或该 domain 的 owner 创建; 其他 domain 操作列留空=只读; 删除: 仅 CHANGE_ME)
         var actionsCell = document.createElement('td');
         if (editable) {
             var editBtn = document.createElement('button');
@@ -95,13 +95,13 @@ function searchJiraOwner() {
     if (q === null) return;  // 取消
     q = q.trim();
     if (!q) return;
-    loadJiraOwnerOptions(domain.jiraProject || 'BR200', q);
+    loadJiraOwnerOptions(domain.jiraProject || '', q);
 }
 
 function editDomain(domainId) {
     var domain = App.data.domains.find(function(d) { return d.id === domainId; });
     if (!domain) return;
-    // 权限守卫: 仅 admin 或该 domain 的 owner 可编辑
+    // 权限守卫: 仅 CHANGE_ME 或该 domain 的 owner 可编辑
     if (!canEditDomain(domain.name)) { alert('您只能编辑自己的Domain'); return; }
     
     App.currentEditDomainId = domainId;
@@ -112,8 +112,8 @@ function editDomain(domainId) {
     document.getElementById('edit-domain-end-date').value = domain.endDate || '';
     document.getElementById('edit-domain-notes').value = domain.notes;
     
-    // 负责人从 JIRA 用户列表选择(按 domain.jiraProject, 缺省 BR200)
-    loadJiraOwnerOptions(domain.jiraProject || 'BR200');
+    // 负责人从 JIRA 用户列表选择(按 domain.jiraProject)
+    loadJiraOwnerOptions(domain.jiraProject || '');
     
     openModal('edit-domain-modal');
 }
@@ -220,7 +220,7 @@ function updateDomainTime(domainId, field, value) {
 }
 
 function deleteDomain(domainId) {
-    // 删除仅限 admin (domain owner 无删除权限)
+    // 删除仅限 CHANGE_ME (domain owner 无删除权限)
     if (!isAdmin()) { alert('仅管理员可删除Domain'); return; }
     if (confirm('确定要删除这个Domain吗？')) {
         App.data.domains = App.data.domains.filter(function(domain) { return domain.id !== domainId; });
@@ -451,7 +451,7 @@ function markTcCellsError(msg) {
 }
 
 // ===== JIRA 组件同步(组件 = Domain, lead = owner) =====
-// JIRA 组件页: https://jira01.birentech.com/projects/BR200?selectedItem=...:components-page
+// JIRA 组件页: 按 env JIRA_BASE_URL 定位 components-page
 
 // 加载 JIRA 项目下拉(供选择从哪个项目导组件)
 async function loadJiraDomainProjects() {
@@ -466,7 +466,7 @@ async function loadJiraDomainProjects() {
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         var j = await resp.json();
         if (!j.success) throw new Error(j.error || '拉取失败');
-        var saved = localStorage.getItem('domainSourceJiraProject') || 'BR200';
+        var saved = localStorage.getItem('domainSourceJiraProject') || '';
         var frag = document.createDocumentFragment();
         (j.projects || []).forEach(function(p) {
             var opt = document.createElement('option');

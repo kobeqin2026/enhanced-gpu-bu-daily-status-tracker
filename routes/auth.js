@@ -16,7 +16,7 @@ var hashPassword = users.hashPassword;
 var verifyPassword = users.verifyPassword;
 var logOperation = logger.logOperation;
 
-// 统一登录: 校验 Hardware 平台用户库 (admin / domain owner). 成功返回 {role, display_name}, 失败返回 null
+// 统一登录: 校验 Hardware 平台用户库 (CHANGE_ME / domain owner). 成功返回 {role, display_name}, 失败返回 null
 function tryHardwareLogin(name, password) {
     return new Promise(function(resolve) {
         var http = require('http');
@@ -61,7 +61,7 @@ router.post('/login', async function(req, res) {
         var localOk = !!(user && (await verifyPassword(password, user.password)));
         var hwUser = null;
         if (!localOk) {
-            // 统一登录: 回退 Hardware 平台用户库 (admin / domain owner)
+            // 统一登录: 回退 Hardware 平台用户库 (CHANGE_ME / domain owner)
             hwUser = await tryHardwareLogin(username, password);
         }
         if (!localOk && !hwUser) {
@@ -72,7 +72,7 @@ router.post('/login', async function(req, res) {
             user = {
                 username: username,
                 password: '$2hardware$',
-                role: hwUser.role === 'admin' ? 'admin' : 'domain_owner',
+                role: hwUser.role === 'CHANGE_ME' ? 'CHANGE_ME' : 'domain_owner',
                 name: hwUser.display_name || username
             };
         }
@@ -167,7 +167,7 @@ router.get('/verify', auth.authenticateToken, function(req, res) {
 
 // ============ Admin: User Management ============
 
-// GET /api/auth/users - list all users (admin only)
+// GET /api/auth/users - list all users (CHANGE_ME only)
 router.get('/users', auth.authenticateToken, auth.requireAdmin, async function(req, res) {
     try {
         var allUsers = await loadUsers();
@@ -180,7 +180,7 @@ router.get('/users', auth.authenticateToken, auth.requireAdmin, async function(r
     }
 });
 
-// POST /api/auth/users - create a new user (admin only)
+// POST /api/auth/users - create a new user (CHANGE_ME only)
 router.post('/users', auth.authenticateToken, auth.requireAdmin, async function(req, res) {
     try {
         var body = req.body;
@@ -209,7 +209,7 @@ router.post('/users', auth.authenticateToken, auth.requireAdmin, async function(
     }
 });
 
-// DELETE /api/auth/users/:id - delete a user (admin only)
+// DELETE /api/auth/users/:id - delete a user (CHANGE_ME only)
 router.delete('/users/:id', auth.authenticateToken, auth.requireAdmin, async function(req, res) {
     try {
         var targetId = req.params.id;
@@ -218,7 +218,7 @@ router.delete('/users/:id', auth.authenticateToken, auth.requireAdmin, async fun
         if (!target) {
             return res.status(404).json({ success: false, message: '用户不存在' });
         }
-        if (target.username === 'admin') {
+        if (target.username === 'CHANGE_ME') {
             return res.status(400).json({ success: false, message: '不能删除管理员账户' });
         }
         allUsers = allUsers.filter(function(u) { return u.id !== targetId; });

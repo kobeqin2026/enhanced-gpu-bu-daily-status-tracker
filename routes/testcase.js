@@ -266,9 +266,9 @@ router.post('/batch-create', auth.authenticateToken, async function(req, res) {
  */
 router.get('/template', function(req, res) {
     var csv = '\uFEFF项目Key,Issue类型,标题,描述,优先级,标签,负责人,父任务Key\n';
-    csv += 'BR200,Task,PCIe Gen3链路训练测试,验证LTSSM状态机在Gen3速率下的训练过程,Highest,"pcie;ltssm",qin.ke,\n';
-    csv += 'BR200,Sub-task,IOMMU地址翻译测试,测试DMA地址翻译功能,High,"iommu;dma",qin.ke,BR200-100\n';
-    csv += 'BR200,Task,GPIO中断测试,验证GPIO中断触发和处理,Medium,gpio,\n';
+    csv += 'DEMO-TC,Task,PCIe Gen3链路训练测试,验证LTSSM状态机在Gen3速率下的训练过程,Highest,"pcie;ltssm",qin.ke,\n';
+    csv += 'DEMO-TC,Sub-task,IOMMU地址翻译测试,测试DMA地址翻译功能,High,"iommu;dma",qin.ke,DEMO-TC-100\n';
+    csv += 'DEMO-TC,Task,GPIO中断测试,验证GPIO中断触发和处理,Medium,gpio,\n';
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="testcase-template.csv"');
