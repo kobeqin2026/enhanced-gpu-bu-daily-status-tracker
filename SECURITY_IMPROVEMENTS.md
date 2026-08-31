@@ -32,7 +32,7 @@ data/users.json.2026-04-10T10-30-00.bak  # 历史版本
 
 ### 3. 数据校验
 - **用户数据校验**：验证 username, password, role, name 字段
-- **角色校验**：仅限 `admin` 或 `user`
+- **角色校验**：仅限 `CHANGE_ME` 或 `user`
 - **项目数据校验**：验证 domains, bugs, dailyProgress, buExitCriteria 数组
 
 ### 4. 操作日志
@@ -46,8 +46,8 @@ data/users.json.2026-04-10T10-30-00.bak  # 历史版本
 
 示例日志：
 ```json
-{"timestamp":"2026-04-10T10:30:00.000Z","user":"admin","action":"LOGIN","resource":"users","details":{"role":"admin"},"ip":"unknown"}
-{"timestamp":"2026-04-10T10:35:00.000Z","user":"admin","action":"CREATE","resource":"users","details":{"targetUser":"zhangsan","role":"user"},"ip":"unknown"}
+{"timestamp":"2026-04-10T10:30:00.000Z","user":"CHANGE_ME","action":"LOGIN","resource":"users","details":{"role":"CHANGE_ME"},"ip":"unknown"}
+{"timestamp":"2026-04-10T10:35:00.000Z","user":"CHANGE_ME","action":"CREATE","resource":"users","details":{"targetUser":"zhangsan","role":"user"},"ip":"unknown"}
 ```
 
 ---
@@ -60,7 +60,7 @@ enhanced-gpu-bu-daily-status-tracker/
 │   ├── users.json          # 用户账户
 │   ├── sessions.json       # 登录会话
 │   ├── projects.json       # 项目列表
-│   ├── gpu-bringup.json    # 主项目数据
+│   ├── demo-daily.json    # 主项目数据
 │   └── *.bak               # 自动备份文件
 ├── logs/                    # 日志目录（不提交到 Git）
 │   └── operations-YYYY-MM-DD.log
@@ -110,7 +110,7 @@ chmod 755 logs
 cat logs/operations-$(date +%Y-%m-%d).log | jq
 
 # 查看特定用户的操作
-cat logs/operations-*.log | grep '"user":"admin"' | jq
+cat logs/operations-*.log | grep '"user":"CHANGE_ME"' | jq
 
 # 查看所有删除操作
 cat logs/operations-*.log | grep '"action":"DELETE"' | jq
@@ -203,10 +203,10 @@ find logs/ -mtime +30 -delete
 ls -la data/*.bak
 
 # 恢复最新备份
-cp data/gpu-bringup.json.bak data/gpu-bringup.json
+cp data/demo-daily.json.bak data/demo-daily.json
 
 # 重启服务
-pm2 restart gpu-bringup-api
+pm2 restart demo-daily-api
 ```
 
 ---

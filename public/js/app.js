@@ -4,12 +4,12 @@
 var RESERVED_PATHS = ['api', 'js', 'css', 'images', 'fonts', 'favicon.ico'];
 
 // Parse projectId from URL path
-// Supports: /gpu-bringup/, /project-2/, /project/:id (legacy)
+// Supports: /<project-id>/, /project/<id> (legacy)
 // Falls back to '' for root URL
 function getProjectIdFromURL() {
     var pathname = window.location.pathname;
 
-    // Match direct project path: /gpu-bringup/ or /gpu-bringup
+    // Match direct project path: /<project-id>/
     var directMatch = pathname.match(/^\/([^\/\?]+)\/?$/);
     if (directMatch && RESERVED_PATHS.indexOf(directMatch[1]) === -1) {
         return decodeURIComponent(directMatch[1]);
@@ -141,7 +141,7 @@ function populateDomainDropdowns() {
     }
     
     // domain_owner 添加进度时: 只列出自己的 domain 并自动选中第一个 (自动识别domain)
-    var owned = ownedDomainNames(); // null=admin全部, []=普通用户, [names]=自己的domain
+    var owned = ownedDomainNames(); // null=CHANGE_ME全部, []=普通用户, [names]=自己的domain
     var forAdd = (owned === null) ? App.data.domains.map(function(d) { return d.name; }) : (owned || []);
     var firstTopAdd = null;
     
@@ -167,7 +167,7 @@ function populateDomainDropdowns() {
         }
     });
     
-    // domain_owner: 自动识别并预选自己的 domain (admin 保持空选)
+    // domain_owner: 自动识别并预选自己的 domain (CHANGE_ME 保持空选)
     if (owned !== null && owned.length === 1 && firstTopAdd) {
         dailyDomainSelect.value = firstTopAdd;
     } else if (owned !== null && owned.length > 1) {

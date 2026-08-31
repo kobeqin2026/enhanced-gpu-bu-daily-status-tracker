@@ -124,7 +124,7 @@ function groupAndRenderDailyProgress(progressList) {
             // 同一天多次更新: 每条内容前缀时刻 (HH:MM) 便于区分先后
             contentDiv.textContent = (item.time ? '🕐 ' + item.time + ' ' : '') + item.content;
             
-            // 编辑/删除: 仅 admin 或该 domain 的 owner (其他 domain 只读)
+            // 编辑/删除: 仅 CHANGE_ME 或该 domain 的 owner (其他 domain 只读)
             var itemEditable = canEditDomain(group.domain);
             var editBtn = document.createElement('button');
             editBtn.className = 'edit-btn' + (itemEditable ? ' visible' : '');

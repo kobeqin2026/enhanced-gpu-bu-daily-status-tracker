@@ -234,7 +234,7 @@
             <h2 style="text-align:center;">➕ 新建项目</h2>
             <p style="text-align:center; margin-bottom:16px;">选择创建方式，创建后自动进入新项目</p>
             <div style="font-size:13px; color:#555;">项目名称 <span style="color:#e74c3c;">*</span></div>
-            <input type="text" id="gate-new-project-name" placeholder="例如 BR288Y" style="margin:6px 0 14px;" />
+            <input type="text" id="gate-new-project-name" placeholder="例如 DEMO-E" style="margin:6px 0 14px;" />
             <div style="font-size:13px; color:#555; margin-bottom:4px;">创建方式</div>
             <label class="gate-mode-option">
                 <input type="radio" name="gate-new-mode" value="blank" checked onchange="gateNewModeChanged()" />
@@ -268,10 +268,10 @@
             <select id="project-select" class="project-select" onchange="switchProject()">
                 <option value="">加载中...</option>
             </select>
-            <button class="add-project-btn admin-only" onclick="showAddProjectModal()">+ 新建项目</button>
-            <button class="delete-project-btn admin-only" onclick="showDeleteProjectConfirm()" title="删除当前项目">🗑️</button>
+            <button class="add-project-btn CHANGE_ME-only" onclick="showAddProjectModal()">+ 新建项目</button>
+            <button class="delete-project-btn CHANGE_ME-only" onclick="showDeleteProjectConfirm()" title="删除当前项目">🗑️</button>
             <span class="current-project-label" id="current-project-label"></span>
-            <button class="add-project-btn admin-only" onclick="showUserManagementModal()" style="background-color: #8e44ad; margin-left: 10px;">👥 用户管理</button>
+            <button class="add-project-btn CHANGE_ME-only" onclick="showUserManagementModal()" style="background-color: #8e44ad; margin-left: 10px;">👥 用户管理</button>
             
             <!-- Login/User Section in project switcher -->
             <span id="login-status" style="margin-left: 20px;"></span>
@@ -301,7 +301,7 @@
                 </div>
                 <hr style="margin: 15px 0; border:none; border-top:1px solid #ddd;">
                 <!-- 添加用户区域 - 仅管理员可见 -->
-                <div id="add-user-section" class="admin-only">
+                <div id="add-user-section" class="CHANGE_ME-only">
                     <h4>添加新用户</h4>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <input type="text" id="new-user-username" placeholder="用户名" style="flex:1; min-width:100px;" />
@@ -335,7 +335,7 @@
                     <label>角色:</label>
                     <select id="edit-user-role" style="width:100%;">
                         <option value="user">普通用户</option>
-                        <option value="admin">管理员</option>
+                        <option value="CHANGE_ME">管理员</option>
                     </select>
                 </div>
                 <div style="margin-bottom:10px;">
@@ -410,7 +410,7 @@
         
         <div class="project-info">
             <strong>BU执行时间：</strong> <span id="project-timeline">未设置</span>
-            <span class="admin-only" style="margin-left:8px; white-space:nowrap;">
+            <span class="CHANGE_ME-only" style="margin-left:8px; white-space:nowrap;">
                 <input type="date" id="bu-start-date" title="BU开始日期" style="padding:3px 6px; border:1px solid #ccc; border-radius:4px; font-size:13px;" />
                 <span style="color:#666;"> 至 </span>
                 <input type="date" id="bu-end-date" title="BU结束日期" style="padding:3px 6px; border:1px solid #ccc; border-radius:4px; font-size:13px;" />
@@ -430,23 +430,23 @@
         </div>
         
         <!-- 调试阶段：隐藏管理员模式 -->
-        <!-- <button class="admin-toggle-btn" onclick="toggleAdminMode()">切换到管理员模式</button> -->
+        <!-- <button class="CHANGE_ME-toggle-btn" onclick="toggleAdminMode()">切换到管理员模式</button> -->
         
-        <div class="add-domain-section admin-only">
+        <div class="add-domain-section CHANGE_ME-only">
             <h3>添加新Domain</h3>
             <div class="add-domain-form">
                 <input type="text" id="new-domain-name" placeholder="输入Domain名称" class="domain-input">
                 <input type="text" id="new-domain-owner" placeholder="负责人" class="owner-input">
-                <button class="add-btn admin-only" onclick="addNewDomain()">添加</button>
-                <button class="add-btn admin-only" onclick="showDomainImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
+                <button class="add-btn CHANGE_ME-only" onclick="addNewDomain()">添加</button>
+                <button class="add-btn CHANGE_ME-only" onclick="showDomainImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
             </div>
             <div class="add-domain-form" style="margin-top: 8px;">
-                <label for="jira-domain-source-select" class="admin-only" style="font-size: 13px; color: #555; margin-right: 6px;">从JIRA项目导入组件:</label>
-                <select id="jira-domain-source-select" class="admin-only" style="padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; max-width: 220px;">
+                <label for="jira-domain-source-select" class="CHANGE_ME-only" style="font-size: 13px; color: #555; margin-right: 6px;">从JIRA项目导入组件:</label>
+                <select id="jira-domain-source-select" class="CHANGE_ME-only" style="padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; max-width: 220px;">
                     <option value="">加载JIRA项目...</option>
                 </select>
-                <button class="add-btn admin-only" id="sync-domains-btn" onclick="syncDomainsFromJira()" style="background-color: #e67e22; margin-left: 10px;">同步组件为Domain</button>
-                <button class="add-btn admin-only" onclick="previewJiraDomains()" style="background-color: #9b59b6; margin-left: 10px;">预览组件</button>
+                <button class="add-btn CHANGE_ME-only" id="sync-domains-btn" onclick="syncDomainsFromJira()" style="background-color: #e67e22; margin-left: 10px;">同步组件为Domain</button>
+                <button class="add-btn CHANGE_ME-only" onclick="previewJiraDomains()" style="background-color: #9b59b6; margin-left: 10px;">预览组件</button>
             </div>
         </div>
         
@@ -472,10 +472,10 @@
             </table>
         </div>
         
-        <div class="add-bug-section admin-only">
+        <div class="add-bug-section CHANGE_ME-only">
             <h3>添加新Bug</h3>
             <div class="add-bug-form">
-                <input type="text" id="new-bug-id" placeholder="Bug ID (如: MPW2-77)" class="bug-id-input">
+                <input type="text" id="new-bug-id" placeholder="Bug ID (如: PROJ-77)" class="bug-id-input">
                 <input type="text" id="new-bug-domain" placeholder="Domain" class="bug-domain-input">
                 <input type="text" id="new-bug-description" placeholder="描述" class="bug-description-input">
                 <select id="new-bug-severity" class="bug-severity-select">
@@ -493,11 +493,11 @@
                     <option value="rejected">Rejected</option>
                 </select>
                 <input type="text" id="new-bug-owner" placeholder="负责人" class="bug-input">
-                <button class="add-btn admin-only" onclick="addNewBug()">添加Bug</button>
-                <button class="add-btn admin-only" onclick="showJiraProjectModal()" style="background-color: #27ae60; margin-left: 10px;">从JIRA导入</button>
-                <button class="add-btn admin-only" onclick="syncJiraStatus()" style="background-color: #8e44ad; margin-left: 10px;" title="从JIRA同步所有Bug最新状态">同步JIRA状态</button>
-                <button class="add-btn admin-only" onclick="showBugImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
-                <button class="add-btn admin-only" onclick="clearAllBugs()" style="background-color: #e74c3c; margin-left: 10px;" title="清空所有Bug数据">清空Bug</button>
+                <button class="add-btn CHANGE_ME-only" onclick="addNewBug()">添加Bug</button>
+                <button class="add-btn CHANGE_ME-only" onclick="showJiraProjectModal()" style="background-color: #27ae60; margin-left: 10px;">从JIRA导入</button>
+                <button class="add-btn CHANGE_ME-only" onclick="syncJiraStatus()" style="background-color: #8e44ad; margin-left: 10px;" title="从JIRA同步所有Bug最新状态">同步JIRA状态</button>
+                <button class="add-btn CHANGE_ME-only" onclick="showBugImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
+                <button class="add-btn CHANGE_ME-only" onclick="clearAllBugs()" style="background-color: #e74c3c; margin-left: 10px;" title="清空所有Bug数据">清空Bug</button>
             </div>
         </div>
         
@@ -572,7 +572,7 @@
         <!-- Daily Progress Tracking -->
         <h2>Daily Progress Tracking</h2>
         
-        <!-- Daily Progress Input Section (user-only: admin/domain owner visible; 普通用户只读隐藏) -->
+        <!-- Daily Progress Input Section (user-only: CHANGE_ME/domain owner visible; 普通用户只读隐藏) -->
         <div class="daily-progress-input-section user-only">
             <h3>添加每日进度</h3>
             <div class="daily-progress-input-form">
@@ -635,8 +635,8 @@
 
         <!-- Add new BU Exit Criteria row button -->
         <div class="bu-exit-criteria-section">
-            <button class="add-btn admin-only owner-add-btn" onclick="addNewBUExitCriteriaRow()">添加BU准出标准</button>
-            <button class="add-btn admin-only" onclick="showBUImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
+            <button class="add-btn CHANGE_ME-only owner-add-btn" onclick="addNewBUExitCriteriaRow()">添加BU准出标准</button>
+            <button class="add-btn CHANGE_ME-only" onclick="showBUImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
         </div>
         
         <div class="notes-section">
@@ -651,7 +651,7 @@
             <p>• <strong>完整编辑功能</strong>：Domain、Bug、每日进度和准出标准都支持完整编辑！</p>
         </div>
         
-        <button class="save-btn admin-only" onclick="saveData()">保存数据</button>
+        <button class="save-btn CHANGE_ME-only" onclick="saveData()">保存数据</button>
         <div class="save-message" id="save-message"></div>
         
         <div class="update-timestamp">
@@ -1018,13 +1018,13 @@
                         <strong>CSV列：</strong>Bug ID, Domain, 描述, 严重性, 状态, 负责人
                     </p>
                     <p style="margin: 0 0 5px 0; font-family: monospace; font-size: 12px; color: #555;">
-                        MPW2-77, PCIe接口, PCIe链路训练失败, High, open, Ge Qiang
+                        PROJ-77, PCIe接口, PCIe链路训练失败, High, open, User A
                     </p>
                     <p style="margin: 0 0 5px 0; font-family: monospace; font-size: 12px; color: #555;">
-                        MPW2-78, HBM, HBM初始化报错ECC failure, Highest, open, Xiaoming
+                        PROJ-78, HBM, HBM初始化报错ECC failure, Highest, open, User B
                     </p>
                     <p style="margin: 0; font-family: monospace; font-size: 12px; color: #555;">
-                        MPW2-79, FW, Bootrom启动超时, Medium, open, Haiping
+                        PROJ-79, FW, Bootrom启动超时, Medium, open, User C
                     </p>
                 </div>
                 <div style="margin-bottom: 15px;">

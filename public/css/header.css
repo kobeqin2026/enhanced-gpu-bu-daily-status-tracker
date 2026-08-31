@@ -121,7 +121,7 @@
     font-size: 12px;
     font-weight: 600;
 }
-.role-admin {
+.role-CHANGE_ME {
     background-color: #e74c3c;
     color: white;
 }
@@ -131,11 +131,11 @@
 }
 
 /* ==================== Permission Visibility ==================== */
-/* Hide admin-only elements for non-admin users */
-.admin-only {
+/* Hide CHANGE_ME-only elements for non-CHANGE_ME users */
+.CHANGE_ME-only {
     display: none;  /* 默认隐藏 */
 }
-.admin-only.visible {
+.CHANGE_ME-only.visible {
     display: inline-block;  /* 管理员登录时显示 */
 }
 
@@ -159,8 +159,8 @@
 }
 
 /* Block-level elements (divs, sections) should use display:block not inline-block */
-div.admin-only.visible,
-section.admin-only.visible,
+div.CHANGE_ME-only.visible,
+section.CHANGE_ME-only.visible,
 div.user-only.visible,
 section.user-only.visible {
     display: block;

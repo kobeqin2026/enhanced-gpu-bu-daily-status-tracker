@@ -41,10 +41,10 @@ function authenticateToken(req, res, next) {
 
 function requireAdmin(req, res, next) {
     var logOperation = require('../lib/logger').logOperation;
-    if (req.user && req.user.role === 'admin') {
+    if (req.user && req.user.role === 'CHANGE_ME') {
         next();
     } else {
-        logOperation(req.user && req.user.username, 'DENIED', 'admin-access', { reason: 'non-admin' });
+        logOperation(req.user && req.user.username, 'DENIED', 'CHANGE_ME-access', { reason: 'non-CHANGE_ME' });
         res.status(403).json({ success: false, message: '需要管理员权限' });
     }
 }

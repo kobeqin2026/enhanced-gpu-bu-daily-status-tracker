@@ -11,13 +11,13 @@
 用户登录。
 - **Body**:
   ```json
-  { "username": "admin", "password": "admin123" }
+  { "username": "CHANGE_ME", "password": "CHANGE_ME" }
   ```
 - **Response**:
   ```json
   { 
       "success": true, 
-      "user": { "username": "admin", "role": "admin", "name": "Admin User" },
+      "user": { "username": "CHANGE_ME", "role": "CHANGE_ME", "name": "Admin User" },
       "token": "jwt-token-here"
   }
   ```
@@ -35,7 +35,7 @@
   ```json
   { 
       "success": true, 
-      "user": { "username": "admin", "role": "admin", "name": "Admin User" }
+      "user": { "username": "CHANGE_ME", "role": "CHANGE_ME", "name": "Admin User" }
   }
   ```
 
@@ -67,7 +67,7 @@
 
 ### GET /api/data?project=<id>
 获取指定项目的全部数据（Domains, Bugs, Progress, BU Exit Criteria）。
-- **Query**: `project` (默认: `gpu-bringup`)
+- **Query**: `project` (默认: `demo-daily`)
 - **Response**:
   ```json
   {
@@ -94,8 +94,8 @@
     "success": true,
     "updatedAt": "...",
     "projects": {
-      "BR288Y": {
-        "total": 382, "plan": "BR288Y-1", "planKeys": 24,
+      "DEMO-E-project-2": {
+        "total": 382, "plan": "DEMO-E-project-2-1", "planKeys": 24,
         "components": { "JTAG": { "total": 14, "done": 0, "fail": 0, "inprogress": 0, "todo": 14, "waived": 0 } }
       }
     }
@@ -134,7 +134,7 @@
 ```json
 {
     "id": "bug-1713423456-0",
-    "bugId": "MPW2-77",
+    "bugId": "DEMO-B-77",
     "domain": "PCIe",
     "description": "Link training failed",
     "severity": "highest|high|medium|low|lowest",

@@ -87,7 +87,7 @@ mkdir -p logs data
 chmod 755 logs data
 
 # 5. 使用 PM2 启动
-pm2 restart gpu-bringup-api
+pm2 restart demo-daily-api
 # 或
 pm2 start ecosystem.config.js
 
@@ -96,7 +96,7 @@ pm2 start ecosystem.config.js
 
 # 7. 监控状态
 pm2 monit
-pm2 logs gpu-bringup-api
+pm2 logs demo-daily-api
 ```
 
 ---
@@ -112,7 +112,7 @@ cat logs/operations-$(date +%Y-%m-%d).log | jq
 cat logs/operations-*.log | grep '"action":"LOGIN"' | jq
 
 # 查看特定用户的操作
-cat logs/operations-*.log | grep '"user":"admin"' | jq
+cat logs/operations-*.log | grep '"user":"CHANGE_ME"' | jq
 
 # 查看所有删除操作
 cat logs/operations-*.log | grep '"action":"DELETE"' | jq
@@ -124,10 +124,10 @@ cat logs/operations-*.log | grep '"action":"DELETE"' | jq
 ls -lh data/*.bak
 
 # 恢复最新备份
-cp data/gpu-bringup.json.bak data/gpu-bringup.json
+cp data/demo-daily.json.bak data/demo-daily.json
 
 # 从历史版本恢复
-cp data/gpu-bringup.json.2026-04-10T*.bak data/gpu-bringup.json
+cp data/demo-daily.json.2026-04-10T*.bak data/demo-daily.json
 
 # 清理 7 天前的备份
 find data/ -name "*.bak" -mtime +7 -delete
@@ -148,7 +148,7 @@ du -sh logs/
 pm2 monit
 
 # 查看进程日志
-pm2 logs gpu-bringup-api
+pm2 logs demo-daily-api
 
 # 查看数据文件大小
 du -sh data/
@@ -164,7 +164,7 @@ ls -la data/*.lock 2>/dev/null || echo "无残留锁文件"
 ### 1. 首次启动
 - 确保 `data/` 和 `logs/` 目录存在
 - 检查目录权限（PM2 运行用户需要有写权限）
-- 首次启动会自动创建默认用户（admin/admin123）
+- 首次启动会自动创建默认用户（CHANGE_ME/CHANGE_ME）
 
 ### 2. 密码安全
 - 当前为明文存储（内部系统）
@@ -214,7 +214,7 @@ ls -la data/*.lock
 rm -f data/*.lock  # 清理残留锁
 
 # 重启服务
-pm2 restart gpu-bringup-api
+pm2 restart demo-daily-api
 ```
 
 ### 问题 2：日志文件过大
@@ -225,31 +225,31 @@ du -sh logs/
 # 清理旧日志
 find logs/ -mtime +30 -delete
 
-# 配置日志轮转（/etc/logrotate.d/gpu-bringup）
+# 配置日志轮转（/etc/logrotate.d/demo-daily）
 ```
 
 ### 问题 3：数据不一致
 ```bash
 # 1. 停止服务
-pm2 stop gpu-bringup-api
+pm2 stop demo-daily-api
 
 # 2. 检查备份
 ls -lh data/*.bak
 
 # 3. 比较文件
-diff data/gpu-bringup.json data/gpu-bringup.json.bak
+diff data/demo-daily.json data/demo-daily.json.bak
 
 # 4. 恢复备份（如需要）
-cp data/gpu-bringup.json.bak data/gpu-bringup.json
+cp data/demo-daily.json.bak data/demo-daily.json
 
 # 5. 重启服务
-pm2 start gpu-bringup-api
+pm2 start demo-daily-api
 ```
 
 ### 问题 4：服务无法启动
 ```bash
 # 查看 PM2 日志
-pm2 logs gpu-bringup-api --lines 100
+pm2 logs demo-daily-api --lines 100
 
 # 检查端口占用
 lsof -i :3000
@@ -269,7 +269,7 @@ npm install
 如有问题，请：
 1. 查看 `SECURITY_IMPROVEMENTS.md` 详细文档
 2. 检查操作日志：`logs/operations-*.log`
-3. 查看 PM2 日志：`pm2 logs gpu-bringup-api`
+3. 查看 PM2 日志：`pm2 logs demo-daily-api`
 
 ---
 

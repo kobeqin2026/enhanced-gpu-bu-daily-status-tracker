@@ -26,7 +26,7 @@
 
 ### ✅ 数据校验
 - **用户数据校验**: username, password, role, name 字段完整性
-- **角色校验**: 仅限 `admin` 或 `user`
+- **角色校验**: 仅限 `CHANGE_ME` 或 `user`
 - **项目数据校验**: domains, bugs, dailyProgress, buExitCriteria 数组
 - **项目信息校验**: id, name 必需字段
 
@@ -150,14 +150,14 @@ cp .env.example .env
 # 5. 启动服务
 npm start
 # 或生产环境
-pm2 restart gpu-bringup-api
+pm2 restart demo-daily-api
 
 # 6. 验证功能
 ./test.sh
 ```
 
 ### 默认账号（首次启动自动创建）
-- 管理员：`admin / admin123`
+- 管理员：`CHANGE_ME / CHANGE_ME`
 - 普通用户：`user / user123`
 
 ⚠️ **注意**: 密码为明文存储，建议配合公司内网使用
@@ -175,7 +175,7 @@ cat logs/operations-$(date +%Y-%m-%d).log | jq
 cat logs/operations-*.log | grep '"action":"LOGIN"' | jq
 
 # 查看特定用户的操作
-cat logs/operations-*.log | grep '"user":"admin"' | jq
+cat logs/operations-*.log | grep '"user":"CHANGE_ME"' | jq
 
 # 查看所有删除操作
 cat logs/operations-*.log | grep '"action":"DELETE"' | jq
@@ -187,10 +187,10 @@ cat logs/operations-*.log | grep '"action":"DELETE"' | jq
 ls -lh data/*.bak
 
 # 恢复最新备份
-cp data/gpu-bringup.json.bak data/gpu-bringup.json
+cp data/demo-daily.json.bak data/demo-daily.json
 
 # 从历史版本恢复
-cp data/gpu-bringup.json.2026-04-10T*.bak data/gpu-bringup.json
+cp data/demo-daily.json.2026-04-10T*.bak data/demo-daily.json
 
 # 清理 7 天前的备份
 find data/ -name "*.bak" -mtime +7 -delete
@@ -211,7 +211,7 @@ du -sh logs/
 pm2 monit
 
 # 查看进程日志
-pm2 logs gpu-bringup-api
+pm2 logs demo-daily-api
 
 # 检查文件锁状态
 ls -la data/*.lock 2>/dev/null || echo "无残留锁文件"

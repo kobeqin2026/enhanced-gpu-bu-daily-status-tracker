@@ -26,7 +26,7 @@ module.exports = {
     env: {
       NODE_ENV: 'production',
       PORT: 3000,
-      JIRA_BASE_URL: process.env.JIRA_BASE_URL || 'https://jira01.birentech.com',
+      JIRA_BASE_URL: process.env.JIRA_BASE_URL || 'https://jira.example.com',
       JIRA_PAT: process.env.JIRA_PAT || '',
       BAILIAN_API_KEY: process.env.BAILIAN_API_KEY || '',
       BAILIAN_BASE_URL: process.env.BAILIAN_BASE_URL || 'https://token-plan-cn.xiaomimimo.com/v1',

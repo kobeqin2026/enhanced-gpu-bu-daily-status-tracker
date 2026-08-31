@@ -5,7 +5,7 @@ function isLoggedIn() {
 }
 
 function isAdmin() {
-    return App.userRole === 'admin';
+    return App.userRole === 'CHANGE_ME';
 }
 
 function requireAdmin() {
@@ -30,7 +30,7 @@ function updateUIBasedOnRole() {
     var loginBtn = document.getElementById('login-btn');
     var logoutBtn = document.getElementById('logout-btn');
     var loginStatus = document.getElementById('login-status');
-    var adminButtons = document.querySelectorAll('.admin-only');
+    var CHANGE_MEButtons = document.querySelectorAll('.CHANGE_ME-only');
     var userButtons = document.querySelectorAll('.user-only');
     // 用户名优先显示登录名 (硬件回退用户的 display_name 可能是通用文案如"普通用户")
     var displayName = (App.currentUserUsername || App.currentUser || '');
@@ -39,9 +39,9 @@ function updateUIBasedOnRole() {
         loginBtn.style.display = 'none';
         logoutBtn.style.display = 'inline-block';
         
-        loginStatus.innerHTML = '<span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">' + escapeHtml(displayName) + '</span> <span class="user-role role-admin" style="background:#e74c3c;">管理员</span>';
+        loginStatus.innerHTML = '<span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">' + escapeHtml(displayName) + '</span> <span class="user-role role-CHANGE_ME" style="background:#e74c3c;">管理员</span>';
         
-        adminButtons.forEach(function(btn) { btn.classList.add('visible'); });
+        CHANGE_MEButtons.forEach(function(btn) { btn.classList.add('visible'); });
         userButtons.forEach(function(btn) { btn.classList.add('visible'); });
         document.querySelectorAll('.owner-add-btn').forEach(function(btn) { btn.classList.add('visible'); });
     } else if (isLoggedIn() && App.userRole === 'domain_owner') {
@@ -52,7 +52,7 @@ function updateUIBasedOnRole() {
             // 真 Domain Owner: 橙色徽章, 仅可编辑自己的 domain (user-only 按钮可见)
             loginStatus.innerHTML = '<span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">' + escapeHtml(displayName) + '</span> <span class="user-role role-domain-owner" style="background:#e67e22;">Domain Owner</span>';
             
-            adminButtons.forEach(function(btn) { btn.classList.remove('visible'); });
+            CHANGE_MEButtons.forEach(function(btn) { btn.classList.remove('visible'); });
             userButtons.forEach(function(btn) { btn.classList.add('visible'); });
             // domain owner 可为自己 domain 添加/编辑 BU Exit Criteria
             document.querySelectorAll('.owner-add-btn').forEach(function(btn) { btn.classList.add('visible'); });
@@ -60,7 +60,7 @@ function updateUIBasedOnRole() {
             // 普通用户 (硬件回退 owner 但非域负责人): 只读
             loginStatus.innerHTML = '<span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">' + escapeHtml(displayName) + '</span> <span class="user-role role-user" style="background:#27ae60;">普通用户</span>';
             
-            adminButtons.forEach(function(btn) { btn.classList.remove('visible'); });
+            CHANGE_MEButtons.forEach(function(btn) { btn.classList.remove('visible'); });
             userButtons.forEach(function(btn) { btn.classList.remove('visible'); });
             document.querySelectorAll('.owner-add-btn').forEach(function(btn) { btn.classList.remove('visible'); });
         }
@@ -70,7 +70,7 @@ function updateUIBasedOnRole() {
         
         loginStatus.innerHTML = '<span class="user-info" style="font-weight:bold; color:#2c3e50; margin-right:8px;">' + escapeHtml(displayName) + '</span> <span class="user-role role-user" style="background:#27ae60;">普通用户</span>';
         
-        adminButtons.forEach(function(btn) { btn.classList.remove('visible'); });
+        CHANGE_MEButtons.forEach(function(btn) { btn.classList.remove('visible'); });
         // 普通用户只读: 隐藏 user-only 写按钮 (添加每日进度等)
         userButtons.forEach(function(btn) { btn.classList.remove('visible'); });
         document.querySelectorAll('.owner-add-btn').forEach(function(btn) { btn.classList.remove('visible'); });
@@ -79,7 +79,7 @@ function updateUIBasedOnRole() {
         logoutBtn.style.display = 'none';
         loginStatus.innerHTML = '<span class="user-info" style="color:#999;">未登录（只读模式）</span>';
         
-        adminButtons.forEach(function(btn) { btn.classList.remove('visible'); });
+        CHANGE_MEButtons.forEach(function(btn) { btn.classList.remove('visible'); });
         userButtons.forEach(function(btn) { btn.classList.remove('visible'); });
         document.querySelectorAll('.owner-add-btn').forEach(function(btn) { btn.classList.remove('visible'); });
     }
@@ -227,7 +227,7 @@ async function loadUserList() {
     var addUserSection = document.getElementById('add-user-section');
     var userViewOnly = document.getElementById('user-view-only');
 
-    if (App.userRole === 'admin') {
+    if (App.userRole === 'CHANGE_ME') {
         addUserSection.style.display = 'block';
         userViewOnly.style.display = 'none';
     } else {
@@ -278,8 +278,8 @@ async function loadUserList() {
             // Data rows
             var currentUserStr = localStorage.getItem('currentUser');
             result.forEach(function(user) {
-                var roleText = user.role === 'admin' ? '管理员' : '普通用户';
-                var roleClass = user.role === 'admin' ? 'role-admin' : 'role-user';
+                var roleText = user.role === 'CHANGE_ME' ? '管理员' : '普通用户';
+                var roleClass = user.role === 'CHANGE_ME' ? 'role-CHANGE_ME' : 'role-user';
                 var isCurrentUser = user.username === currentUserStr;
                 var isLoggedInUser = App.userRole !== null;
 
@@ -312,8 +312,8 @@ async function loadUserList() {
                 tdActions.style.padding = '8px';
 
                 if (isLoggedInUser) {
-                    // Edit button for non-admins or current user
-                    if (user.role !== 'admin' || isCurrentUser) {
+                    // Edit button for non-CHANGE_MEs or current user
+                    if (user.role !== 'CHANGE_ME' || isCurrentUser) {
                         var editBtn = document.createElement('button');
                         editBtn.className = 'edit-btn';
                         editBtn.style.padding = '4px 8px';
@@ -335,7 +335,7 @@ async function loadUserList() {
                     }
 
                     // Delete button or status text
-                    if (App.userRole === 'admin' && user.role !== 'admin' && !isCurrentUser) {
+                    if (App.userRole === 'CHANGE_ME' && user.role !== 'CHANGE_ME' && !isCurrentUser) {
                         var delBtn = document.createElement('button');
                         delBtn.className = 'delete-btn';
                         delBtn.style.padding = '4px 8px';
@@ -351,7 +351,7 @@ async function loadUserList() {
                         var statusSpan = document.createElement('span');
                         statusSpan.style.color = '#999';
                         statusSpan.style.fontSize = '12px';
-                        if (App.userRole === 'admin' && user.role === 'admin') {
+                        if (App.userRole === 'CHANGE_ME' && user.role === 'CHANGE_ME') {
                             statusSpan.textContent = '-';
                         } else {
                             statusSpan.textContent = '(当前)';

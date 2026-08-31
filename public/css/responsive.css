@@ -56,7 +56,7 @@
         width: 100%;
         margin: 0;
     }
-    .save-btn, .add-btn, .delete-btn, .admin-toggle-btn, .edit-btn {
+    .save-btn, .add-btn, .delete-btn, .CHANGE_ME-toggle-btn, .edit-btn {
         padding: 6px 12px;
         font-size: 0.9rem;
     }

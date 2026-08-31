@@ -20,7 +20,7 @@ jobs:
         key: ${{ secrets.KEY }}
         port: 22
         script: |
-          cd /home/admin/openclaw/workspace/gpu-bringup-daily-tracker
+          cd <DEPLOY_DIR>/gpu-daily-status-tracker   # 部署目录: 按实际路径修改
           git pull origin master
           sudo nginx -t && sudo systemctl reload nginx
-          pm2 restart gpu-bringup-api
+          pm2 restart gpu-daily-api   # PM2 进程名: 按实际进程修改

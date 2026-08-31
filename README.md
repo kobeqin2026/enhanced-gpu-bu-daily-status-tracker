@@ -41,7 +41,7 @@
 - **全局变量封装**: 前端状态统一封装到 App 命名空间，减少全局污染
 - **并发安全**: 文件锁机制、自动备份（含旧备份清理）、数据校验，支持10-20人并发
 - **LLM 稳健性**: 自动重试(3次) + 4 策略 JSON 容错解析（含括号栈补全恢复截断）+ max_tokens 8000，LLM 失败自动降级规则版且内容不为空
-- **统一登录**: 本地账号校验失败时自动回退硬件平台账号库（admin→管理员、owner→域负责人），多系统共享账号体系
+- **统一登录**: 本地账号校验失败时自动回退硬件平台账号库（CHANGE_ME→管理员、owner→域负责人），多系统共享账号体系
 - **混合数据架构**: 优先从服务器加载数据，API失败时自动使用本地缓存
 - **JWT认证**: 基于Token的用户认证，httpOnly Cookie安全传输
 - **密码安全**: bcrypt 哈希存储（10 rounds），支持旧密码自动升级
@@ -84,7 +84,7 @@ http://localhost:8088
 ```
 
 ### 默认账号
-- **管理员**: admin / admin123
+- **管理员**: CHANGE_ME / CHANGE_ME
 - **普通用户**: user / user123
 
 > ⚠️ **安全提示**: v5.5.2 起所有密码均使用 bcrypt 哈希存储，硬编码凭据已移至环境变量。请在 `.env` 中设置 `DASHSCOPE_API_KEY`、`DEFAULT_ADMIN_PASSWORD`、`DEFAULT_USER_PASSWORD`。
@@ -140,7 +140,7 @@ enhanced-gpu-bu-daily-status-tracker/
 │   ├── data.js                 # 项目数据读写 (48行)
 │   └── jira.js                 # JIRA集成: 项目列表获取 + Bug导入 + Dashboard API (~610行)
 ├── data/                       # 数据存储目录
-│   ├── gpu-bringup.json        # 项目数据
+│   ├── demo-daily.json        # 项目数据
 │   ├── projects.json           # 项目元数据
 │   ├── sessions.json           # 会话数据
 │   ├── users.json              # 用户数据
@@ -221,7 +221,7 @@ enhanced-gpu-bu-daily-status-tracker/
 
 #### 🧪 Domain 测试用例进度列 (2026-08-27)
 
-- 后端新增 `GET /api/data/testcase-progress?project=X`：从 JIRA 项目顶层 Test Plan（BR288Y-1）BFS 展开全部关联子计划（visited 防环、深度/数量上限），JQL `parent in (树内key)` 限定树范围，按组件（=Domain）聚合 Sub-task 用例
+- 后端新增 `GET /api/data/testcase-progress?project=X`：从 JIRA 项目顶层 Test Plan（DEMO-E-project-2-1）BFS 展开全部关联子计划（visited 防环、深度/数量上限），JQL `parent in (树内key)` 限定树范围，按组件（=Domain）聚合 Sub-task 用例
 - 状态五桶归一：**通过**=Validated、**失败**=Blocked/受阻/Fail、**执行中**=进行中、**未执行**=Opened、**豁免**=WAIVED；多组件用例重复计入各自组件
 - 前端进度条与「满足准出标准」条完全同款（绿/红/灰三段 + 执行中留白），右侧纯数字 `done/total`，悬停显示完整分布与失败详情；数据源由 `data/projects.json` 的 `jiraProject` + `testPlan` 配置驱动，项目级前端缓存
 - 表头/编辑弹窗/汇总表列名统一：执行开始时间 → **BU开始时间**、执行结束时间 → **BU准出时间**
@@ -234,9 +234,9 @@ enhanced-gpu-bu-daily-status-tracker/
 
 #### 🔐 三级权限体系与统一登录
 
-- 新增 **domain_owner** 角色（本地账号或硬件平台回退的 owner）：仅可为自己名下 Domain 添加每日进度，行内编辑/删除/BU准出/Bug管理/用户管理均仅 admin 可用
-- 登录失败自动回退硬件平台账号库校验（admin→管理员、owner→域负责人），多系统共享账号
-- 操作列按钮改为条件渲染（无权限不渲染，杜绝"按钮可见但无效"）；区块级功能（添加 Domain/Bug）容器级 admin-only 隐藏
+- 新增 **domain_owner** 角色（本地账号或硬件平台回退的 owner）：仅可为自己名下 Domain 添加每日进度，行内编辑/删除/BU准出/Bug管理/用户管理均仅 CHANGE_ME 可用
+- 登录失败自动回退硬件平台账号库校验（CHANGE_ME→管理员、owner→域负责人），多系统共享账号
+- 操作列按钮改为条件渲染（无权限不渲染，杜绝"按钮可见但无效"）；区块级功能（添加 Domain/Bug）容器级 CHANGE_ME-only 隐藏
 - 登录门 + 项目选择门三步流程；新建项目支持从现有项目复制全部数据（copyFrom）
 
 #### 🌙 深色主题统一
@@ -500,7 +500,7 @@ VLM通过3个环节影响诊断质量:
 - `verifyPassword()` 改为 async，支持 bcrypt 哈希验证 + 旧明文密码兼容
 - 用户创建 (`POST /api/users`) 和密码修改 (`PUT /api/users/:id/password`) 自动哈希
 - 已有 3 个用户密码一键迁移为 bcrypt 哈希
-- 默认密码更新为更强密码 (admin: BrAdmin@2026!, user: BrUser@2026!)
+- 默认密码更新为更强密码 (CHANGE_ME: BrAdmin@2026!, user: BrUser@2026!)
 
 ```javascript
 // lib/users.js — 修复前
@@ -531,7 +531,7 @@ async function verifyPassword(password, storedPassword) {
 #### 🧪 验证结果
 
 - ✅ 所有 JS 文件语法检查通过 (node -c)
-- ✅ 登录功能正常: admin/admin123 → bcrypt 验证成功
+- ✅ 登录功能正常: CHANGE_ME/CHANGE_ME → bcrypt 验证成功
 - ✅ 诊断接口: 无 token 返回 401，有 token 正常调用
 - ✅ 搜索/诊断 UI 功能正常，XSS 风险消除
 
@@ -1156,9 +1156,9 @@ v5.0 是对智能诊断系统的全面重构，修复了图片识别与元数据
 
 ```csv
 Bug ID,Domain,描述,严重性,状态,报告日期,负责人
-MPW2-77,PCIe接口 (PCIe Interface),PCIe链路训练失败，卡在Gen1,High,open,2026-04-15,Ge Qiang
-MPW2-78,HBM,HBM初始化报错ECC failure,Highest,open,2026-04-16,Xiaoming
-MPW2-79,FW,Bootrom启动超时,Medium,open,,Haiping
+DEMO-B-77,PCIe接口 (PCIe Interface),PCIe链路训练失败，卡在Gen1,High,open,2026-04-15,Ge Qiang
+DEMO-B-78,HBM,HBM初始化报错ECC failure,Highest,open,2026-04-16,Xiaoming
+DEMO-B-79,FW,Bootrom启动超时,Medium,open,,Haiping
 ```
 
 ---
@@ -1190,12 +1190,12 @@ MPW2-79,FW,Bootrom启动超时,Medium,open,,Haiping
 
 #### 修复3: CSS块级元素布局修复
 
-**问题**: `.admin-only.visible` 和 `.user-only.visible` 使用 `display: inline-block`，导致 `div` 元素（如用户管理弹窗中的"添加新用户"区域）显示为行内元素，布局异常。
+**问题**: `.CHANGE_ME-only.visible` 和 `.user-only.visible` 使用 `display: inline-block`，导致 `div` 元素（如用户管理弹窗中的"添加新用户"区域）显示为行内元素，布局异常。
 
 **改动**: `public/css/header.css` 新增块级元素规则
 ```css
-div.admin-only.visible,
-section.admin-only.visible,
+div.CHANGE_ME-only.visible,
+section.CHANGE_ME-only.visible,
 div.user-only.visible,
 section.user-only.visible {
     display: block;
@@ -1283,8 +1283,8 @@ container.appendChild(emptyP);
 | URL | 行为 |
 |---|---|
 | `http://host:8088/` | 项目列表页，显示所有项目 + 切换器（管理员可创建/删除项目） |
-| `http://host:8088/gpu-bringup/` | 直接进入 GPU Bring Up 项目，隐藏切换器 |
-| `http://host:8088/project-2/` | 直接进入项目二，隐藏切换器 |
+| `http://host:8088/demo-daily/` | 直接进入 GPU Bring Up 项目，隐藏切换器 |
+| `http://host:8088/project-demo/` | 直接进入项目二，隐藏切换器 |
 
 #### 核心特性
 - **直接URL访问**: 每个项目可通过 `/:projectId/` 直接访问，无需先登录再切换
@@ -1302,7 +1302,7 @@ container.appendChild(emptyP);
 - 静态资源（/css/, /js/）仍正常返回，不受影响
 
 **前端路由改造** (`public/js/app.js`)
-- `getProjectIdFromURL()`: 新增直接路径解析（`/gpu-bringup/`），保留 `/project/:id` 兼容
+- `getProjectIdFromURL()`: 新增直接路径解析（`/demo-daily/`），保留 `/project/:id` 兼容
 - `updateProjectURL()`: URL格式从 `/project/:id` 改为 `/:id/`
 - 新增 `setProjectSwitcherVisibility()`: 控制项目切换器和返回链接的显示/隐藏
 - `initProjects()`: 根据URL模式自动切换显示模式（列表页 vs 项目页）
