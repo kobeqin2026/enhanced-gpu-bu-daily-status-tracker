@@ -199,11 +199,13 @@ function updateTopUserBar() {
     var bar = document.getElementById('top-user-bar');
     var nameEl = document.getElementById('top-user-name');
     if (!bar || !nameEl) return;
-    var u = (typeof App !== 'undefined' && App) ? App.currentUser : null;
+    var u = (typeof App !== 'undefined' && App) ? (App.currentUserUsername || App.currentUser) : null;
     var role = (typeof App !== 'undefined' && App) ? App.userRole : '';
     if (u) {
-        var roleText = role === 'admin' ? '管理员' : (role === 'domain_owner' ? 'Domain Owner' : '用户');
-        var roleColor = role === 'admin' ? '#e74c3c' : (role === 'domain_owner' ? '#e67e22' : '#27ae60');
+        // hardware 回退 owner 非域负责人 (不在 DOMAIN_OWNER_USER_KEY) = 普通用户
+        var isRealOwner = (role === 'domain_owner' && typeof isRealDomainOwner === 'function' && isRealDomainOwner());
+        var roleText = role === 'admin' ? '管理员' : (isRealOwner ? 'Domain Owner' : '普通用户');
+        var roleColor = role === 'admin' ? '#e74c3c' : (isRealOwner ? '#e67e22' : '#27ae60');
         nameEl.innerHTML = '👤 ' + escapeHtml(u) + ' <span style="display:inline-block; margin-left:8px; padding:2px 8px; border-radius:6px; font-size:12px; color:#fff; background:' + roleColor + ';">' + escapeHtml(roleText) + '</span>';
         bar.style.display = 'flex';
     } else {
@@ -222,8 +224,10 @@ function updateLoginUI() {
         loginBtn.style.display = 'none';
         logoutBtn.style.display = 'inline-block';
         var role = (typeof App !== 'undefined' && App) ? App.userRole : '';
-        var roleText = role === 'admin' ? '管理员' : (role === 'domain_owner' ? 'Domain Owner' : '用户');
-        if (loginStatus) loginStatus.textContent = '欢迎, ' + u + ' (' + roleText + ')';
+        var uname = (typeof App !== 'undefined' && App) ? (App.currentUserUsername || App.currentUser) : u;
+        var isRealOwner = (role === 'domain_owner' && typeof isRealDomainOwner === 'function' && isRealDomainOwner());
+        var roleText = role === 'admin' ? '管理员' : (isRealOwner ? 'Domain Owner' : '普通用户');
+        if (loginStatus) loginStatus.textContent = '欢迎, ' + uname + ' (' + roleText + ')';
     } else {
         loginBtn.style.display = 'inline-block';
         logoutBtn.style.display = 'none';
