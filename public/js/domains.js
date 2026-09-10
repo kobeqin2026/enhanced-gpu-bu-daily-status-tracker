@@ -178,6 +178,11 @@ function saveEditedDomain() {
         // 用户手动修改状态 → 打标, 自动一致性(reconcile)不再覆盖手动状态 (2026-09-10)
         domain.statusManual = true;
     }
+    // 选择"未完成"时清空 BU开始时间/BU准出时间 (2026-09-10 用户点名: 未开始域不应有执行窗口)
+    if (newStatus === 'not-started') {
+        document.getElementById('edit-domain-start-date').value = '';
+        document.getElementById('edit-domain-end-date').value = '';
+    }
     domain.startDate = document.getElementById('edit-domain-start-date').value || '';
     domain.endDate = document.getElementById('edit-domain-end-date').value || '';
     if (domain.startDate && domain.endDate && domain.startDate > domain.endDate) {
@@ -202,6 +207,7 @@ function updateDomainStatus(domainId, newStatus) {
         if (!canEditDomain(domain.name)) { alert('您只能编辑自己的Domain'); return; }
         domain.status = newStatus;
         domain.statusManual = true; // 手动状态不被自动一致性覆盖 (2026-09-10)
+        if (newStatus === 'not-started') { domain.startDate = ''; domain.endDate = ''; } // 选未完成清空BU窗口 (2026-09-10)
         persistData();
         renderDomains(App.data.domains);
     }
