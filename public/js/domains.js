@@ -172,7 +172,12 @@ function saveEditedDomain() {
     
     domain.name = document.getElementById('edit-domain-name').value.trim();
     domain.owner = document.getElementById('edit-domain-owner').value.trim();
-    domain.status = document.getElementById('edit-domain-status').value;
+    var newStatus = document.getElementById('edit-domain-status').value;
+    if (newStatus !== domain.status) {
+        domain.status = newStatus;
+        // 用户手动修改状态 → 打标, 自动一致性(reconcile)不再覆盖手动状态 (2026-09-10)
+        domain.statusManual = true;
+    }
     domain.startDate = document.getElementById('edit-domain-start-date').value || '';
     domain.endDate = document.getElementById('edit-domain-end-date').value || '';
     if (domain.startDate && domain.endDate && domain.startDate > domain.endDate) {
@@ -196,6 +201,7 @@ function updateDomainStatus(domainId, newStatus) {
     if (domain) {
         if (!canEditDomain(domain.name)) { alert('您只能编辑自己的Domain'); return; }
         domain.status = newStatus;
+        domain.statusManual = true; // 手动状态不被自动一致性覆盖 (2026-09-10)
         persistData();
         renderDomains(App.data.domains);
     }
@@ -280,13 +286,14 @@ function reconcileDomainCompletion() {
         var pass = cList.filter(function(c) { return c.status === 'pass'; }).length;
         var allPass = (pass === total);
         if (allPass) {
-            // 自动完成: 仅从未开始/无状态自动置完成; 用户手动保留的进行中/受阻不覆盖
-            if (dm.status !== 'completed' && dm.status !== 'in-progress' && dm.status !== 'blocked') {
+            // 自动完成: 仅从未被手动设置过状态(未开始/无状态)自动置完成; 手动状态一律尊重
+            // (statusManual=true = 用户通过编辑弹窗/状态下拉手动改过, 2026-09-10 修复 not-started 被拉回)
+            if (!dm.statusManual && dm.status !== 'completed' && dm.status !== 'in-progress' && dm.status !== 'blocked') {
                 dm.status = 'completed'; dm.endDate = dm.endDate || today; changed = true;
             }
             else if (dm.status === 'completed' && !dm.endDate) { dm.endDate = today; changed = true; }
-        } else if (dm.status === 'completed') {
-            // 标准不再全部pass: 回退为未开始并清空 BU准出时间 (双向一致)
+        } else if (dm.status === 'completed' && !dm.statusManual) {
+            // 标准不再全部pass: 回退为未开始并清空 BU准出时间 (双向一致); 用户手动设的 completed 不自动回退
             dm.status = 'not-started';
             if (dm.endDate) { dm.endDate = ''; changed = true; }
             else { changed = true; }
