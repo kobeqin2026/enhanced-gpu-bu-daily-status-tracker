@@ -969,8 +969,10 @@ function computeDashboardStats(bugs) {
 function computeChartData(bugs) {
     // Status distribution
     var statusCount = { open: 0, triage: 0, implement: 0, closed: 0, rejected: 0 };
-    // Severity distribution
+    // Severity distribution (total)
     var severityCount = { highest: 0, high: 0, medium: 0, low: 0, lowest: 0 };
+    // Severity distribution (未关闭/open only)
+    var severityOpenCount = { highest: 0, high: 0, medium: 0, low: 0, lowest: 0 };
     // Owner distribution
     var ownerCount = {};
     // Domain distribution
@@ -990,6 +992,11 @@ function computeChartData(bugs) {
 
         // Severity
         if (severityCount[bug.severity] !== undefined) severityCount[bug.severity]++;
+        // Severity 未关闭 (= 非 closed/rejected/done)
+        if (severityOpenCount[bug.severity] !== undefined) {
+            var _sevSt = String(bug.status || '').toLowerCase();
+            if (_sevSt !== 'closed' && _sevSt !== 'rejected' && _sevSt !== 'done') severityOpenCount[bug.severity]++;
+        }
 
         // Owner
         var owner = bug.owner || 'TBD';
@@ -1058,6 +1065,7 @@ function computeChartData(bugs) {
     return {
         statusCount: statusCount,
         severityCount: severityCount,
+        severityOpenCount: severityOpenCount,
         ownerCount: ownerArray,
         domainCount: domainArray,
         componentCount: componentArray,

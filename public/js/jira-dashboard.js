@@ -588,7 +588,7 @@ function renderCharts(charts) {
     });
 
     renderStatusChart(charts.statusCount);
-    renderSeverityChart(charts.severityCount);
+    renderSeverityChart(charts.severityCount, charts.severityOpenCount);
     renderTrendChart(charts.dailyTrend);
     renderOwnerChart(charts.ownerCount);
     renderDomainChart(charts.domainCount);
@@ -639,10 +639,11 @@ function renderStatusChart(statusCount) {
     });
 }
 
-function renderSeverityChart(severityCount) {
+function renderSeverityChart(severityCount, severityOpenCount) {
     var ctx = document.getElementById('chart-severity').getContext('2d');
     var labels = [];
-    var data = [];
+    var openData = [];
+    var closedData = [];
     var colors = [];
 
     var severityMap = {
@@ -652,37 +653,85 @@ function renderSeverityChart(severityCount) {
         low: 'Low',
         lowest: 'Lowest'
     };
+    var openMap = severityOpenCount || {};
 
     Object.keys(severityCount).forEach(function(key) {
         if (severityCount[key] > 0) {
             labels.push(severityMap[key] || key);
-            data.push(severityCount[key]);
+            var total = severityCount[key];
+            var open = (openMap[key] !== undefined ? openMap[key] : total);
+            openData.push(open);
+            closedData.push(Math.max(0, total - open));
             colors.push(CHART_COLORS.severity[key] || '#999');
         }
     });
+
+    if (Dashboard.charts.severity) Dashboard.charts.severity.destroy();
+
+    // 自定义插件: 在每根柱顶端绘制 "未关X / 共Y"
+    var severityTotalLabel = {
+        id: 'severityTotalLabel',
+        afterDatasetsDraw: function(chart) {
+            if (!chart || !chart.data || !chart.data.datasets[0]) return;
+            var c = chart.ctx;
+            var openArr = chart.data.datasets[0].data || [];
+            var closeArr = chart.data.datasets[1].data || [];
+            var yScale = chart.scales.y;
+            c.save();
+            c.fillStyle = '#e6e9f2';
+            c.font = '11px sans-serif';
+            c.textAlign = 'center';
+            c.textBaseline = 'bottom';
+            openArr.forEach(function(open, i) {
+                var total = open + (closeArr[i] || 0);
+                if (total <= 0) return;
+                var x = chart.getDatasetMeta(0).data[i].x;
+                var y = yScale ? yScale.getPixelForValue(total) : chart.getDatasetMeta(0).data[i].y;
+                c.fillText('未关' + open + '/' + total, x, (y || 0) - 6);
+            });
+            c.restore();
+        }
+    };
 
     Dashboard.charts.severity = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
-            datasets: [{
-                label: 'Bug 数量',
-                data: data,
-                backgroundColor: colors,
-                borderRadius: 4
-            }]
+            datasets: [
+                { label: '未关闭', data: openData, backgroundColor: colors, borderRadius: 4, stack: 'sev' },
+                { label: '已关闭', data: closedData, backgroundColor: 'rgba(149,165,166,0.5)', borderRadius: 4, stack: 'sev' }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: { top: 18 } },
+            layout: { padding: { top: 28 } },
             plugins: {
-                legend: { display: false }
+                legend: { display: true, position: 'top', labels: { padding: 12, font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        title: function(items) {
+                            return items && items.length ? items[0].label : '';
+                        },
+                        label: function(item) {
+                            var open = item.datasetIndex === 0 ? item.parsed.y : 0;
+                            if (item.datasetIndex === 1) {
+                                var idx = item.dataIndex;
+                                open = (item.chart.data.datasets[0].data[idx] || 0);
+                            }
+                            var total = open + (item.chart.data.datasets[1].data[item.dataIndex] || 0);
+                            var segLabel = item.datasetIndex === 0 ? '未关闭' : '已关闭';
+                            return segLabel + ': ' + item.parsed.y + '  (未关 ' + open + ' / 共 ' + total + ')';
+                        }
+                    }
+                }
             },
             scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
             }
-        }
+        },
+        plugins: [severityTotalLabel]
     });
 }
 
