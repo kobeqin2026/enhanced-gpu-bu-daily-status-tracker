@@ -57,4 +57,46 @@
 .daily-content-display {
     margin-top: 5px;
     color: var(--text, #e6e9f2);
+    white-space: pre-wrap;
 }
+/* ==================== 进度附件 (截图/链接/调试信息) ==================== */
+.dp-attach-zone {
+    flex-basis: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 10px;
+    border: 1px dashed var(--border, #2a3350);
+    border-radius: 8px;
+    background: rgba(23, 29, 43, .5);
+}
+.dp-attach-zone.dragover { border-color: var(--accent, #4f8cff); background: rgba(79, 140, 255, .08); }
+.dp-attach-hint { font-size: 12px; color: var(--muted, #8b93a7); }
+.dp-attach-preview { width: 100%; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.dp-attach-chip {
+    position: relative; display: inline-flex; align-items: center; gap: 6px;
+    background: var(--panel, #171d2b); border: 1px solid var(--border, #2a3350);
+    border-radius: 8px; padding: 4px 8px; font-size: 12px; color: var(--text, #e6e9f2);
+}
+.dp-attach-chip img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; cursor: zoom-in; display: block; }
+.dp-attach-chip .dp-chip-x {
+    cursor: pointer; color: var(--muted, #8b93a7); font-weight: bold; padding: 0 2px;
+}
+.dp-attach-chip .dp-chip-x:hover { color: var(--red, #ff5c5c); }
+.dp-thumb {
+    width: 56px; height: 56px; object-fit: cover; border-radius: 6px;
+    border: 1px solid var(--border, #2a3350); cursor: zoom-in; margin: 4px 6px 0 0;
+    vertical-align: middle;
+}
+.dp-thumb:hover { border-color: var(--accent, #4f8cff); }
+.dp-attach-link { color: var(--accent, #4f8cff); font-size: 13px; margin-right: 10px; text-decoration: none; }
+.dp-attach-link:hover { text-decoration: underline; }
+.dp-debug-details { margin-top: 6px; font-size: 12px; }
+.dp-debug-details summary { color: var(--muted, #8b93a7); cursor: pointer; }
+.dp-debug-details pre {
+    background: var(--panel, #171d2b); border: 1px solid var(--border, #2a3350);
+    border-radius: 6px; padding: 8px; overflow-x: auto; color: var(--text, #e6e9f2);
+    white-space: pre-wrap; font-family: monospace;
+}
+.dp-debug-textarea { width: 100%; min-height: 48px; resize: vertical; }

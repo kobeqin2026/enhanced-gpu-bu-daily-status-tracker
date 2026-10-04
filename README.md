@@ -26,7 +26,7 @@
 - **JIRA集成 (JIRA Integration)**: 从 JIRA Server/Cloud/Data Center 自动拉取 Bug，支持项目选择、字段映射、智能合并
 - **每日进度跟踪 (Daily Progress Tracking)**: 按日期和Domain记录每日工作进展
 - **BU准出标准 (BU Exit Criteria)**: 定义和管理每个Domain的准出标准
-- **每日状态时刻快照与自动总结**: 按「日期+时刻」生成/回看每日进度总结快照，BU 执行期内 09:30/17:30 自动生成，支持一键复制全天汇总 Markdown（LLM 逐域归纳 + 准出分域表格 + Bug 清单）
+- **每日状态时刻快照与总结**: 按「日期+时刻」生成/回看每日进度总结快照，由页面「📊 一键总结Daily状态」按钮**人工触发**（不再自动生成），支持一键复制全天汇总 Markdown（LLM 逐域归纳 + 准出分域表格 + Bug 清单）
 - **测试用例进度列 (Domain Overview)**: 从 JIRA 顶层 Test Plan 树实时聚合各 Domain 测试用例（通过/失败/执行中/未执行/豁免），进度条 + done/total 数字展示
 - **Domain 状态自动一致 (准出标准驱动)**: 全部 Pass 自动 Completed 并记录 BU 准出时间，解除后自动回退，不覆盖手动状态
 - **JIRA Bug Dashboard**: 独立可视化页面（`/jira-dashboard.html`），提供JIRA Bug统计与分析
@@ -211,7 +211,7 @@ enhanced-gpu-bu-daily-status-tracker/
 - 等待反馈：LLM 生成期间状态栏每秒刷新已等待秒数
 
 **4. BU 定时自动总结**
-- 服务端定时器在 BU 执行窗口内每天 09:30 / 17:30 自动生成并归档当天时刻快照（generatedBy=auto）
+- 一键总结Daily状态仅由页面按钮**人工触发**（不再自动生成）；如需恢复每天 09:30/17:30 自动总结，设环境变量 `AUTO_SUMMARY_ENABLED=1` 并重启
 - 三层防重：进程内同日同时刻防抖 + BU 窗口过滤 + 已有快照检查；仅对白名单项目生效
 
 **5. LLM 稳健性**

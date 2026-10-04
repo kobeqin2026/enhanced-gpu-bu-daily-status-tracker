@@ -108,6 +108,34 @@
 .debug-progress-cell .debug-progress-meta {
     color: var(--muted, #7f8c8d);
 }
+/* 2026-10-01: 时间戳记录列表 */
+.debug-progress-cell .debug-progress-item {
+    display: block;
+    margin-bottom: 3px;
+    line-height: 1.4;
+}
+.debug-progress-cell .debug-progress-ts {
+    color: var(--muted, #7f8c8d);
+    font-size: 11px;
+    margin-right: 5px;
+    white-space: nowrap;
+}
+/* 2026-10-02: 每条 debug-progress 记录上的 ✏️ 编辑按钮(小图标样式) */
+.debug-progress-cell .debug-progress-item .debug-progress-edit-btn {
+    margin-left: 6px;
+    font-size: 11px;
+    padding: 0 5px;
+    border-radius: 4px;
+    border: 1px solid var(--border, #ccc);
+    background: transparent;
+    color: var(--muted, #7f8c8d);
+    cursor: pointer;
+    vertical-align: middle;
+}
+.debug-progress-cell .debug-progress-item .debug-progress-edit-btn:hover {
+    background: #e9ecef;
+    color: var(--text, #333);
+}
 
 /* Debug progress modal textarea */
 .progress-textarea {
@@ -127,4 +155,10 @@
     outline: none;
     border-color: #409EFF;
     box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.15);
+}
+
+/* 2026-10-01: Actions 列整列仅管理员可见 — 非管理员该列 th 隐藏(.admin-only display:none),
+   管理员登录时 updateUIBasedOnRole 加 .visible; th 需保持 table-cell 布局而非 inline-block */
+th.admin-only.visible {
+    display: table-cell;
 }

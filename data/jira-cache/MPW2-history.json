@@ -1,0 +1,31 @@
+[
+  {
+    "date": "2026-09-08T11:46:39.030Z",
+    "project": "MPW2",
+    "total": 53,
+    "stats": {
+      "total": 53,
+      "open": 9,
+      "closed": 44,
+      "rejected": 0,
+      "todayNew": 0,
+      "weekClosed": 11,
+      "avgResolutionDays": 72,
+      "overdue": 8
+    },
+    "statusCount": {
+      "open": 0,
+      "triage": 8,
+      "implement": 1,
+      "closed": 44,
+      "rejected": 0
+    },
+    "severityCount": {
+      "highest": 4,
+      "high": 8,
+      "medium": 37,
+      "low": 4,
+      "lowest": 0
+    }
+  }
+]

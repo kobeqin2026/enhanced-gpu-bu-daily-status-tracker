@@ -19,6 +19,11 @@
     color: white !important;
     font-weight: bold;
 }
+.status-waived {
+    background-color: #e0a800 !important;
+    color: white !important;
+    font-weight: bold;
+}
 
 /* Daily entry */
 .daily-entry {

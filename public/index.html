@@ -12,11 +12,12 @@
     <link rel="stylesheet" href="/css/components.css">
     <link rel="stylesheet" href="/css/tables.css">
     <link rel="stylesheet" href="/css/domains.css">
-    <link rel="stylesheet" href="/css/bugs.css?v=5.6.0">
-    <link rel="stylesheet" href="/css/daily-progress.css?v=1">
+    <link rel="stylesheet" href="/css/bugs.css?v=5.6.3">
+    <link rel="stylesheet" href="/css/daily-progress.css?v=3">
     <link rel="stylesheet" href="/css/bu-exit-criteria.css?v=5.3.0">
     <link rel="stylesheet" href="/css/responsive.css">
-    <link rel="stylesheet" href="/css/theme-kpi.css?v=5">
+    <link rel="stylesheet" href="/css/theme-kpi.css?v=7">
+    <link rel="stylesheet" href="/css/meeting-mode.css?v=5">
     <style id="theme-inline">
         /* ═══ 与 kpi-portal 统一深色主题 (内联, 优先级最高, 防缓存/加载顺序问题) ═══ */
         html, body {
@@ -172,9 +173,40 @@
         .summary-table td { padding: 6px 9px !important; border: 1px solid #2a3350 !important; color: #e6e9f2 !important; vertical-align: top !important; }
         .summary-table tbody tr:nth-child(even) td { background-color: #1d2436 !important; }
         .summary-control-bar .add-btn:disabled { opacity: .5; cursor: not-allowed; }
+        /* 邮件导出进度条: 超过预估时长后切换为"不确定模式"滑动条, 避免"走完了却没结束"的误导 */
+        .mail-progress-fill.ml-indeterminate {
+            width: 100% !important;
+            background: repeating-linear-gradient(45deg, #2ecc71 0 12px, #1abc9c 12px 24px) !important;
+            background-size: 34px 34px !important;
+            animation: ml-slide 1s linear infinite;
+        }
+        @keyframes ml-slide { 0% { background-position: 0 0; } 100% { background-position: 34px 0; } }
+        /* ═══ 一键AI归纳所有Debug Progress 工具条 + 进度条 (2026-10-03) ═══ */
+        .batch-ai-section { margin-top: 12px; }
+        .batch-ai-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .batch-ai-status { font-size: 13px; color: var(--text, #e6e9f2); margin-left: 4px; }
+        .batch-ai-progress { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+        .batch-ai-progress-track { flex: 1; height: 14px; background: var(--panel2, #1d2436); border: 1px solid var(--border, #2a3350); border-radius: 7px; overflow: hidden; }
+        .batch-ai-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #16a085, #4f8cff); transition: width .3s ease; }
+        .batch-ai-progress-text { font-size: 12px; color: var(--muted, #8b93a7); white-space: nowrap; min-width: 170px; }
     </style>
 </head>
 <body class="gated">
+    <!-- 深度检查自检装置 (2026-09-10): ①JS 错误红条 ②版本标记。用户刷新后若看不到徽章=缓存旧页; 点击无反应时红条会显示具体错误 -->
+    <script>
+    (function() {
+        window.addEventListener('error', function(e) {
+            var bar = document.getElementById('errbar');
+            if (!bar) {
+                bar = document.createElement('div');
+                bar.id = 'errbar';
+                bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#c0392b;color:#fff;padding:6px 12px;font-size:12px;font-family:monospace;';
+                (document.body || document.documentElement).appendChild(bar);
+            }
+            bar.textContent = '⚠ JS错误: ' + (e.message || e.type) + ' @ ' + ((e.filename || '').split('/').pop() || '') + ':' + (e.lineno || '');
+        });
+    })();
+    </script>
     <style>
         body.gated { overflow: hidden; }
         body.gated .container { display: none !important; }
@@ -268,10 +300,10 @@
             <select id="project-select" class="project-select" onchange="switchProject()">
                 <option value="">加载中...</option>
             </select>
-            <button class="add-project-btn CHANGE_ME-only" onclick="showAddProjectModal()">+ 新建项目</button>
-            <button class="delete-project-btn CHANGE_ME-only" onclick="showDeleteProjectConfirm()" title="删除当前项目">🗑️</button>
+            <button class="add-project-btn admin-only" onclick="showAddProjectModal()">+ 新建项目</button>
+            <button class="delete-project-btn admin-only" onclick="showDeleteProjectConfirm()" title="删除当前项目">🗑️</button>
             <span class="current-project-label" id="current-project-label"></span>
-            <button class="add-project-btn CHANGE_ME-only" onclick="showUserManagementModal()" style="background-color: #8e44ad; margin-left: 10px;">👥 用户管理</button>
+            <button class="add-project-btn admin-only" onclick="showUserManagementModal()" style="background-color: #8e44ad; margin-left: 10px;">👥 用户管理</button>
             
             <!-- Login/User Section in project switcher -->
             <span id="login-status" style="margin-left: 20px;"></span>
@@ -301,7 +333,7 @@
                 </div>
                 <hr style="margin: 15px 0; border:none; border-top:1px solid #ddd;">
                 <!-- 添加用户区域 - 仅管理员可见 -->
-                <div id="add-user-section" class="CHANGE_ME-only">
+                <div id="add-user-section" class="admin-only">
                     <h4>添加新用户</h4>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <input type="text" id="new-user-username" placeholder="用户名" style="flex:1; min-width:100px;" />
@@ -335,7 +367,7 @@
                     <label>角色:</label>
                     <select id="edit-user-role" style="width:100%;">
                         <option value="user">普通用户</option>
-                        <option value="CHANGE_ME">管理员</option>
+                        <option value="admin">管理员</option>
                     </select>
                 </div>
                 <div style="margin-bottom:10px;">
@@ -410,7 +442,7 @@
         
         <div class="project-info">
             <strong>BU执行时间：</strong> <span id="project-timeline">未设置</span>
-            <span class="CHANGE_ME-only" style="margin-left:8px; white-space:nowrap;">
+            <span class="admin-only" style="margin-left:8px; white-space:nowrap;">
                 <input type="date" id="bu-start-date" title="BU开始日期" style="padding:3px 6px; border:1px solid #ccc; border-radius:4px; font-size:13px;" />
                 <span style="color:#666;"> 至 </span>
                 <input type="date" id="bu-end-date" title="BU结束日期" style="padding:3px 6px; border:1px solid #ccc; border-radius:4px; font-size:13px;" />
@@ -421,6 +453,8 @@
             <span style="display:inline-block; margin-top:8px;">
             <button class="add-btn" onclick="manualGenerateDailySummary()" style="margin-right:8px; padding:4px 14px; font-size:13px; background: linear-gradient(135deg,#2ecc71,#27ae60) !important;" title="直接查看BU daily状态 (不触发LLM总结)">📋 查看BU daily状态</button>
             <button class="add-btn" onclick="oneClickDailySummary()" style="padding:4px 14px; font-size:13px;" title="触发一次LLM总结并查看">📊 一键总结Daily状态</button>
+            <button class="add-btn" onclick="openMeetingMode()" style="padding:4px 14px; font-size:13px; background: linear-gradient(135deg,#ff9f43,#e67e22) !important;" title="全屏投影模式: 阻塞墙开场 + 每域一页, 适合同步会现场逐域陈述">🎬 会议模式</button>
+            <button class="add-btn" onclick="openMeetingBlocked()" style="padding:4px 14px; font-size:13px; background: linear-gradient(135deg,#e74c3c,#c0392b) !important;" title="汇总阻塞域/阻塞记录/高优未关闭Bug, 按阻塞时长排序">⛔ 阻塞墙</button>
             </span>
         </div>
         
@@ -430,23 +464,23 @@
         </div>
         
         <!-- 调试阶段：隐藏管理员模式 -->
-        <!-- <button class="CHANGE_ME-toggle-btn" onclick="toggleAdminMode()">切换到管理员模式</button> -->
+        <!-- <button class="admin-toggle-btn" onclick="toggleAdminMode()">切换到管理员模式</button> -->
         
-        <div class="add-domain-section CHANGE_ME-only">
+        <div class="add-domain-section admin-only">
             <h3>添加新Domain</h3>
             <div class="add-domain-form">
                 <input type="text" id="new-domain-name" placeholder="输入Domain名称" class="domain-input">
                 <input type="text" id="new-domain-owner" placeholder="负责人" class="owner-input">
-                <button class="add-btn CHANGE_ME-only" onclick="addNewDomain()">添加</button>
-                <button class="add-btn CHANGE_ME-only" onclick="showDomainImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
+                <button class="add-btn admin-only" onclick="addNewDomain()">添加</button>
+                <button class="add-btn admin-only" onclick="showDomainImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
             </div>
             <div class="add-domain-form" style="margin-top: 8px;">
-                <label for="jira-domain-source-select" class="CHANGE_ME-only" style="font-size: 13px; color: #555; margin-right: 6px;">从JIRA项目导入组件:</label>
-                <select id="jira-domain-source-select" class="CHANGE_ME-only" style="padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; max-width: 220px;">
+                <label for="jira-domain-source-select" class="admin-only" style="font-size: 13px; color: #555; margin-right: 6px;">从JIRA项目导入组件:</label>
+                <select id="jira-domain-source-select" class="admin-only" style="padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; max-width: 220px;">
                     <option value="">加载JIRA项目...</option>
                 </select>
-                <button class="add-btn CHANGE_ME-only" id="sync-domains-btn" onclick="syncDomainsFromJira()" style="background-color: #e67e22; margin-left: 10px;">同步组件为Domain</button>
-                <button class="add-btn CHANGE_ME-only" onclick="previewJiraDomains()" style="background-color: #9b59b6; margin-left: 10px;">预览组件</button>
+                <button class="add-btn admin-only" id="sync-domains-btn" onclick="syncDomainsFromJira()" style="background-color: #e67e22; margin-left: 10px;">同步组件为Domain</button>
+                <button class="add-btn admin-only" onclick="previewJiraDomains()" style="background-color: #9b59b6; margin-left: 10px;">预览组件</button>
             </div>
         </div>
         
@@ -463,7 +497,7 @@
                         <th>满足准出标准</th>
                         <th>测试用例进度</th>
                         <th>备注 (Notes)</th>
-                        <th>操作</th>
+                        <th id="domain-actions-th">操作</th>
                     </tr>
                 </thead>
                 <tbody id="domains-body">
@@ -472,7 +506,7 @@
             </table>
         </div>
         
-        <div class="add-bug-section CHANGE_ME-only">
+        <div class="add-bug-section admin-only">
             <h3>添加新Bug</h3>
             <div class="add-bug-form">
                 <input type="text" id="new-bug-id" placeholder="Bug ID (如: PROJ-77)" class="bug-id-input">
@@ -493,11 +527,12 @@
                     <option value="rejected">Rejected</option>
                 </select>
                 <input type="text" id="new-bug-owner" placeholder="负责人" class="bug-input">
-                <button class="add-btn CHANGE_ME-only" onclick="addNewBug()">添加Bug</button>
-                <button class="add-btn CHANGE_ME-only" onclick="showJiraProjectModal()" style="background-color: #27ae60; margin-left: 10px;">从JIRA导入</button>
-                <button class="add-btn CHANGE_ME-only" onclick="syncJiraStatus()" style="background-color: #8e44ad; margin-left: 10px;" title="从JIRA同步所有Bug最新状态">同步JIRA状态</button>
-                <button class="add-btn CHANGE_ME-only" onclick="showBugImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
-                <button class="add-btn CHANGE_ME-only" onclick="clearAllBugs()" style="background-color: #e74c3c; margin-left: 10px;" title="清空所有Bug数据">清空Bug</button>
+                <button class="add-btn admin-only" onclick="addNewBug()">添加Bug</button>
+                <button class="add-btn admin-only" onclick="showJiraProjectModal()" style="background-color: #27ae60; margin-left: 10px;">从JIRA导入</button>
+                <button class="add-btn admin-only" onclick="syncJiraBugsToProject()" style="background-color: #2a85ff; margin-left: 10px;" title="从当前项目配置的JIRA项目(如BR288Y)拉取最新Bug并同步到本地(默认显示所有严重性)">从JIRA同步Bug</button>
+                <button class="add-btn admin-only" onclick="syncJiraStatus()" style="background-color: #8e44ad; margin-left: 10px;" title="从JIRA同步所有Bug最新状态">同步JIRA状态</button>
+                <button class="add-btn admin-only" onclick="showBugImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
+                <button class="add-btn admin-only" onclick="clearAllBugs()" style="background-color: #e74c3c; margin-left: 10px;" title="清空所有Bug数据">清空Bug</button>
             </div>
         </div>
         
@@ -511,8 +546,8 @@
                 <input type="text" id="filter-bug-domain" class="filter-input" placeholder="Domain">
                 <input type="text" id="filter-bug-description" class="filter-input" placeholder="描述">
                 <select id="filter-bug-severity" class="filter-input">
-                    <option value="critical" selected>仅Critical (Highest/High)</option>
-                    <option value="">所有严重性</option>
+                    <option value="critical">仅Critical (Highest/High)</option>
+                    <option value="" selected>所有严重性</option>
                     <option value="highest">Highest</option>
                     <option value="high">High</option>
                     <option value="medium">Medium</option>
@@ -547,20 +582,32 @@
                 <button class="filter-btn" onclick="resetBugFilters()">重置筛选</button>
             </div>
         </div>
-        
+
+        <!-- 一键AI归纳所有Debug Progress 工具条 (2026-10-03) -->
+        <div class="filter-section batch-ai-section">
+            <div class="batch-ai-row">
+                <button class="add-btn admin-only" onclick="batchSummarizeAllProgress()" id="batch-ai-btn" style="background-color: #16a085;" title="遍历所有有JIRA单号的Bug，对已有Debug Progress的仅当有新增内容才追加一条带时间戳记录；无新增则跳过">🤖 一键AI归纳所有Debug Progress</button>
+                <span id="batch-ai-status" class="batch-ai-status" style="display:none;"></span>
+            </div>
+            <div id="batch-ai-progress" class="batch-ai-progress" style="display:none;">
+                <div class="batch-ai-progress-track"><div id="batch-ai-progress-fill" class="batch-ai-progress-fill"></div></div>
+                <span id="batch-ai-progress-text" class="batch-ai-progress-text">准备中...</span>
+            </div>
+        </div>
+
         <div class="bug-table-wrapper">
             <table class="bug-table">
                 <thead>
                     <tr>
-                        <th data-sort="bugId">Bug ID</th>
-                        <th data-sort="domain">域 (Domain)</th>
-                        <th data-sort="description">描述 (Description)</th>
-                        <th>调试进度 (Debug Progress)</th>
-                        <th data-sort="severity">严重性 (Severity)</th>
-                        <th data-sort="status">状态 (Status)</th>
-                        <th data-sort="reportDate">报告日期</th>
-                        <th data-sort="owner">负责人</th>
-                        <th>操作</th>
+                        <th data-sort="bugId">Issue Key</th>
+                        <th data-sort="description">Summary</th>
+                        <th data-sort="domain">Component</th>
+                        <th data-sort="severity">Priority</th>
+                        <th data-sort="status">Status</th>
+                        <th data-sort="reportDate">Created</th>
+                        <th data-sort="owner">Assignee</th>
+                        <th>Debug Progress</th>
+                        <th class="admin-only" id="bug-actions-th">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="bugs-body">
@@ -572,18 +619,12 @@
         <!-- Daily Progress Tracking -->
         <h2>Daily Progress Tracking</h2>
         
-        <!-- Daily Progress Input Section (user-only: CHANGE_ME/domain owner visible; 普通用户只读隐藏) -->
+        <!-- Daily Progress Input Section (user-only: admin/domain owner visible; 普通用户只读隐藏) -->
         <div class="daily-progress-input-section user-only">
             <h3>添加每日进度</h3>
             <div class="daily-progress-input-form">
-                <input type="date" id="daily-date-input" class="daily-date-input">
-                <input type="time" id="daily-time-input" class="daily-date-input" title="更新时间(同一天多次更新时区分, 默认当前时间)">
-                <select id="daily-domain-select" class="daily-domain-select">
-                    <option value="">选择Domain</option>
-                    <!-- Options will be populated from domains -->
-                </select>
-                <input type="text" id="daily-content-input" placeholder="今日工作内容" class="daily-content-input">
-                <button class="add-btn user-only" onclick="addDailyProgress()">添加进度</button>
+                <button class="add-btn user-only" onclick="openAddDailyProgressModal()">＋ 添加进度</button>
+                <span class="dp-attach-hint">点击打开添加对话框（含截图 / 链接 / 调试信息）</span>
             </div>
         </div>
         
@@ -621,7 +662,7 @@
                         <th>Bring up exit criteria</th>
                         <th>Sign-off owner</th>
                         <th>Sign-off status</th>
-                        <th>操作</th>
+                        <th id="bu-exit-actions-th">操作</th>
                     </tr>
                 </thead>
                 <tbody id="bu-exit-criteria-body">
@@ -635,8 +676,8 @@
 
         <!-- Add new BU Exit Criteria row button -->
         <div class="bu-exit-criteria-section">
-            <button class="add-btn CHANGE_ME-only owner-add-btn" onclick="addNewBUExitCriteriaRow()">添加BU准出标准</button>
-            <button class="add-btn CHANGE_ME-only" onclick="showBUImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
+            <button class="add-btn admin-only owner-add-btn" onclick="addNewBUExitCriteriaRow()">添加BU准出标准</button>
+            <button class="add-btn admin-only" onclick="showBUImportModal()" style="background-color: #3498db; margin-left: 10px;">CSV批量导入</button>
         </div>
         
         <div class="notes-section">
@@ -651,7 +692,7 @@
             <p>• <strong>完整编辑功能</strong>：Domain、Bug、每日进度和准出标准都支持完整编辑！</p>
         </div>
         
-        <button class="save-btn CHANGE_ME-only" onclick="saveData()">保存数据</button>
+        <button class="save-btn admin-only" onclick="saveData()">保存数据</button>
         <div class="save-message" id="save-message"></div>
         
         <div class="update-timestamp">
@@ -674,7 +715,16 @@
                 <input type="date" id="daily-summary-export-date" class="daily-date-input" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 13px;" />
                 <button class="add-btn" onclick="copyDaySummaryMarkdown()" style="padding: 5px 14px; font-size: 13px; background: linear-gradient(135deg,#9b59b6,#6a5cff) !important;" id="daily-summary-copyday-btn">📋 复制全天Markdown</button>
                 <button class="add-btn" onclick="copyDailySummaryMarkdown()" style="padding: 5px 14px; font-size: 13px; background: linear-gradient(135deg,#9b59b6,#6a5cff) !important;" id="daily-summary-copy-btn">📋 复制当前快照</button>
+                <label style="font-size: 13px; color: var(--text);">邮件日期</label>
+                <input type="date" id="daily-summary-mail-date" class="daily-date-input" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 13px;" />
+                <button class="add-btn" onclick="exportMailContent()" style="padding: 5px 14px; font-size: 13px; background: linear-gradient(135deg,#2ecc71,#1abc9c) !important;" id="daily-summary-mail-btn">📧 导出邮件</button>
                 <span id="daily-summary-status" style="font-size: 12px; color: var(--muted);"></span>
+                <div id="daily-summary-mail-progress" style="display:none; width:100%; margin:6px 0 0;">
+                    <div style="height:8px; border-radius:6px; background:#3a4157; overflow:hidden;">
+                        <div id="daily-summary-mail-progress-fill" class="mail-progress-fill" style="height:100%; width:0%; background:linear-gradient(90deg,#2ecc71,#1abc9c); transition:width .5s ease;"></div>
+                    </div>
+                    <span id="daily-summary-mail-progress-text" style="display:block; margin-top:3px; font-size:12px; color:var(--muted);"></span>
+                </div>
             </div>
             <div style="padding: 8px 20px 0; display: flex; gap: 8px; border-bottom: 1px solid var(--border);" class="summary-tabs">
                 <button class="summary-tab-btn active" id="summary-tab-ai" onclick="switchSummaryTab('ai')">✨ AI总结</button>
@@ -684,6 +734,33 @@
             <div id="daily-summary-content" style="flex:1; overflow-y:auto; padding: 16px 20px;" class="summary-content">
                 <div id="daily-summary-loading" style="color: var(--muted); font-size: 14px; padding: 30px; text-align:center;">正在生成总结...</div>
             </div>
+        </div>
+    </div>
+
+    <!-- Mail Export Modal (前日增量邮件正文导出, 供手动发送) -->
+    <div id="mail-export-modal" class="modal">
+        <div class="modal-content" style="max-width: 860px; width: 94%; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <div class="modal-title">📧 邮件正文（前日增量 · 手动发送）</div>
+                <span class="close" onclick="closeMailExportModal()">&times;</span>
+            </div>
+            <div style="padding: 12px 20px 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <label style="font-size: 13px; color: var(--text);">邮件日期</label>
+                <input type="date" id="mail-export-date" class="daily-date-input" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 13px;" />
+                <button class="add-btn" onclick="exportMailContent()" style="padding: 5px 14px; font-size: 13px;" id="mail-export-gen-btn">🔄 重新生成</button>
+                <button class="add-btn" onclick="downloadMailFile()" style="padding: 5px 14px; font-size: 13px; background: linear-gradient(135deg,#2ecc71,#1abc9c) !important;">📄 下载 .msg</button>
+                <span id="mail-export-status" style="font-size: 12px; color: var(--muted);"></span>
+                <div id="mail-export-progress" style="display:none; width:100%; margin:6px 0 0;">
+                    <div style="height:8px; border-radius:6px; background:#3a4157; overflow:hidden;">
+                        <div id="mail-export-progress-fill" class="mail-progress-fill" style="height:100%; width:0%; background:linear-gradient(90deg,#2ecc71,#1abc9c); transition:width .5s ease;"></div>
+                    </div>
+                    <span id="mail-export-progress-text" style="display:block; margin-top:3px; font-size:12px; color:var(--muted);"></span>
+                </div>
+            </div>
+            <label style="padding: 10px 20px 0; font-size: 12px; color: var(--muted);">Subject：复制到邮件客户端「主题」栏</label>
+            <textarea id="mail-export-subject" class="daily-date-input" readonly style="flex: 0 0 auto; margin: 4px 20px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 13px; height: 42px; resize: none;"></textarea>
+            <label style="padding: 4px 20px 0; font-size: 12px; color: var(--muted);">正文：复制到邮件客户端「正文」栏（Ctrl+A / Ctrl+C 全选复制）</label>
+            <textarea id="mail-export-body" class="daily-date-input" readonly style="flex: 1; margin: 4px 20px 16px; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 13px; line-height: 1.6; white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace; resize: vertical;"></textarea>
         </div>
     </div>
 
@@ -810,6 +887,53 @@
     </div>
 
     <!-- Daily Progress Edit Modal -->
+    <!-- Add Daily Progress Modal -->
+    <div id="add-daily-progress-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">添加每日进度</div>
+                <span class="close" onclick="closeAddDailyProgressModal()">&times;</span>
+            </div>
+            <div class="form-group">
+                <label class="form-label">日期</label>
+                <input type="date" id="daily-date-input" class="daily-date-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">时间</label>
+                <input type="time" id="daily-time-input" class="daily-date-input" title="更新时间(同一天多次更新时区分, 默认当前时间)">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Domain</label>
+                <select id="daily-domain-select" class="daily-domain-select">
+                    <option value="">选择Domain</option>
+                    <!-- Options will be populated from domains -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">工作内容</label>
+                <input type="text" id="daily-content-input" placeholder="今日工作内容" class="daily-content-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">🔬 调试信息</label>
+                <textarea id="daily-debug-input" class="dp-debug-textarea daily-content-input" placeholder="🔬 调试信息 (可选): dmesg / 寄存器dump / log片段, 多行"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">📎 截图 / 链接</label>
+                <div class="dp-attach-zone" id="daily-attach-zone">
+                    <input type="file" id="daily-attach-input" accept="image/*" multiple style="display:none;">
+                    <button type="button" class="add-btn" onclick="document.getElementById('daily-attach-input').click()" style="font-size:12px; padding:3px 10px;">📎 添加截图</button>
+                    <button type="button" class="add-btn" onclick="dpPromptLink('add')" style="font-size:12px; padding:3px 10px; background-color:#3498db;">🔗 添加链接</button>
+                    <span class="dp-attach-hint">支持 Ctrl+V 粘贴截图 / 拖拽图片到此处</span>
+                    <div id="daily-attach-preview" class="dp-attach-preview"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-cancel-btn" onclick="closeAddDailyProgressModal()">取消</button>
+                <button class="modal-btn modal-save-btn" onclick="addDailyProgress()">添加</button>
+            </div>
+        </div>
+    </div>
+
     <div id="edit-daily-progress-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -830,6 +954,20 @@
             <div class="form-group">
                 <label class="form-label">工作内容</label>
                 <input type="text" id="edit-daily-content" class="daily-content-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">🔬 调试信息</label>
+                <textarea id="edit-daily-debug" class="dp-debug-textarea daily-content-input"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">📎 截图 / 链接</label>
+                <div class="dp-attach-zone" id="edit-daily-attach-zone">
+                    <input type="file" id="edit-daily-attach-input" accept="image/*" multiple style="display:none;">
+                    <button type="button" class="add-btn" onclick="document.getElementById('edit-daily-attach-input').click()" style="font-size:12px; padding:3px 10px;">📎 添加截图</button>
+                    <button type="button" class="add-btn" onclick="dpPromptLink('edit')" style="font-size:12px; padding:3px 10px; background-color:#3498db;">🔗 添加链接</button>
+                    <span class="dp-attach-hint">支持 Ctrl+V 粘贴截图 / 拖拽图片到此处</span>
+                    <div id="edit-daily-attach-preview" class="dp-attach-preview"></div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="modal-btn modal-delete-btn" onclick="deleteDailyProgressFromModal()">删除</button>
@@ -868,6 +1006,7 @@
                     <option value="not-ready">Not ready</option>
                     <option value="fail">Fail</option>
                     <option value="pass">Pass</option>
+                    <option value="waiver">Waived</option>
                 </select>
             </div>
             <div class="modal-footer">
@@ -988,19 +1127,20 @@
         </div>
     </div>
     <!-- JS modules (order matters: globals -> utils -> data -> auth -> projects -> domains -> bugs -> daily-progress -> bu-exit-criteria -> import -> app) -->
-    <script src="/js/globals.js?v=5.6.1"></script>
-    <script src="/js/utils.js?v=2"></script>
-    <script src="/js/data.js?v=5.5.6"></script>
-    <script src="/js/auth.js?v=5.5.8"></script>
-    <script src="/js/projects.js?v=5.6.1"></script>
-    <script src="/js/domains.js?v=12"></script>
-    <script src="/js/bugs.js?v=5.6.2"></script>
-    <script src="/js/daily-progress.js?v=4"></script>
-    <script src="/js/bu-exit-criteria.js?v=5.4.0"></script>
-    <script src="/js/daily-summary.js?v=5.6.23"></script>
+    <script src="/js/globals.js?v=5.6.2"></script>
+    <script src="/js/utils.js?v=14"></script>
+    <script src="/js/data.js?v=5.5.12"></script>
+    <script src="/js/auth.js?v=6.5.10"></script>
+    <script src="/js/projects.js?v=5.6.3"></script>
+    <script src="/js/domains.js?v=15"></script>
+    <script src="/js/bugs.js?v=5.6.11"></script>
+    <script src="/js/daily-progress.js?v=10"></script>
+    <script src="/js/bu-exit-criteria.js?v=6.4.3"></script>
+    <script src="/js/daily-summary.js?v=5.6.30"></script>
+    <script src="/js/meeting-mode.js?v=28"></script>
     <script src="/js/import.js"></script>
-    <script src="/js/app.js?v=1"></script>
-    <script src="/js/gate.js?v=3"></script>
+    <script src="/js/app.js?v=2"></script>
+    <script src="/js/gate.js?v=8"></script>
 
     <!-- Bug CSV Import Modal -->
     <div id="bug-import-modal" class="modal">
