@@ -112,19 +112,53 @@ function closeAddProjectModal() {
     document.getElementById('add-project-modal').style.display = 'none';
 }
 
+function newProjectModeChanged() {
+    var mode = '';
+    var radios = document.querySelectorAll('input[name="new-project-mode"]');
+    for (var i = 0; i < radios.length; i++) {
+        if (radios[i].checked) { mode = radios[i].value; break; }
+    }
+    var wrap = document.getElementById('new-project-copy-source-wrap');
+    var copySel = document.getElementById('new-project-copy-source');
+    if (wrap) wrap.style.display = mode === 'copy' ? 'block' : 'none';
+    if (mode === 'copy' && copySel) {
+        copySel.innerHTML = '';
+        var list = (typeof App !== 'undefined' && App && App.projectsList) ? App.projectsList : [];
+        list.forEach(function(p) {
+            var opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            copySel.appendChild(opt);
+        });
+    }
+}
+
 async function createNewProject() {
     var name = document.getElementById('new-project-name').value.trim();
     var description = document.getElementById('new-project-description').value.trim();
+    var mode = '';
+    var radios = document.querySelectorAll('input[name="new-project-mode"]');
+    for (var i = 0; i < radios.length; i++) {
+        if (radios[i].checked) { mode = radios[i].value; break; }
+    }
     
     if (!name) {
         alert('请输入项目名称');
         return;
     }
     
+    var payload = { name: name, description: description };
+    if (mode === 'copy') {
+        var srcSel = document.getElementById('new-project-copy-source');
+        var srcId = srcSel ? srcSel.value : '';
+        if (!srcId) { alert('请选择要复制的源项目'); return; }
+        payload.copyFrom = srcId;
+    }
+    
     try {
         var response = await apiCall('/api/projects', {
             method: 'POST',
-            body: JSON.stringify({ name: name, description: description })
+            body: JSON.stringify(payload)
         });
         
         if (response.success) {

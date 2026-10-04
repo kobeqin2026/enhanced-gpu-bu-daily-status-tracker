@@ -4,6 +4,38 @@
 // 故拆分为独立 gate.js, 只做登录门 + 用户状态, 不触碰 dashboard 数据。
 // 依赖: App (globals.js), auth.js 的 updateUIBasedOnRole, data.js 的 loadDataFromAPI
 
+// ============ 门户 8090 免登录跳转 (SSO): URL ?token= ============
+// 与 jira-dashboard.js 同款: 门户登录后拿 tracker token 走 URL 透传 (跨端口 cookie 不共享)。
+// 这里读取 ?token= 并在拿到用户后全局注入 Authorization: Bearer, 使本页所有 /api 请求都带认证。
+var __urlParams = new URLSearchParams(location.search);
+var __urlToken = __urlParams.get('token') || '';
+if (__urlToken && typeof App !== 'undefined' && App) {
+    App.authToken = __urlToken;
+    // 从地址栏剔除 token, 避免泄露/误复制 (保留 project 等其他参数)
+    try {
+        var __u = new URL(location.href);
+        __u.searchParams.delete('token');
+        history.replaceState(null, '', __u.pathname + (__u.search ? __u.search : '') + (__u.hash || ''));
+    } catch (e) {}
+}
+// 全局 fetch 注入 Authorization: Bearer <App.authToken> (有 token 时给所有 /api 请求带认证)
+(function () {
+    var __origFetch = window.fetch;
+    window.fetch = function (input, init) {
+        init = init || {};
+        var tk = (typeof App !== 'undefined' && App && App.authToken) || __urlToken || '';
+        if (tk) {
+            init.headers = init.headers || {};
+            if (typeof Headers !== 'undefined' && init.headers instanceof Headers) {
+                if (!init.headers.has('Authorization')) init.headers.set('Authorization', 'Bearer ' + tk);
+            } else if (!init.headers['Authorization']) {
+                init.headers['Authorization'] = 'Bearer ' + tk;
+            }
+        }
+        return __origFetch.call(window, input, init);
+    };
+})();
+
 function showGateLogin() {
     document.body.classList.add('gated');
     var gate = document.getElementById('gate-login');
@@ -22,6 +54,8 @@ function gateSetUser(user, token) {
     var displayName = (user && (user.name || user.username)) || '';
     var role = (user && user.role) || 'user';
     var username = (user && user.username) || '';
+    if (typeof clearStaleAuth === 'function') clearStaleAuth();  // 先清陈旧登录态, 角色以服务端为准
+    if (typeof closeLoginModal === 'function') closeLoginModal(); // 登录成功关闭残留的登录弹窗(初始化未登录时的 401 可能弹出过, 避免"登录后又要求登录")
     if (typeof App !== 'undefined' && App) {
         App.currentUser = displayName;
         App.userRole = role;
@@ -40,7 +74,7 @@ function enterDashboard() {
     if (gate) gate.style.display = 'none';
     var gateProj = document.getElementById('gate-project');
     if (gateProj) gateProj.style.display = 'none';
-    // 权限相关 UI (CHANGE_ME-only / user-only)
+    // 权限相关 UI (admin-only / user-only)
     if (typeof updateUIBasedOnRole === 'function') updateUIBasedOnRole();
     refreshMainData();
 }
@@ -85,7 +119,7 @@ async function showGateProject() {
     // 仅管理员显示"新建项目"入口
     var link = document.getElementById('gate-new-project-link');
     if (link) {
-        var isAdmin = (typeof App !== 'undefined' && App && App.userRole === 'CHANGE_ME');
+        var isAdmin = (typeof App !== 'undefined' && App && App.userRole === 'admin');
         link.style.display = isAdmin ? 'block' : 'none';
     }
     gateProj.style.display = 'flex';
@@ -151,14 +185,20 @@ async function gateCreateProject() {
     if (!errEl) return;
     errEl.textContent = '';
     if (!name) { errEl.textContent = '请输入项目名称'; return; }
-    if (mode === 'copy') { errEl.textContent = '复制创建暂未开放，请先使用空白创建'; return; }
+    var payload = { name: name, description: '' };
+    if (mode === 'copy') {
+        var srcSel = document.getElementById('gate-copy-source');
+        var srcId = srcSel ? srcSel.value : '';
+        if (!srcId) { errEl.textContent = '请选择要复制的源项目'; return; }
+        payload.copyFrom = srcId;
+    }
 
     try {
         var resp = await fetch('/api/projects', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify({ name: name, description: '' })
+            body: JSON.stringify(payload)
         });
         var data = await resp.json();
         if (data.success && data.project) {
@@ -204,8 +244,8 @@ function updateTopUserBar() {
     if (u) {
         // hardware 回退 owner 非域负责人 (不在 DOMAIN_OWNER_USER_KEY) = 普通用户
         var isRealOwner = (role === 'domain_owner' && typeof isRealDomainOwner === 'function' && isRealDomainOwner());
-        var roleText = role === 'CHANGE_ME' ? '管理员' : (isRealOwner ? 'Domain Owner' : '普通用户');
-        var roleColor = role === 'CHANGE_ME' ? '#e74c3c' : (isRealOwner ? '#e67e22' : '#27ae60');
+        var roleText = role === 'admin' ? '管理员' : (isRealOwner ? 'Domain Owner' : '普通用户');
+        var roleColor = role === 'admin' ? '#e74c3c' : (isRealOwner ? '#e67e22' : '#27ae60');
         nameEl.innerHTML = '👤 ' + escapeHtml(u) + ' <span style="display:inline-block; margin-left:8px; padding:2px 8px; border-radius:6px; font-size:12px; color:#fff; background:' + roleColor + ';">' + escapeHtml(roleText) + '</span>';
         bar.style.display = 'flex';
     } else {
@@ -226,7 +266,7 @@ function updateLoginUI() {
         var role = (typeof App !== 'undefined' && App) ? App.userRole : '';
         var uname = (typeof App !== 'undefined' && App) ? (App.currentUserUsername || App.currentUser) : u;
         var isRealOwner = (role === 'domain_owner' && typeof isRealDomainOwner === 'function' && isRealDomainOwner());
-        var roleText = role === 'CHANGE_ME' ? '管理员' : (isRealOwner ? 'Domain Owner' : '普通用户');
+        var roleText = role === 'admin' ? '管理员' : (isRealOwner ? 'Domain Owner' : '普通用户');
         if (loginStatus) loginStatus.textContent = '欢迎, ' + uname + ' (' + roleText + ')';
     } else {
         loginBtn.style.display = 'inline-block';

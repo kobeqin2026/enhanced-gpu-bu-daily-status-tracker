@@ -24,11 +24,12 @@ router.get('/', async function(req, res) {
     }
 });
 
-// POST /api/projects - create project (CHANGE_ME only)
+// POST /api/projects - create project (admin only)
 router.post('/', auth.authenticateToken, auth.requireAdmin, async function(req, res) {
     try {
         var name = req.body.name;
         var description = req.body.description;
+        var copyFrom = req.body.copyFrom;
         if (!name) {
             return res.status(400).json({ success: false, message: '项目名称不能为空' });
         }
@@ -41,11 +42,28 @@ router.post('/', auth.authenticateToken, auth.requireAdmin, async function(req, 
             createdAt: new Date().toISOString()
         };
         
+        if (copyFrom) {
+            var src = allProjects.find(function(p) { return p.id === copyFrom; });
+            if (!src) {
+                return res.status(400).json({ success: false, message: '源项目不存在' });
+            }
+            var srcData = await loadProjectData(copyFrom);
+            var copiedData = getDefaultProjectData();
+            ['domains', 'bugs', 'dailyProgress', 'buExitCriteria'].forEach(function(k) {
+                copiedData[k] = JSON.parse(JSON.stringify(srcData[k] || []));
+            });
+            // 复制 BU 时间线(如有)
+            if (src.startDate) newProject.startDate = src.startDate;
+            if (src.endDate) newProject.endDate = src.endDate;
+            await saveProjectData(newProject.id, copiedData);
+        } else {
+            await saveProjectData(newProject.id, getDefaultProjectData());
+        }
+        
         allProjects.push(newProject);
         await saveProjects(allProjects);
-        await saveProjectData(newProject.id, getDefaultProjectData());
         
-        logOperation(req.user.username, 'CREATE', 'projects', { projectId: newProject.id, name: name });
+        logOperation(req.user.username, 'CREATE', 'projects', { projectId: newProject.id, name: name, copyFrom: copyFrom || null });
         res.json({ success: true, project: newProject });
     } catch (error) {
         logOperation(req.user.username, 'ERROR', 'projects', { error: error.message });
@@ -53,7 +71,7 @@ router.post('/', auth.authenticateToken, auth.requireAdmin, async function(req, 
     }
 });
 
-// PUT /api/projects/:id - update project (CHANGE_ME only)
+// PUT /api/projects/:id - update project (admin only)
 router.put('/:id', auth.authenticateToken, auth.requireAdmin, async function(req, res) {
     try {
         var projectId = req.params.id;
@@ -88,7 +106,7 @@ router.put('/:id', auth.authenticateToken, auth.requireAdmin, async function(req
     }
 });
 
-// DELETE /api/projects/:id - delete project (CHANGE_ME only)
+// DELETE /api/projects/:id - delete project (admin only)
 router.delete('/:id', auth.authenticateToken, auth.requireAdmin, async function(req, res) {
     try {
         var projectId = req.params.id;

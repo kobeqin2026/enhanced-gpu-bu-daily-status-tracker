@@ -17,7 +17,9 @@ var logOperation = logger.logOperation;
 // 域名别名映射与前端 bu-exit-criteria.js 的 CRITERIA_DOMAIN_MAP 保持一致
 var CRITERIA_DOMAIN_MAP = {
     'firmware': 'FW', 'pcie': 'PCIE', 'ethernet': 'ETH', 'diagnostic': 'Diag',
-    'ucie': 'UCIE', 'iodie': 'IOD', 'iodieethernet': 'IOD', 'iodcl': 'IOD', 'iodieucie': 'IOD', 'dft': 'JTAG'
+    'ucie': 'UCIE', 'iodie': 'IOD', 'iodieethernet': 'IOD', 'iodcl': 'IOD', 'iodieucie': 'IOD',
+    // 2026-09-28: DFT 是独立域(负责人 Chen Chen), 不归属 JTAG 域 —— 与前端 bu-exit-criteria.js 保持一致
+    'dft': 'DFT'
 };
 function normDomainKey(s) {
     return String(s || '').trim().toLowerCase().replace(/[\s\-/]/g, '');
@@ -39,8 +41,8 @@ function reconcileDomainCompletion(data) {
         var cList = criteriaList.filter(function(c) { return domainKeyOf(c.domain) === domainKeyOf(dm.name); });
         if (!cList.length) return;
         var total = cList.length;
-        var pass = cList.filter(function(c) { return c.status === 'pass'; }).length;
-        var allPass = (pass === total);
+        var satisfied = cList.filter(function(c) { return c.status === 'pass' || c.status === 'waiver'; }).length;
+        var allPass = (satisfied === total);
         if (allPass) {
             // 自动完成: 仅从未被手动设置过状态(未开始/无状态)自动置完成; 手动状态一律尊重
             // (statusManual=true = 用户手动改过状态, 不覆盖 — 修复 not-started 被拉回, 2026-09-10)
@@ -84,17 +86,48 @@ router.post('/', auth.authenticateToken, async function(req, res) {
             buExitCriteria: body.buExitCriteria || [],
             lastUpdated: new Date().toLocaleString('zh-CN')
         };
-        
+
+        // 乐观并发版本校验 (Option A): 防止"整包覆盖丢数据" (lost update)
+        // 客户端保存时携带它加载到的 data.version; 若与服务端当前 version 不一致
+        // 说明自客户端加载后项目已被别人保存过(客户端数据过期) → 409, 不覆盖, 由前端合并重试
+        var currentData = await loadProjectData(projectId);
+        var clientVersion = (body && typeof body.version === 'number') ? body.version : undefined;
+        var serverVersion = (currentData && typeof currentData.version === 'number') ? currentData.version : undefined;
+        // 客户端必须携带它加载到的 data.version。不传 version = 旧页面/脏快照:
+        // 若放行整包保存, 会把服务器数据(含他人在别处刚提交的记录)覆盖成空/旧 → 丢记录(lost update)。
+        // 2026-10-03 实测: 不带 version 的 POST 会绕过下面的版本校验, 甚至把 br288y 覆盖成空板块。
+        if (clientVersion === undefined) {
+            console.log('[Data] 客户端未携带数据版本(疑似旧页面/脏快照), 按冲突拒绝 project=' + projectId);
+            return res.status(409).json({
+                success: false,
+                stale: true,
+                message: '数据版本缺失，请刷新后重新提交',
+                currentData: currentData
+            });
+        }
+        if (serverVersion !== undefined && clientVersion !== serverVersion) {
+            console.log('[Data] 乐观并发冲突(版本不匹配) project=' + projectId + ' client=' + clientVersion + ' server=' + serverVersion);
+            return res.status(409).json({
+                success: false,
+                stale: true,
+                message: '数据已在别处更新，请刷新后重新提交',
+                currentData: currentData
+            });
+        }
+
         // 状态一致性(权威): 准出标准全部pass的domain → completed + endDate=当天, 落库
         var reconciled = reconcileDomainCompletion(data);
         if (reconciled) {
             console.log('[Data] 保存时自动完成满足准出标准的Domain: ' + projectId);
         }
-        
+
+        // 推进版本号 (客户端保存成功后会写回此值)
+        data.version = (serverVersion !== undefined ? serverVersion : 0) + 1;
+
         await saveProjectData(projectId, data);
         logOperation(req.user.username, 'UPDATE', 'project-data', { projectId: projectId });
         console.log('Saved data for project: ' + projectId);
-        res.json({ success: true, message: 'Data saved successfully', reconciled: reconciled });
+        res.json({ success: true, message: 'Data saved successfully', reconciled: reconciled, version: data.version });
     } catch (error) {
         logOperation(req.user.username, 'ERROR', 'project-data', { error: error.message });
         res.status(500).json({ success: false, error: error.message });
@@ -229,6 +262,122 @@ router.post('/daily-summary/save', auth.authenticateToken, async function(req, r
     }
 });
 
+// ===== 全天归纳共享逻辑 (供 summarize-day 路由与邮件导出复用, 单一来源) =====
+// 返回 { summary, aiFailed, snapshots, skeleton, projectInfo, snaps }
+// 说明: 逻辑由原 summarize-day 路由主体抽取而来, LLM 失败降级规则版 perDomains
+async function summarizeDayInternal(projectId, date) {
+    // 1) 实时数据: 该日全部进度 (不依赖历史快照 → 新添加的进度也纳入归纳)
+    var data = await loadProjectData(projectId);
+    var projectInfo = null;
+    try {
+        var found = (await projects.loadProjects()).find(function(p) { return p.id === projectId; });
+        if (found) {
+            projectInfo = {
+                name: found.name || projectId,
+                description: found.description || '',
+                startDate: found.startDate || '',
+                endDate: found.endDate || ''
+            };
+        }
+    } catch (e) { console.error('[DailySummary] summarize load projects info error:', e.message); }
+    if (!projectInfo) projectInfo = { name: projectId, description: '', startDate: '', endDate: '' };
+    // 全天快照口径 (无 time = 当天全部记录)
+    var skeleton = dailySummary.buildDailySkeleton(data, date, projectInfo);
+
+    // 2) 历史快照 AI 参考 (该日已有快照 → 附概览时间线; 无快照也能工作)
+    var snaps = [];
+    try { snaps = (await projects.loadDailySummaries(projectId)).filter(function(r) { return r.date === date; }); } catch (e) { snaps = []; }
+
+    // 3) 拼 LLM 上下文: 实时规则文本(去HTML) + 历史快照 AI 摘要
+    var L = [];
+    L.push('以下是 ' + date + ' 当天全部实时进度数据' + (snaps.length ? ('，以及该日 ' + snaps.length + ' 个历史总结快照的AI概览') : '') + '，请归纳这份全天进展汇总。');
+    try {
+        var rulesText = String(dailySummary.skeletonToText(skeleton)).replace(/<[^>]+>/g, '').replace(/\s+\n/g, '\n').substring(0, 5000);
+        L.push('【当天实时数据】\n' + rulesText);
+    } catch (e) { L.push('【当天实时数据】(构建失败: ' + e.message + ')'); }
+    if (snaps.length) {
+        var tl = snaps.map(function(s) {
+            var aiLine = (s.ai && s.ai.overallStatus) ? String(s.ai.overallStatus).replace(/\s+/g, ' ').trim() : '(该快照为规则版)';
+            return (s.time || '全天') + ' 快照: ' + aiLine;
+        }).join('\n');
+        L.push('【该日历史时刻快照 AI 概览】\n' + tl);
+    }
+    var dayMarkdown = L.join('\n\n');
+
+    // 4) 规则派生摘要 (实时骨架; LLM 失败时的降级信息源)
+    var domSummaries = skeleton.domainSummaries || [];
+    var crit = skeleton.criteria || {};
+    var lastSnap = snaps.length ? snaps[snaps.length - 1] : null;
+    var derived = {
+        mode: lastSnap ? (lastSnap.aiFailed ? '规则版' : 'AI版') : '实时版',
+        lastTime: lastSnap ? (lastSnap.time || '全天') : '全天',
+        lastOverall: (lastSnap && lastSnap.ai && lastSnap.ai.overallStatus) ? lastSnap.ai.overallStatus : '',
+        activeDomains: domSummaries.filter(function(d) { return d.dayProgress && d.dayProgress.length; }).length,
+        totalDomains: domSummaries.length,
+        criteria: { total: crit.total || 0, pass: crit.pass || 0, fail: crit.fail || 0, notReady: crit.notReady || 0, allPass: !!crit.allPass },
+        criticalBugs: (skeleton.criticalBugs || []).length,
+        allBugs: (skeleton.allBugs || []).length
+    };
+
+    var summary = null;
+    var aiFailed = false;
+    try {
+        summary = await diagnosis.summarizeDailyDay(dayMarkdown);
+        if (!summary || !summary.dayOverview) { summary = null; aiFailed = true; }
+    } catch (err) {
+        console.error('[DailySummary] summarize LLM 失败,降级为规则版:', err.message);
+        summary = null;
+        aiFailed = true;
+    }
+
+    // 5) 降级: 规则版 (实时进度要点 + 快照 AI 摘要, 保证内容不为空)
+    if (!summary) {
+        var ruleHighlights = [];
+        var ruleRisks = [];
+        var rulePerDomains = [];
+        domSummaries.forEach(function(dm) {
+            (dm.dayProgress || []).forEach(function(p) {
+                var t = (p.time ? '[' + p.time + '] ' : '');
+                if (p.workDone) ruleHighlights.push(dm.name + ' ' + t + p.workDone);
+                if (p.nextSteps) ruleHighlights.push(dm.name + ' 下一步: ' + p.nextSteps);
+                if (p.blockers) ruleRisks.push(dm.name + ' 阻塞: ' + p.blockers);
+            });
+            // 规则压缩: 每个有进度的 domain 一条归纳句 (分号合并记录)
+            if (dm.dayProgress && dm.dayProgress.length) {
+                var parts = dm.dayProgress.map(function(p) {
+                    var s = (p.time ? p.time + ' ' : '') + p.workDone;
+                    if (p.nextSteps) s += '(下一步:' + p.nextSteps + ')';
+                    if (p.blockers) s += '(阻塞:' + p.blockers + ')';
+                    return s;
+                });
+                rulePerDomains.push({ domain: dm.name, summary: parts.join('；') });
+            }
+        });
+        snaps.forEach(function(s) {
+            if (s.ai && s.ai.overallStatus) {
+                ruleHighlights.push('[' + (s.time || '全天') + '快照] ' + String(s.ai.overallStatus).replace(/\s+/g, ' ').trim());
+            }
+        });
+        summary = {
+            dayOverview: '当天共 ' + ruleHighlights.length + ' 条进度记录' + (snaps.length ? (' / ' + snaps.length + ' 个时刻快照') : '') + '，详见"主要进展"。',
+            highlights: ruleHighlights,
+            risks: ruleRisks,
+            nextSteps: [],
+            perDomains: rulePerDomains
+        };
+    }
+    summary.derived = derived;
+    // 快照索引
+    var snapshotList = snaps.map(function(s) {
+        return {
+            time: s.time || '全天',
+            aiFailed: !!s.aiFailed,
+            overall: (s.ai && s.ai.overallStatus) ? String(s.ai.overallStatus).replace(/\s+/g, ' ').trim().slice(0, 80) : ''
+        };
+    });
+    return { summary: summary, aiFailed: aiFailed, snapshots: snapshotList, skeleton: skeleton, projectInfo: projectInfo, snaps: snaps };
+}
+
 // POST /api/data/daily-summary/summarize-day - 全天 LLM 归纳汇总 (实时数据优先)
 // 基于当天全部当前进度记录(实时, 含新增未生成快照的记录) + 历史时刻快照AI概览做归纳;
 // LLM 失败降级规则版
@@ -239,121 +388,90 @@ router.post('/daily-summary/summarize-day', auth.authenticateToken, async functi
         var projectId = (req.body && req.body.projectId) || req.query.project || (process.env['DAILY_PROJECT'] || 'demo-daily');
         var date = (req.body && req.body.date) || '';
         if (!date) return res.status(400).json({ success: false, error: '缺少 date' });
-
-        // 1) 实时数据: 该日全部进度 (不依赖历史快照 → 新添加的进度也纳入归纳)
-        var data = await loadProjectData(projectId);
-        var projectInfo = null;
-        try {
-            var found = (await projects.getProjects()).find(function(p) { return p.id === projectId; });
-            if (found) {
-                projectInfo = {
-                    name: found.name || projectId,
-                    description: found.description || '',
-                    startDate: found.startDate || '',
-                    endDate: found.endDate || ''
-                };
-            }
-        } catch (e) { console.error('[DailySummary] summarize-day load projects info error:', e.message); }
-        if (!projectInfo) projectInfo = { name: projectId, description: '', startDate: '', endDate: '' };
-        // 全天快照口径 (无 time = 当天全部记录)
-        var skeleton = dailySummary.buildDailySkeleton(data, date, projectInfo);
-
-        // 2) 历史快照 AI 参考 (该日已有快照 → 附概览时间线; 无快照也能工作)
-        var snaps = [];
-        try { snaps = (await projects.loadDailySummaries(projectId)).filter(function(r) { return r.date === date; }); } catch (e) { snaps = []; }
-
-        // 3) 拼 LLM 上下文: 实时规则文本(去HTML) + 历史快照 AI 摘要
-        var L = [];
-        L.push('以下是 ' + date + ' 当天全部实时进度数据' + (snaps.length ? ('，以及该日 ' + snaps.length + ' 个历史总结快照的AI概览') : '') + '，请归纳这份全天进展汇总。');
-        try {
-            var rulesText = String(dailySummary.skeletonToText(skeleton)).replace(/<[^>]+>/g, '').replace(/\s+\n/g, '\n').substring(0, 5000);
-            L.push('【当天实时数据】\n' + rulesText);
-        } catch (e) { L.push('【当天实时数据】(构建失败: ' + e.message + ')'); }
-        if (snaps.length) {
-            var tl = snaps.map(function(s) {
-                var aiLine = (s.ai && s.ai.overallStatus) ? String(s.ai.overallStatus).replace(/\s+/g, ' ').trim() : '(该快照为规则版)';
-                return (s.time || '全天') + ' 快照: ' + aiLine;
-            }).join('\n');
-            L.push('【该日历史时刻快照 AI 概览】\n' + tl);
-        }
-        var dayMarkdown = L.join('\n\n');
-
-        // 4) 规则派生摘要 (实时骨架; LLM 失败时的降级信息源)
-        var domSummaries = skeleton.domainSummaries || [];
-        var crit = skeleton.criteria || {};
-        var lastSnap = snaps.length ? snaps[snaps.length - 1] : null;
-        var derived = {
-            mode: lastSnap ? (lastSnap.aiFailed ? '规则版' : 'AI版') : '实时版',
-            lastTime: lastSnap ? (lastSnap.time || '全天') : '全天',
-            lastOverall: (lastSnap && lastSnap.ai && lastSnap.ai.overallStatus) ? lastSnap.ai.overallStatus : '',
-            activeDomains: domSummaries.filter(function(d) { return d.dayProgress && d.dayProgress.length; }).length,
-            totalDomains: domSummaries.length,
-            criteria: { total: crit.total || 0, pass: crit.pass || 0, fail: crit.fail || 0, notReady: crit.notReady || 0, allPass: !!crit.allPass },
-            criticalBugs: (skeleton.criticalBugs || []).length,
-            allBugs: (skeleton.allBugs || []).length
-        };
-
-        var summary = null;
-        var aiFailed = false;
-        try {
-            summary = await diagnosis.summarizeDailyDay(dayMarkdown);
-            if (!summary || !summary.dayOverview) { summary = null; aiFailed = true; }
-        } catch (err) {
-            console.error('[DailySummary] summarize-day LLM 失败,降级为规则版:', err.message);
-            summary = null;
-            aiFailed = true;
-        }
-
-        // 5) 降级: 规则版 (实时进度要点 + 快照 AI 摘要, 保证复制内容不为空)
-        if (!summary) {
-            var ruleHighlights = [];
-            var ruleRisks = [];
-            var rulePerDomains = [];
-            domSummaries.forEach(function(dm) {
-                (dm.dayProgress || []).forEach(function(p) {
-                    var t = (p.time ? '[' + p.time + '] ' : '');
-                    if (p.workDone) ruleHighlights.push(dm.name + ' ' + t + p.workDone);
-                    if (p.nextSteps) ruleHighlights.push(dm.name + ' 下一步: ' + p.nextSteps);
-                    if (p.blockers) ruleRisks.push(dm.name + ' 阻塞: ' + p.blockers);
-                });
-                // 规则压缩: 每个有进度的 domain 一条归纳句 (分号合并记录)
-                if (dm.dayProgress && dm.dayProgress.length) {
-                    var parts = dm.dayProgress.map(function(p) {
-                        var s = (p.time ? p.time + ' ' : '') + p.workDone;
-                        if (p.nextSteps) s += '(下一步:' + p.nextSteps + ')';
-                        if (p.blockers) s += '(阻塞:' + p.blockers + ')';
-                        return s;
-                    });
-                    rulePerDomains.push({ domain: dm.name, summary: parts.join('；') });
-                }
-            });
-            snaps.forEach(function(s) {
-                if (s.ai && s.ai.overallStatus) {
-                    ruleHighlights.push('[' + (s.time || '全天') + '快照] ' + String(s.ai.overallStatus).replace(/\s+/g, ' ').trim());
-                }
-            });
-            summary = {
-                dayOverview: '当天共 ' + ruleHighlights.length + ' 条进度记录' + (snaps.length ? (' / ' + snaps.length + ' 个时刻快照') : '') + '，详见"主要进展"。',
-                highlights: ruleHighlights,
-                risks: ruleRisks,
-                nextSteps: [],
-                perDomains: rulePerDomains
-            };
-        }
-        summary.derived = derived;
-        // 快照索引 (前端展示用)
-        var snapshotList = snaps.map(function(s) {
-            return {
-                time: s.time || '全天',
-                aiFailed: !!s.aiFailed,
-                overall: (s.ai && s.ai.overallStatus) ? String(s.ai.overallStatus).replace(/\s+/g, ' ').trim().slice(0, 80) : ''
-            };
-        });
-        logOperation(req.user.username, 'CREATE', 'daily-summary-day', { projectId: projectId, date: date, snaps: snaps.length, realtime: true, aiFailed: aiFailed });
-        res.json({ success: true, date: date, summary: summary, aiFailed: aiFailed, snapshots: snapshotList });
+        var r = await summarizeDayInternal(projectId, date);
+        logOperation(req.user.username, 'CREATE', 'daily-summary-day', { projectId: projectId, date: date, snaps: r.snaps.length, realtime: true, aiFailed: r.aiFailed });
+        res.json({ success: true, date: date, summary: r.summary, aiFailed: r.aiFailed, snapshots: r.snapshots });
     } catch (error) {
         logOperation(req.user.username, 'ERROR', 'daily-summary-day', { error: error.message });
         res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ===== 前日增量"邮件正文"生成 (subject + body, 供手动发送; 不真正发信) =====
+// 复用 summarizeDayInternal + renderDaySummaryMarkdown, 服务端单一渲染来源
+async function buildEmailContent(projectId, date) {
+    var r = await summarizeDayInternal(projectId, date);
+    var projectName = (r.projectInfo && r.projectInfo.name) || projectId;
+    var buDay = dailySummary.buDayOf(date, r.projectInfo);
+    var subject = '【GPU Bring-up】' + projectName + ' Daily 状态总结 — ' + date + (buDay ? '（' + buDay + '）' : '');
+    var body = dailySummary.renderDaySummaryMarkdown(date, r.snapshots, r.summary, r.aiFailed, r.skeleton, domainKeyOf);
+    return { subject: subject, body: body, date: date, aiFailed: r.aiFailed };
+}
+
+// POST /api/data/daily-summary/mail-export - 生成"前日增量"邮件正文 (subject+body)
+// Body: { projectId, date: 'YYYY-MM-DD' } (date 通常为"前日", 前端默认昨天)
+// 返回: { success, subject, body, date, aiFailed }
+router.post('/daily-summary/mail-export', auth.authenticateToken, async function(req, res) {
+    try {
+        var projectId = (req.body && req.body.projectId) || req.query.project || (process.env['DAILY_PROJECT'] || 'demo-daily');
+        var date = (req.body && req.body.date) || '';
+        if (!date) return res.status(400).json({ success: false, error: '缺少 date' });
+        var r = await buildEmailContent(projectId, date);
+        logOperation(req.user.username, 'CREATE', 'daily-summary-mail', { projectId: projectId, date: date, aiFailed: r.aiFailed });
+        res.json({ success: true, subject: r.subject, body: r.body, date: r.date, aiFailed: r.aiFailed });
+    } catch (error) {
+        logOperation(req.user.username, 'ERROR', 'daily-summary-mail', { error: error.message });
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/data/daily-summary/mail-export/msg - 生成 .msg (Outlook 邮件文件) 下载
+// Body: { projectId, date, subject, body }  (subject/body 为前端当前填写值, 单一来源)
+// 返回: application/octet-stream attachment (xxx.msg); 由 gen_msg.py (纯标准库) 生成
+var cp = (function() { try { return require('child_process'); } catch (e) { return null; } })();
+var osMod = (function() { try { return require('os'); } catch (e) { return null; } })();
+var fsMod = (function() { try { return require('fs'); } catch (e) { return null; } })();
+var pathMod = (function() { try { return require('path'); } catch (e) { return null; } })();
+
+router.post('/daily-summary/mail-export/msg', auth.authenticateToken, async function(req, res) {
+    try {
+        var subject = (req.body && req.body.subject) || '';
+        var body = (req.body && req.body.body) || '';
+        var date = (req.body && req.body.date) || '';
+        var projectId = (req.body && req.body.projectId) || (req.query.project) || '';
+        if (!subject || !body) return res.status(400).json({ success: false, error: '缺少 subject/body' });
+
+        var scriptPath = pathMod.join(__dirname, '..', 'scripts', 'gen_msg.py');
+        var tmpOut = pathMod.join(osMod.tmpdir(), 'gpu-msg-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.msg');
+        var sender = 'gpu-tracker@birentech.com';
+
+        if (!cp || !fsMod.existsSync(scriptPath)) {
+            return res.status(500).json({ success: false, error: '.msg 生成器不可用 (scripts/gen_msg.py 缺失)' });
+        }
+
+        // 用 stdin JSON 传 (避免中文/特殊字符 shell 转义问题)
+        var payload = JSON.stringify({ subject: subject, body: body, sender: sender });
+        var spawnSync = cp.spawnSync;
+        var pr = spawnSync('python3', [scriptPath, '-', tmpOut], {
+            input: payload, encoding: 'utf8', timeout: 20000, maxBuffer: 4 * 1024 * 1024
+        });
+        if (pr.error) throw new Error('python3 执行失败: ' + pr.error.message);
+        if (pr.status !== 0) throw new Error('gen_msg 退出码 ' + pr.status + ': ' + ((pr.stderr || '').trim() || '?'));
+        if (!fsMod.existsSync(tmpOut)) throw new Error('gen_msg 未产出文件');
+
+        var buf = fsMod.readFileSync(tmpOut);
+        fsMod.rmSync(tmpOut, { force: true });
+
+        var safeName = (projectId || 'gpu').replace(/[^A-Za-z0-9_-]/g, '') + '-' + (date || 'daily') + '.msg';
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Disposition', 'attachment; filename="' + safeName + '"');
+        res.setHeader('Content-Length', String(buf.length));
+        logOperation(req.user.username, 'CREATE', 'daily-summary-mail-msg', { projectId: projectId, date: date, bytes: buf.length });
+        return res.end(buf);
+    } catch (error) {
+        logOperation(req.user.username, 'ERROR', 'daily-summary-mail-msg', { error: error.message });
+        if (!res.headersSent) res.status(500).json({ success: false, error: error.message });
+        else res.end();
     }
 });
 
@@ -535,5 +653,7 @@ router.get('/testcase-progress', async function(req, res) {
 });
 
 module.exports = router;
-// 内部生成函数导出 (供 server.js 定时自动总结复用)
+// 内部生成函数导出 (供 server.js 定时自动总结/邮件落盘复用)
 router.generateDailySummaryInternal = generateDailySummaryInternal;
+router.summarizeDayInternal = summarizeDayInternal;
+router.buildEmailContent = buildEmailContent;

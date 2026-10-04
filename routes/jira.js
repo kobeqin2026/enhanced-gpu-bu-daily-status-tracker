@@ -7,6 +7,7 @@ var http = require('http');
 var url = require('url');
 var auth = require('../middleware/auth');
 var jiraConfig = require('../lib/jiraConfig');
+var projects = require('../lib/projects');
 var diagnosis = require('../lib/diagnosis');
 var crypto = require('crypto');
 var fs = require('fs');
@@ -268,7 +269,7 @@ var selectedProject;
         // Build JIRA API request
         var apiPath = '/rest/api/2/search';
         var queryParams = 'jql=' + encodeURIComponent(jql) +
-            '&fields=' + encodeURIComponent(jiraConfig.fields) +
+            '&fields=' + encodeURIComponent(jiraConfig.fields + ',components') +
             '&maxResults=' + maxResults;
 
         var requestOptions = {
@@ -310,9 +311,11 @@ var selectedProject;
 
             var labels = f.labels || [];
 
-            // Try to extract domain from labels or components
+            // 2026-09-30: domain 从 JIRA component 映射(组件名优先), 无则回退 labels[0] / TBD
             var domain = 'TBD';
-            if (labels.length > 0) {
+            if (f.components && f.components.length && f.components[0]) {
+                domain = f.components[0].name || 'TBD';
+            } else if (labels.length > 0) {
                 domain = labels[0];
             }
 
@@ -335,6 +338,56 @@ var selectedProject;
         });
 
         console.log('Fetched ' + bugs.length + ' bugs from JIRA');
+
+        // 2026-09-30: 支持 persistProjectId → 把从 JIRA 拉到的 bug upsert 进指定项目数据 (主页面Bug表本地 bugs 数组)
+        // by bugId 去重: 已存在→更新 JIRA 来源字段(保留原 id 与本地补充的 debugProgress), 不存在→新增
+        if (req.body && req.body.persistProjectId) {
+            var pid = req.body.persistProjectId;
+            var projData = await projects.loadProjectData(pid);
+            var existing = Array.isArray(projData.bugs) ? projData.bugs : [];
+            var bugIndex = {};
+            existing.forEach(function(x) { bugIndex[x.bugId] = x; });
+            // 2026-09-30: domain 归一为项目域概览名(组件名匹配域, 忽略大小写/空白) → 显示与域概览一致(如 SW 组件→SW Model 域)
+            function normDomainKey(s) { return String(s || '').trim().toLowerCase().replace(/[\s\-\/]/g, ''); }
+            var domAlias = {};
+            (Array.isArray(projData.domains) ? projData.domains : []).forEach(function(dm) {
+                var k = normDomainKey(dm.name);
+                if (k && !domAlias[k]) domAlias[k] = dm.name;
+            });
+            var imported = 0, updated = 0;
+            bugs.forEach(function(b) {
+                var dk = normDomainKey(b.domain);
+                if (dk && domAlias[dk]) b.domain = domAlias[dk];
+                var ex = bugIndex[b.bugId];
+                if (ex) {
+                    // 覆盖 JIRA 来源字段, 但保留原 id(稳定关联) 与本地补充的 debugProgress/debugProgressSource/debugProgressUpdatedAt
+                    Object.keys(b).forEach(function(k) { if (k !== 'id') ex[k] = b[k]; });
+                    updated++;
+                } else {
+                    existing.push(b);
+                    bugIndex[b.bugId] = b;
+                    imported++;
+                }
+            });
+            projData.bugs = existing;
+            projData.lastUpdated = new Date().toLocaleString();
+            // 2026-10-02: 同步写也需推进版本号——auto-sync 现在每次页面加载都会写, 若不 bump version,
+            //   已连接旧快照客户端的整包保存(version 与 server 一致)会直接覆盖本次同步的改动(lost update)。
+            //   bump 后旧客户端下次保存拿到 409"数据已更新请刷新", 不会丢。
+            projData.version = (typeof projData.version === 'number' ? projData.version : 0) + 1;
+            await projects.saveProjectData(pid, projData);
+            console.log('[JIRA] sync to project ' + pid + ': imported=' + imported + ' updated=' + updated);
+            res.json({
+                success: true,
+                bugs: bugs,
+                total: bugs.length,
+                project: selectedProject || null,
+                imported: imported,
+                updated: updated,
+                message: '成功从JIRA获取 ' + bugs.length + ' 条Bug (新增 ' + imported + ' / 更新 ' + updated + ')'
+            });
+            return;
+        }
 
         res.json({
             success: true,
@@ -410,8 +463,9 @@ router.post('/bug-debug-progress/summarize', auth.authenticateToken, async funct
             });
         }
 
-        // 3. LLM summarize
-        var result = await diagnosis.summarizeDebugProgress(jiraKey, bugSummary, comments, description);
+        // 3. LLM summarize (2026-10-01: 传上次归纳文本, 让 LLM 判断本次是否明显进展)
+        var previousSummary = (req.body && req.body.previousSummary) || '';
+        var result = await diagnosis.summarizeDebugProgress(jiraKey, bugSummary, comments, description, previousSummary);
 
         if (result.noComments) {
             return res.json({
@@ -419,6 +473,7 @@ router.post('/bug-debug-progress/summarize', auth.authenticateToken, async funct
                 summary: '',
                 commentCount: 0,
                 noComments: true,
+                hasProgress: true,
                 warning: '该Bug在JIRA没有评论，无法归纳。可在弹窗中手动填写调试进展。'
             });
         }
@@ -428,6 +483,7 @@ router.post('/bug-debug-progress/summarize', auth.authenticateToken, async funct
             summary: result.summary || '',
             commentCount: comments.length,
             noComments: false,
+            hasProgress: (result.hasProgress === undefined ? true : result.hasProgress),
             updatedAt: new Date().toISOString()
         });
     } catch (error) {

@@ -23,6 +23,23 @@ function summaryNowLocal() {
     return date + 'T' + time;
 }
 
+// 自动选取"最新有真实进度的日期"作为总结默认日期, 避免默认落在无进度的今天导致"今日无进度记录"
+// 规则: 今天(本地)有进度 → 用今天当前时刻; 否则取最新有进度的日期, 全天口径(23:59)
+function latestProgressDateTime() {
+    var all = (App && App.data && App.data.dailyProgress) || [];
+    if (!all.length) return null;
+    var today = summaryTodayStr();
+    var hasToday = all.some(function(p) { return p && p.date === today; });
+    if (hasToday) return summaryNowLocal();
+    var maxDate = '';
+    all.forEach(function(p) { if (p && p.date && p.date > maxDate) maxDate = p.date; });
+    return maxDate ? (maxDate + 'T23:59') : null;
+}
+function defaultSummaryDateTime() {
+    var d = latestProgressDateTime();
+    return d || summaryNowLocal();
+}
+
 // 打开总结弹窗 (默认自动生成一次; 传 {noAuto:true} 为纯查看, 不触发 LLM, 且只保留 历史总结/数据明细 两个 tab)
 function openDailySummaryModal(opts) {
     var modal = document.getElementById('daily-summary-modal');
@@ -31,11 +48,16 @@ function openDailySummaryModal(opts) {
     // 查看模式隐藏 AI 总结 tab (一键总结/生成时恢复显示)
     var aiTabBtn = document.getElementById('summary-tab-ai');
     if (aiTabBtn) aiTabBtn.style.display = (opts && opts.noAuto) ? 'none' : 'inline-block';
-    // 默认今天当前时刻
-    document.getElementById('daily-summary-date').value = summaryNowLocal();
+    // 默认今天当前时刻 (若有进度用今天; 否则自动落在最新有进度的日期, 全天口径)
+    document.getElementById('daily-summary-date').value = defaultSummaryDateTime();
     // 全天汇总日期默认今天
     var exportDate = document.getElementById('daily-summary-export-date');
     if (exportDate) exportDate.value = summaryTodayStr();
+    // 邮件导出日期默认"今天之前最新有进度日期"; 清零进度条状态
+    var mailDate = document.getElementById('daily-summary-mail-date');
+    if (mailDate && !mailDate.value) mailDate.value = defaultMailExportDateStr();
+    var dmProg = document.getElementById('daily-summary-mail-progress');
+    if (dmProg) dmProg.style.display = 'none';
     document.getElementById('daily-summary-status').textContent = '';
     if (opts && opts.noAuto) {
         // 纯查看: 不触发 LLM, 直接展示历史快照列表 (已有的全部快照, 点击查看详情)
@@ -92,11 +114,7 @@ function manualGenerateDailySummary() {
 function oneClickDailySummary() {
     openDailySummaryModal({ noAuto: true });
     var dt = document.getElementById('daily-summary-date');
-    if (dt) {
-        var now = new Date();
-        var pad = function(n) { return String(n).padStart(2, '0'); };
-        dt.value = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes());
-    }
+    if (dt) dt.value = defaultSummaryDateTime();
     generateDailySummary();
 }
 
@@ -110,8 +128,16 @@ async function generateDailySummary() {
     var genBtn = document.getElementById('daily-summary-gen-btn');
 
     if (!date) { statusEl.textContent = '请选择总结时刻'; return; }
-    statusEl.textContent = '生成中... (LLM润色约需5-15秒)';
-    statusEl.style.color = 'var(--muted)';
+    var t0 = Date.now();
+    var waitTimer = null;
+    function updateWait() {
+        if (!waitTimer) return;
+        var n = Math.floor((Date.now() - t0) / 1000);
+        statusEl.textContent = '生成中... (已等待 ' + n + 's，含各域逐条总结，通常 30~90 秒，视 LLM 负载而定)';
+        statusEl.style.color = 'var(--muted)';
+    }
+    updateWait();
+    waitTimer = setInterval(updateWait, 1000);
     genBtn.disabled = true;
     contentEl.innerHTML = '<div style="color: var(--muted); font-size: 14px; padding: 30px; text-align:center;">⏳ 正在生成总结，请稍候...</div>';
 
@@ -127,6 +153,7 @@ async function generateDailySummary() {
         }
 
         window._summaryResult = result;
+        if (waitTimer) { clearInterval(waitTimer); waitTimer = null; }
         // 自动存档到历史 (键=日期+时刻: 同时刻覆盖, 不同时刻新增快照) — 失败不影响展示
         var savedInfo = null;
         try { savedInfo = await saveSummaryToHistory(result); } catch (e) { console.error('[DailySummary] 存档失败:', e); }
@@ -143,12 +170,13 @@ async function generateDailySummary() {
         }
     } catch (err) {
         console.error('[DailySummary] error:', err);
+        if (waitTimer) { clearInterval(waitTimer); waitTimer = null; }
         statusEl.textContent = '生成失败: ' + err.message;
         statusEl.style.color = 'var(--red)';
         contentEl.innerHTML = '<div style="color: var(--red); font-size: 14px; padding: 30px; text-align:center;">生成失败: ' + summaryEscapeHtml(err.message) + '</div>';
     } finally {
         genBtn.disabled = false;
-        if (statusEl.textContent === '生成中... (LLM润色约需5-15秒)') statusEl.textContent = '';
+        if (waitTimer) { clearInterval(waitTimer); waitTimer = null; }
     }
 }
 
@@ -885,5 +913,165 @@ async function viewSummaryHistory(date, time) {
     } catch (err) {
         console.error('[DailySummary] history view error:', err);
         contentEl.innerHTML = '<div style="color: var(--red); font-size: 14px; padding: 30px; text-align:center;">加载失败: ' + summaryEscapeHtml(err.message) + '</div>';
+    }
+}
+
+// ==================== 前日增量"邮件正文"导出 (subject+body, 供手动发送) ====================
+
+// 昨天日期 YYYY-MM-DD (本地时区)
+function summaryYesterdayStr() {
+    var d = new Date(Date.now() - 86400000);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// 邮件导出默认日期: 优先取"今天之前最新有真实进度的日期"(前日增量语义), 避免默认落在无数据日期导致空内容
+function defaultMailExportDateStr() {
+    var all = (App && App.data && App.data.dailyProgress) || [];
+    var today = summaryTodayStr();
+    var maxPast = '';
+    all.forEach(function(p) { if (p && p.date && p.date < today && p.date > maxPast) maxPast = p.date; });
+    return maxPast || summaryYesterdayStr();
+}
+
+// 打开邮件导出弹窗 (给日期输入框默认日期, 与控制条双向同步)
+function openMailExportModal() {
+    var modal = document.getElementById('mail-export-modal');
+    if (!modal) return;
+    var dateInput = document.getElementById('mail-export-date');
+    var inline = document.getElementById('daily-summary-mail-date');
+    if (dateInput) {
+        if (!dateInput.value) dateInput.value = (inline && inline.value) ? inline.value : defaultMailExportDateStr();
+        if (inline) inline.value = dateInput.value; // 两处显示一致
+    }
+    var meProg = document.getElementById('mail-export-progress');
+    if (meProg) meProg.style.display = 'none';
+    modal.style.display = 'flex';
+}
+
+function closeMailExportModal() {
+    var modal = document.getElementById('mail-export-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+// 生成"前日增量"邮件正文 (调后端 mail-export, 单一渲染来源), 填入 subject/body
+// 日期读取规则: 从 mail-export-modal 触发(重生成) → mail-export-date; 从 daily-summary 控制条触发 → daily-summary-mail-date
+async function exportMailContent() {
+    var inMailModal = (function() {
+        var m = document.getElementById('mail-export-modal');
+        if (!m) return false;
+        var dis = m.style.display;
+        return (dis === 'flex' || dis === 'block' || m.offsetParent !== null);
+    })();
+    var dateInput = inMailModal ? document.getElementById('mail-export-date') : document.getElementById('daily-summary-mail-date');
+    var otherDate = inMailModal ? document.getElementById('daily-summary-mail-date') : document.getElementById('mail-export-date');
+    var subjEl = document.getElementById('mail-export-subject');
+    var bodyEl = document.getElementById('mail-export-body');
+    if (!dateInput) dateInput = otherDate;
+    if (!dateInput) return;
+    if (!dateInput.value) dateInput.value = defaultMailExportDateStr();
+    if (otherDate) otherDate.value = dateInput.value; // 双向同步, 两处显示一致
+    var date = dateInput.value;
+
+    // 进度反馈挂在用户当前看到的那个状态区 (inMailModal → mail-export-modal; 否则 daily-summary 控制条)
+    var pfx = inMailModal ? 'mail-export' : 'daily-summary-mail';
+    var st = document.getElementById(inMailModal ? 'mail-export-status' : 'daily-summary-status');
+    var progWrap = document.getElementById(pfx + '-progress');
+    var progFill = document.getElementById(pfx + '-progress-fill');
+    var progText = document.getElementById(pfx + '-progress-text');
+
+    // 生成期间禁用导出/重新生成按钮, 防重复点击
+    var genBtns = [];
+    ['daily-summary-mail-btn', 'mail-export-gen-btn'].forEach(function(id) {
+        var b = document.getElementById(id);
+        if (b) { b.disabled = true; genBtns.push(b); }
+    });
+
+    // 进度条 + 秒级倒计数 (LLM 归纳通常 10-30s; 超过即转"不确定模式"滑动条, 避免走完却未结束)
+    var t0 = Date.now(), timer = null, running = true, BUDGET = 30;
+    function tick() {
+        if (!running) return;
+        var el = Math.floor((Date.now() - t0) / 1000);
+        if (progFill) {
+            if (el >= BUDGET) {
+                progFill.classList.add('ml-indeterminate');
+                progFill.style.width = '100%';
+            } else {
+                progFill.classList.remove('ml-indeterminate');
+                progFill.style.width = Math.min(100, Math.floor(el / BUDGET * 100)) + '%';
+            }
+        }
+        if (progText) {
+            progText.textContent = el >= BUDGET
+                ? '生成中... 已等待 ' + el + ' 秒（超过通常时长，LLM 可能在重试，请多等片刻）'
+                : '生成中... 已等待 ' + el + ' 秒（含各域总结，通常10-30秒）';
+        }
+        timer = setTimeout(tick, 1000);
+    }
+    if (st) { st.textContent = '⏳ 正在生成 ' + date + ' 前日增量邮件正文...'; st.style.color = 'var(--muted)'; }
+    if (progWrap) progWrap.style.display = 'block';
+    tick();
+
+    function finish(msg, color) {
+        running = false;
+        if (timer) clearTimeout(timer);
+        if (progWrap) progWrap.style.display = 'none';
+        genBtns.forEach(function(b) { b.disabled = false; });
+        var mSt = document.getElementById('mail-export-status');
+        if (mSt) { mSt.textContent = msg; mSt.style.color = color; }
+        if (st && st !== mSt) { st.textContent = msg; st.style.color = color; }
+    }
+
+    try {
+        var res = await apiCall('/api/data/daily-summary/mail-export?project=' + encodeURIComponent(App.currentProject), {
+            method: 'POST',
+            body: JSON.stringify({ projectId: App.currentProject, date: date }),
+            cache: 'no-store'
+        });
+        if (!res || !res.success) throw new Error((res && res.error) || '生成失败');
+        if (subjEl) subjEl.value = res.subject;
+        if (bodyEl) bodyEl.value = res.body;
+        openMailExportModal();
+        finish('✓ 已生成 ' + date + '（' + (res.aiFailed ? '规则降级版' : 'AI归纳') + '），可复制发送或下载 .msg（Outlook 邮件）', 'var(--green)');
+    } catch (e) {
+        console.error('[MailExport] error:', e);
+        if (bodyEl) bodyEl.value = '';
+        if (subjEl) subjEl.value = '';
+        finish('生成失败: ' + e.message, 'var(--red)');
+    }
+}
+
+// 下载邮件为 .msg (Outlook 邮件文件, 由后端 gen_msg.py 生成)
+async function downloadMailFile() {
+    var subj = (document.getElementById('mail-export-subject') && document.getElementById('mail-export-subject').value) || '';
+    var body = (document.getElementById('mail-export-body') && document.getElementById('mail-export-body').value) || '';
+    var dateInput = document.getElementById('mail-export-date') || document.getElementById('daily-summary-mail-date');
+    var date = (dateInput && dateInput.value) || defaultMailExportDateStr();
+    if (!subj && !body) { alert('请先生成邮件正文'); return; }
+    var st = document.getElementById('mail-export-status');
+    try {
+        if (st) { st.textContent = '⏳ 正在生成 .msg 文件...'; st.style.color = 'var(--muted)'; }
+        var resp = await fetch('/api/data/daily-summary/mail-export/msg', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId: App.currentProject, date: date, subject: subj, body: body }),
+            credentials: 'same-origin'
+        });
+        if (resp.status === 401) { handleTokenExpired(); throw new Error('登录已过期'); }
+        if (!resp.ok) {
+            var jew = await resp.json().catch(function() { return {}; });
+            throw new Error(jew.error || ('HTTP ' + resp.status));
+        }
+        var blob = await resp.blob();
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = (App.currentProject || 'gpu').replace(/[^A-Za-z0-9_-]/g, '') + '-' + date + '.msg';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function() { URL.revokeObjectURL(a.href); }, 1000);
+        if (st) { st.textContent = '✓ 已下载 .msg（直接双击用 Outlook 打开，Subject + 正文已填好）'; st.style.color = 'var(--green)'; }
+    } catch (e) {
+        console.error('[MailExport-msg] error:', e);
+        if (st) { st.textContent = '下载 .msg 失败: ' + e.message; st.style.color = 'var(--red)'; }
     }
 }

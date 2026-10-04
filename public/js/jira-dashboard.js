@@ -1,6 +1,27 @@
 // JIRA Bug Dashboard - Frontend Logic
 // Chart.js via CDN: https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js
 
+// ============ 单点登录 / 项目透传 (门户 8090 -> 这里): URL ?token=&project= ============
+// 门户登录后免登录跳转: token = gpu-tracker 的会话 token (经 Authorization: Bearer 使用),
+// project = 门户 JIRA 项目选择; 为空表示"全部项目"。跨端口 cookie 不共享, 故 token 走 URL (内网环境)。
+var __urlParams = new URLSearchParams(location.search);
+var __urlToken = __urlParams.get('token') || '';
+var __urlProject = __urlParams.get('project') || '';
+// 全局 fetch 统一注入 Authorization: Bearer <token> —— URL token 进入后所有 /api 请求都带认证
+(function () {
+  var __origFetch = window.fetch;
+  window.fetch = function (input, init) {
+    init = init || {};
+    if (typeof Dashboard !== 'undefined' && Dashboard && Dashboard.authToken) {
+      init.headers = init.headers || {};
+      if (isHeadersObj(init.headers)) init.headers.set('Authorization', 'Bearer ' + Dashboard.authToken);
+      else if (!init.headers['Authorization']) init.headers['Authorization'] = 'Bearer ' + Dashboard.authToken;
+    }
+    return __origFetch.call(window, input, init);
+  };
+  function isHeadersObj(h) { return typeof Headers !== 'undefined' && h instanceof Headers; }
+})();
+
 // ============ Chart.js Plugin: Labels on Pie/Doughnut (status inside, percentage outside) ============
 
 var pieLabelPlugin = {
@@ -246,7 +267,7 @@ function updateLoginUI() {
     if (Dashboard.currentUser) {
         loginBtn.style.display = 'none';
         logoutBtn.style.display = 'inline-block';
-        var roleText = Dashboard.userRole === 'CHANGE_ME' ? '管理员' : (Dashboard.userRole === 'domain_owner' ? 'Domain Owner' : '用户');
+        var roleText = Dashboard.userRole === 'admin' ? '管理员' : (Dashboard.userRole === 'domain_owner' ? 'Domain Owner' : '用户');
         loginStatus.textContent = '欢迎, ' + Dashboard.currentUser + ' (' + roleText + ')';
     } else {
         loginBtn.style.display = 'inline-block';
@@ -257,10 +278,12 @@ function updateLoginUI() {
 
 async function verifyAuth() {
     try {
-        var resp = await fetch('/api/auth/verify', { credentials: 'same-origin', cache: 'no-store' });
+        var opts = { credentials: 'same-origin', cache: 'no-store' };
+        if (__urlToken) opts.headers = { 'Authorization': 'Bearer ' + __urlToken };
+        var resp = await fetch('/api/auth/verify', opts);
         var data = await resp.json();
         if (data.success && data.user && data.user.username) {
-            Dashboard.authToken = data.token || Dashboard.authToken;
+            Dashboard.authToken = data.token || Dashboard.authToken || __urlToken;
             Dashboard.currentUser = data.user.name || data.user.username;
             Dashboard.userRole = data.user.role;
             updateLoginUI();
@@ -297,6 +320,15 @@ function renderProjectSelect(projects) {
         opt.textContent = p.key + ' - ' + p.name;
         select.appendChild(opt);
     });
+    // 门户项目透传: URL ?project=<key> 存在则选中并加载 (单选; 空=全部项目, 不处理)
+    if (__urlProject) {
+        var found = projects.some(function(p){ return p.key === __urlProject; });
+        if (found) {
+            select.value = __urlProject;
+            Dashboard.selectedProjects = [];
+            fetchDashboardData();
+        }
+    }
 }
 
 function onProjectChange() {

@@ -2,6 +2,7 @@
 
 function renderDomains(domains) {
     var tbody = getTableBody('domains-body');
+    updateDomainActionThVisibility();
     
     domains.forEach(function(domain) {
         var row = document.createElement('tr');
@@ -62,24 +63,27 @@ function renderDomains(domains) {
         notesCell.textContent = domain.notes || '';
         row.appendChild(notesCell);
         
-        // Actions cell (编辑: 仅 CHANGE_ME 或该 domain 的 owner 创建; 其他 domain 操作列留空=只读; 删除: 仅 CHANGE_ME)
-        var actionsCell = document.createElement('td');
-        if (editable) {
-            var editBtn = document.createElement('button');
-            editBtn.className = 'edit-btn';
-            editBtn.textContent = '编辑';
-            editBtn.addEventListener('click', function() { editDomain(domain.id); });
-            actionsCell.appendChild(editBtn);
+        // Actions cell (编辑: 仅 admin 或该 domain 的 owner 创建; 其他 domain 操作列留空=只读; 删除: 仅 admin)
+        // 2026-10-01: 普通用户(无任何可编辑域)整列不渲染 actionsCell
+        if (canSeeDomainActions()) {
+            var actionsCell = document.createElement('td');
+            if (editable) {
+                var editBtn = document.createElement('button');
+                editBtn.className = 'edit-btn';
+                editBtn.textContent = '编辑';
+                editBtn.addEventListener('click', function() { editDomain(domain.id); });
+                actionsCell.appendChild(editBtn);
+            }
+            if (isAdmin()) {
+                var deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = '删除';
+                deleteBtn.addEventListener('click', function() { deleteDomain(domain.id); });
+                actionsCell.appendChild(deleteBtn);
+            }
+            
+            row.appendChild(actionsCell);
         }
-        if (isAdmin()) {
-            var deleteBtn = document.createElement('button');
-            deleteBtn.className = 'delete-btn';
-            deleteBtn.textContent = '删除';
-            deleteBtn.addEventListener('click', function() { deleteDomain(domain.id); });
-            actionsCell.appendChild(deleteBtn);
-        }
-        
-        row.appendChild(actionsCell);
         tbody.appendChild(row);
     });
     
@@ -101,7 +105,7 @@ function searchJiraOwner() {
 function editDomain(domainId) {
     var domain = App.data.domains.find(function(d) { return d.id === domainId; });
     if (!domain) return;
-    // 权限守卫: 仅 CHANGE_ME 或该 domain 的 owner 可编辑
+    // 权限守卫: 仅 admin 或该 domain 的 owner 可编辑
     if (!canEditDomain(domain.name)) { alert('您只能编辑自己的Domain'); return; }
     
     App.currentEditDomainId = domainId;
@@ -232,7 +236,7 @@ function updateDomainTime(domainId, field, value) {
 }
 
 function deleteDomain(domainId) {
-    // 删除仅限 CHANGE_ME (domain owner 无删除权限)
+    // 删除仅限 admin (domain owner 无删除权限)
     if (!isAdmin()) { alert('仅管理员可删除Domain'); return; }
     if (confirm('确定要删除这个Domain吗？')) {
         App.data.domains = App.data.domains.filter(function(domain) { return domain.id !== domainId; });
@@ -289,8 +293,8 @@ function reconcileDomainCompletion() {
         var cList = criteriaList.filter(function(c) { return criteriaDomainKey(c.domain) === criteriaDomainKey(dm.name); });
         if (!cList.length) return; // 无准出标准的 domain 不自动完成也不回退
         var total = cList.length;
-        var pass = cList.filter(function(c) { return c.status === 'pass'; }).length;
-        var allPass = (pass === total);
+        var satisfied = cList.filter(function(c) { return c.status === 'pass' || c.status === 'waiver'; }).length;
+        var allPass = (satisfied === total);
         if (allPass) {
             // 自动完成: 仅从未被手动设置过状态(未开始/无状态)自动置完成; 手动状态一律尊重
             // (statusManual=true = 用户通过编辑弹窗/状态下拉手动改过, 2026-09-10 修复 not-started 被拉回)
@@ -324,7 +328,8 @@ function buildCriteriaProgress(domainName) {
     var total = cList.length;
     var pass = cList.filter(function(c) { return c.status === 'pass'; }).length;
     var fail = cList.filter(function(c) { return c.status === 'fail'; }).length;
-    var notReady = total - pass - fail;
+    var waiver = cList.filter(function(c) { return c.status === 'waiver'; }).length;
+    var notReady = total - pass - fail - waiver;
 
     if (total === 0) {
         wrap.textContent = '—';
@@ -337,6 +342,7 @@ function buildCriteriaProgress(domainName) {
     var segs = [
         { n: pass, color: '#2ecc71' },      // 绿: 通过
         { n: fail, color: '#e74c3c' },      // 红: 不通过
+        { n: waiver, color: '#e0a800' },    // 黄: 豁免
         { n: notReady, color: '#6b7280' }   // 灰: 未执行
     ];
     segs.forEach(function(seg) {
@@ -353,7 +359,7 @@ function buildCriteriaProgress(domainName) {
     label.textContent = pass + '/' + total;
     label.style.cssText = 'font-size:12px; color:#8b93a7; white-space:nowrap;';
     wrap.appendChild(label);
-    wrap.title = '准出标准共 ' + total + ' 条: 通过 ' + pass + ' / 不通过 ' + fail + ' / 未执行 ' + notReady;
+    wrap.title = '准出标准共 ' + total + ' 条: 通过 ' + pass + ' / 不通过 ' + fail + ' / 豁免 ' + waiver + ' / 未执行 ' + notReady;
     return wrap;
 }
 
