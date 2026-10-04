@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
-![Version](https://img.shields.io/badge/version-v6.0.0-blue)
+![Version](https://img.shields.io/badge/version-v6.1.0-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -190,6 +190,34 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v6.1.0 (2026-10-04)
+**Debug Progress 时间戳化 / 会议模式聚焦 / 增量 AI 归纳 / 保存丢记录根因修复 / 域负责人默认域 / NPIVAL 域负责人登记**
+
+#### 🕐 Debug Progress 时间戳记录 + 每条独立编辑 (2026-10-01/02)
+- 每条 Debug Progress 记录带独立时间戳；记录间可分别编辑（原地更新保留其时间戳），不再整条覆盖
+- LLM hasProgress 判定 + 相似度降级，列表/门控/手工记录与时间戳联动
+
+#### 📊 会议模式聚焦（2026-10-02/04）
+- **阻塞墙"隔一天归档"**：今天解决的阻塞不立刻进"已解决"栏，旁标 ✅，隔一天带时间戳才归档进已解决栏；启动拨码开关不再马上显示到已解决栏
+- **会议模式只显示"进行中/受阻"域**：域状态为已完成(前一天已完成)或未开始的 domain 不再出现在会议模式，保留进行中 + 受阻(blocked)；UCIE 等受阻域仍由独立"阻塞墙"幻灯片呈现
+
+#### 🎯 domain_owner 添加进度默认当前域 (2026-10-04)
+- domain_owner 打开"添加进度"弹窗时，domain 下拉**默认选中当前登录的域**（自有域），免手动切换；admin(owned=null)/普通用户(owned=[])保持空选
+
+#### 🤖 批量 AI 归纳所有 Debug Progress (2026-10-03)
+- 一键遍历所有有关联 JIRA 单号的 Bug，逐条调用 AI 归纳并**增量追加**带时间戳记录
+- 已有 Debug Progress 的仅当 JIRA 有新增内容才追加；无新增跳过；尚无则首次归纳；逐条刷新进度条，不阻塞
+
+#### 🔧 保存丢记录 / lost update 根因修复 (2026-10-03)
+- `server.js`: `trust proxy`(取真实客户端 IP，避免多人共享 nginx 代理 IP 同一限流配额被 429) + **写操作(POST/PUT/DELETE)不限流**(否则"保存"被 429 → 只存本地缓存 → 刷新丢记录)
+- `routes/data.js`: POST 必须携带客户端 `data.version`，缺失 = 旧页面/脏快照 → **409 拒绝**（否则整包保存覆盖服务器数据 → 丢记录）
+- `data.js`: 合并恢复 `domains` 以服务端为准(stale 客户端不推翻同 id 域 owner/status)；登录态以服务端为准(先清陈旧角色/登录弹窗)
+- `auth.js/gate.js`: 先清陈旧登录态，角色以服务端为准；登录成功关残留登录弹窗
+
+#### 🔐 NPIVAL 域负责人登记 + 域更名 Security (2026-10-04)
+- 四子系统登录统一（共用 3002 统一用户库），NPIVAL 在 gpu-tracker 登记为域负责人
+- `DOMAIN_OWNER_USER_KEY` 登记 `npival→security`：npival 登录可编辑（页面上被改名的）Security 域；login/password 不变
 
 ### v6.0.0 (2026-08-27)
 **BU 执行期核心迭代：每日状态时刻快照与自动总结体系 / Domain 测试用例进度列 / Domain 状态自动一致 / 三级权限体系与统一登录 / 深色主题统一**
