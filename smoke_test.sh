@@ -2,7 +2,7 @@
 # =============================================================================
 # GPU Bring-up Tracker - Smoke Tests
 # Usage: ./smoke_test.sh [BASE_URL]
-# Default BASE_URL: http://localhost:8088
+# Default BASE_URL: http://localhost:8080 (按实际部署端口传入 BASE_URL)
 #
 # Tests:
 # 1. Frontend Accessibility (200 OK)
@@ -10,7 +10,7 @@
 # 3. Data Integrity (Project data load)
 # =============================================================================
 
-BASE_URL=${1:-"http://localhost:8088"}
+BASE_URL=${1:-"http://localhost:8080"}
 
 PASS=0
 FAIL=0

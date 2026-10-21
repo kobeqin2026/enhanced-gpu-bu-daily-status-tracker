@@ -27,7 +27,7 @@ fi
 # 启动服务器
 echo "启动国产GPU芯片Bring-up追踪系统..."
 echo "服务器将在 http://localhost:8080 运行"
-echo "在公司网络中访问: http://47.77.221.23:8080"
+echo "在公司网络中访问: http://<server-ip>:8080"
 echo "按 Ctrl+C 停止服务器"
 
 # 使用forever保持进程运行（可选）

@@ -116,7 +116,9 @@ var autoDataRouter = require('./routes/data');
 var AUTO_SUMMARY_ENABLED = process.env['AUTO_SUMMARY_ENABLED'] === '1';
 if (AUTO_SUMMARY_ENABLED) {
     var AUTO_SUMMARY_TIMES = ['09:30', '17:30'];
-    var AUTO_SUMMARY_PROJECTS = ['br288y'];
+    var AUTO_SUMMARY_PROJECTS = process.env.AUTO_SUMMARY_PROJECTS
+        ? process.env.AUTO_SUMMARY_PROJECTS.split(',').map(function(s) { return s.trim(); }).filter(Boolean)
+        : ['demo-daily'];
     var autoRunDates = {}; // 键=时刻, 值=日期: 防同日同时刻重复触发
     setInterval(function() {
     (async function() {
@@ -162,7 +164,7 @@ var pathMail = require('path');
 var MAIL_REPORT_TIME = process.env.MAIL_REPORT_TIME || '09:00';
 var MAIL_REPORT_PROJECTS = process.env.MAIL_REPORT_PROJECTS
     ? process.env.MAIL_REPORT_PROJECTS.split(',').map(function(s) { return s.trim(); }).filter(Boolean)
-    : ['br288y'];
+    : ['demo-daily'];
 var mailRunDates = {}; // 键=日期, 防同日同时刻重复触发
 setInterval(function() {
     (async function() {
