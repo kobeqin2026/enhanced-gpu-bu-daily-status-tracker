@@ -158,7 +158,7 @@ pm2 restart demo-daily-api
 
 ### 默认账号（首次启动自动创建）
 - 管理员：`CHANGE_ME / CHANGE_ME`
-- 普通用户：`user / user123`
+- 普通用户：`user / CHANGE_ME`
 
 ⚠️ **注意**: 密码为明文存储，建议配合公司内网使用
 

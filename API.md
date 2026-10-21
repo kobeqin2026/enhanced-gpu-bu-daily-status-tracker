@@ -1,6 +1,6 @@
 # GPU Bring-up Tracker API 文档
 
-**Base URL**: `http://<your-server>:8088`  
+**Base URL**: `http://<your-server>:<your-port>`  
 **认证方式**: Cookie (`token`) 或 Authorization Header (`Bearer <token>`)
 
 ---
@@ -140,7 +140,7 @@
     "severity": "highest|high|medium|low|lowest",
     "status": "open|triage|implement|closed|rejected",
     "reportDate": "2026-04-15",
-    "owner": "Ge Qiang"
+    "owner": "张三"
 }
 ```
 
@@ -149,7 +149,7 @@
 {
     "id": "domain-1",
     "name": "PCIe接口",
-    "owner": "Ge Qiang",
+    "owner": "张三",
     "status": "not-started|in-progress|blocked|completed",
     "notes": ""
 }
@@ -162,7 +162,7 @@
     "index": 1,
     "domain": "PCIe",
     "criteria": "Link training passes Gen3",
-    "owner": "Ge Qiang",
+    "owner": "张三",
     "status": "not-ready|fail|pass"
 }
 ```
@@ -174,7 +174,7 @@
     "date": "2026-04-15",
     "domain": "PCIe",
     "content": "Fixed PHY settings",
-    "owner": "Ge Qiang"
+    "owner": "张三"
 }
 ```
 

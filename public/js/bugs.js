@@ -339,7 +339,7 @@ function resetBugFilters() {
 }
 
 // ==================== 从 JIRA 项目 Bug 同步到本地 (2026-09-30) ====================
-// 从当前项目配置的 jiraProject(如 BR288Y) 拉取 JIRA Bug 并 upsert 进本地 bugs 数组(主页面Bug表)。
+// 从当前项目配置的 jiraProject(如 DEMO-A) 拉取 JIRA Bug 并 upsert 进本地 bugs 数组(主页面Bug表)。
 // 配合默认严重性=所有严重性, 让 Medium 等其他严重性也默认可见。
 async function syncJiraBugsToProject() {
     var proj = (App.projectsList || []).find(function(p) { return p.id === App.currentProject; });

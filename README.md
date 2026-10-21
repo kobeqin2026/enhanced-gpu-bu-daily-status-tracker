@@ -80,12 +80,12 @@ cp .env.example .env
 npm start
 
 # 访问应用
-http://localhost:8088
+http://localhost:8080
 ```
 
 ### 默认账号
 - **管理员**: CHANGE_ME / CHANGE_ME
-- **普通用户**: user / user123
+- **普通用户**: user / CHANGE_ME（首次启动经 DEFAULT_USER_PASSWORD 环境变量设置）
 
 > ⚠️ **安全提示**: v5.5.2 起所有密码均使用 bcrypt 哈希存储，硬编码凭据已移至环境变量。请在 `.env` 中设置 `DASHSCOPE_API_KEY`、`DEFAULT_ADMIN_PASSWORD`、`DEFAULT_USER_PASSWORD`。
 
@@ -192,15 +192,15 @@ enhanced-gpu-bu-daily-status-tracker/
 ## 版本历史
 
 ### v6.2.0 (2026-10-21)
-**BR288Y Stage1/Stage2 退出数据固化归档 / sessions 30 秒空写刷盘修复 / 归档脚本化**
+**项目 Stage1/Stage2 退出数据固化归档 / sessions 30 秒空写刷盘修复 / 归档脚本化**
 
 #### 🏁 项目退出数据固化归档 (2026-10-21)
-- BR288Y 项目 stage1 与 stage2 均已宣布退出（19 个 Domain 全部 completed、35 条 BU 准出标准全部 pass、version 949），项目数据一次性固化归档，为下个项目做准备
-- **新增 `scripts/archive-br288y.sh` 归档脚本**：
+- 项目 stage1 与 stage2 均已宣布退出（19 个 Domain 全部 completed、35 条 BU 准出标准全部 pass、version 949），项目数据一次性固化归档，为下个项目做准备
+- **新增 `scripts/archive-project-exit.sh` 归档脚本（项目参数化，仓内不再绑定具体项目）**：
   - 归档前强制校验主数据完整性——仅当「19 域全部 completed + 35 准出标准全部 pass」才放行归档，否则拒绝打包（防止半途数据被固化）
-  - 只读归档当前全部有效运行时数据：`data/br288y.json`（主数据：178 条每日进度、90 条 Bug、19 Domain、35 准出标准）、`data/br288y.daily-summaries.json`（32 条每日总结快照）、`data/projects.json`、`data/sessions.json`、`data/users.json`（现场快照）、`data/taihu*.json`（旧项目）、`data/jira-cache/`（JIRA 同步缓存）、`data/mail-report/`（每日邮件正文）、`data/uploads/`（附件）
+  - 只读归档当前全部有效运行时数据：`data/<项目id>.json`（主数据）、`data/<项目id>.daily-summaries.json`（每日总结快照）、`data/projects.json`、`data/sessions.json`、`data/users.json`（现场快照）、旧项目数据文件、`data/jira-cache/`（JIRA 同步缓存）、`data/mail-report/`（每日邮件正文）、`data/uploads/`（附件）
   - 排除 `*.bak` 备份文件（会话自动保存的历史残留，无归档价值）
-  - 产出 `archives/br288y-stage-exit-20261021.tar.gz`（364KB，双副本）并附解包清单
+  - 产出 `archives/<项目id>-stage-exit-<日期>.tar.gz`（双副本）并附解包清单
 - 归档产物解包后与源文件逐字节 `cmp` 比对全部一致，且双副本保存（仓库 `archives/` + 用户目录备份），`archives/` 已加入 `.gitignore`（内含会话 token，不入库）
 
 #### 🔧 sessions 30 秒空写刷盘修复 (2026-10-21)
@@ -209,10 +209,10 @@ enhanced-gpu-bu-daily-status-tracker/
 - 意义：下个项目继续运行时不再产生垃圾备份文件，目录不再膨胀；修复后线上实测 `pm2 restart` 后 70+ 秒零新增备份（修复前每 30 秒一个）
 
 #### 📦 同版本收尾
-- jira-cache 收尾入账：BH200-history.json 缓存、BR288Y-history 更新；mail-report 补录 2026-10-10 ~ 10-14 五期日报正文
+- jira-cache / mail-report 收尾入账与归档固化，运行时数据目录全部移出 git 跟踪（本地保留）
 
 ### v6.1.0 (2026-10-04)
-**Debug Progress 时间戳化 / 会议模式聚焦 / 增量 AI 归纳 / 保存丢记录根因修复 / 域负责人默认域 / NPIVAL 域负责人登记**
+**Debug Progress 时间戳化 / 会议模式聚焦 / 增量 AI 归纳 / 保存丢记录根因修复 / 域负责人默认域 / 域负责人登记扩展**
 
 #### 🕐 Debug Progress 时间戳记录 + 每条独立编辑 (2026-10-01/02)
 - 每条 Debug Progress 记录带独立时间戳；记录间可分别编辑（原地更新保留其时间戳），不再整条覆盖
@@ -235,9 +235,8 @@ enhanced-gpu-bu-daily-status-tracker/
 - `data.js`: 合并恢复 `domains` 以服务端为准(stale 客户端不推翻同 id 域 owner/status)；登录态以服务端为准(先清陈旧角色/登录弹窗)
 - `auth.js/gate.js`: 先清陈旧登录态，角色以服务端为准；登录成功关残留登录弹窗
 
-#### 🔐 NPIVAL 域负责人登记 + 域更名 Security (2026-10-04)
-- 四子系统登录统一（共用 3002 统一用户库），NPIVAL 在 gpu-tracker 登记为域负责人
-- `DOMAIN_OWNER_USER_KEY` 登记 `npival→security`：npival 登录可编辑（页面上被改名的）Security 域；login/password 不变
+#### 🔐 域负责人登记 + 域更名 Security (2026-10-04)
+- 四子系统登录统一（共用统一用户库），登记一名域负责人账号可编辑（页面上被改名的）Security 域；login/password 不变
 
 ### v6.0.0 (2026-08-27)
 **BU 执行期核心迭代：每日状态时刻快照与自动总结体系 / Domain 测试用例进度列 / Domain 状态自动一致 / 三级权限体系与统一登录 / 深色主题统一**
@@ -289,7 +288,7 @@ enhanced-gpu-bu-daily-status-tracker/
 
 #### 🌙 深色主题统一
 
-- 与统一门户（8090）同一套设计令牌：深蓝面板、霓虹色板；覆盖区块容器、表单控件、select 原生下拉面板（color-scheme:dark + appearance:none + option 样式）、Chrome 自动填充、日期控件等全部浅色泄漏点
+- 与统一门户同一套设计令牌：深蓝面板、霓虹色板；覆盖区块容器、表单控件、select 原生下拉面板（color-scheme:dark + appearance:none + option 样式）、Chrome 自动填充、日期控件等全部浅色泄漏点
 
 #### ⚙️ 其他
 
@@ -1204,9 +1203,9 @@ v5.0 是对智能诊断系统的全面重构，修复了图片识别与元数据
 
 ```csv
 Bug ID,Domain,描述,严重性,状态,报告日期,负责人
-DEMO-B-77,PCIe接口 (PCIe Interface),PCIe链路训练失败，卡在Gen1,High,open,2026-04-15,Ge Qiang
-DEMO-B-78,HBM,HBM初始化报错ECC failure,Highest,open,2026-04-16,Xiaoming
-DEMO-B-79,FW,Bootrom启动超时,Medium,open,,Haiping
+DEMO-B-77,PCIe接口 (PCIe Interface),PCIe链路训练失败，卡在Gen1,High,open,2026-04-15,张三
+DEMO-B-78,HBM,HBM初始化报错ECC failure,Highest,open,2026-04-16,李四
+DEMO-B-79,FW,Bootrom启动超时,Medium,open,,王五
 ```
 
 ---
@@ -1330,9 +1329,9 @@ container.appendChild(emptyP);
 
 | URL | 行为 |
 |---|---|
-| `http://host:8088/` | 项目列表页，显示所有项目 + 切换器（管理员可创建/删除项目） |
-| `http://host:8088/demo-daily/` | 直接进入 GPU Bring Up 项目，隐藏切换器 |
-| `http://host:8088/project-demo/` | 直接进入项目二，隐藏切换器 |
+| `http://host:<port>/` | 项目列表页，显示所有项目 + 切换器（管理员可创建/删除项目） |
+| `http://host:<port>/demo-daily/` | 直接进入 GPU Bring Up 项目，隐藏切换器 |
+| `http://host:<port>/project-demo/` | 直接进入项目二，隐藏切换器 |
 
 #### 核心特性
 - **直接URL访问**: 每个项目可通过 `/:projectId/` 直接访问，无需先登录再切换
@@ -1610,7 +1609,7 @@ App.statusColors      // 常量映射
 ### Nginx配置参考
 ```nginx
 server {
-    listen 8088;
+    listen <port>;
     server_name _;
     
     root /var/www/gpu-tracker;

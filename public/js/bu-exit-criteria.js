@@ -95,7 +95,7 @@ var CRITERIA_DOMAIN_MAP = {
     'diagnostic': 'Diag',
     'ucie': 'UCIE',
     'iodie': 'IOD', 'iodieethernet': 'IOD', 'iodcl': 'IOD', 'iodieucie': 'IOD',
-    // 2026-09-28: DFT 是独立域(负责人 Chen Chen), 不应归属 JTAG 域(负责人 Huigui Liu) —— 否则准出标准 DFT 行显示错 owner
+    // 2026-09-28: DFT 是独立域, 不应归属 JTAG 域 —— 否则准出标准 DFT 行显示错 owner
     'dft': 'DFT'
 };
 

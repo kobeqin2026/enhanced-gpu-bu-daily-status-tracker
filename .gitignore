@@ -16,3 +16,9 @@ logs/
 # 临时文件
 *.tmp
 *.temp
+
+# 运行时数据与编译产物 (本地保留, 不入库)
+data/jira-cache/
+data/mail-report/
+__pycache__/
+*.pyc
