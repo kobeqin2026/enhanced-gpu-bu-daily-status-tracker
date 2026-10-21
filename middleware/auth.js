@@ -15,21 +15,13 @@ function authenticateToken(req, res, next) {
     }
     
     var allSessions = sessions.getSessions();
-    var session = null;
-    var sessionKeys = Object.keys(allSessions);
-    for (var i = 0; i < sessionKeys.length; i++) {
-        if (allSessions[sessionKeys[i]].token === token) {
-            session = allSessions[sessionKeys[i]];
-            break;
-        }
-    }
-    
+    var session = sessions.getSessionByToken ? sessions.getSessionByToken(token) : allSessions[token];
     if (!session) {
         return res.status(401).json({ success: false, message: '无效的 token' });
     }
     
     if (Date.now() - session.createdAt > 24 * 60 * 60 * 1000) {
-        delete allSessions[session.username];
+        delete allSessions[token];
         sessions.saveSessions();
         res.clearCookie('token');
         return res.status(401).json({ success: false, message: '登录已过期，请重新登录' });

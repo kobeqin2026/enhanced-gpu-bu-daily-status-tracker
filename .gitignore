@@ -5,6 +5,7 @@ server.log
 .env
 
 # 数据文件（敏感数据）
+archives/
 data/*.json
 data/*.bak
 data/*.lock
