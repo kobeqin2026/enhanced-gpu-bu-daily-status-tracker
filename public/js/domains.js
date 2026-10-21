@@ -107,7 +107,7 @@ function renderDomains(domains) {
 function searchJiraOwner() {
     var domain = App.data.domains.find(function(d) { return d.id === App.currentEditDomainId; });
     if (!domain) return;
-    var q = window.prompt('输入 JIRA 用户关键字(姓名或工号, 如 Feng 或 E00272):', '');
+    var q = window.prompt('输入 JIRA 用户关键字(姓名或工号):', '');
     if (q === null) return;  // 取消
     q = q.trim();
     if (!q) return;

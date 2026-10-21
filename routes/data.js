@@ -18,7 +18,7 @@ var logOperation = logger.logOperation;
 var CRITERIA_DOMAIN_MAP = {
     'firmware': 'FW', 'pcie': 'PCIE', 'ethernet': 'ETH', 'diagnostic': 'Diag',
     'ucie': 'UCIE', 'iodie': 'IOD', 'iodieethernet': 'IOD', 'iodcl': 'IOD', 'iodieucie': 'IOD',
-    // 2026-09-28: DFT 是独立域(负责人 Chen Chen), 不归属 JTAG 域 —— 与前端 bu-exit-criteria.js 保持一致
+    // 2026-09-28: DFT 是独立域, 不归属 JTAG 域 —— 与前端 bu-exit-criteria.js 保持一致
     'dft': 'DFT'
 };
 function normDomainKey(s) {
@@ -95,7 +95,7 @@ router.post('/', auth.authenticateToken, async function(req, res) {
         var serverVersion = (currentData && typeof currentData.version === 'number') ? currentData.version : undefined;
         // 客户端必须携带它加载到的 data.version。不传 version = 旧页面/脏快照:
         // 若放行整包保存, 会把服务器数据(含他人在别处刚提交的记录)覆盖成空/旧 → 丢记录(lost update)。
-        // 2026-10-03 实测: 不带 version 的 POST 会绕过下面的版本校验, 甚至把 br288y 覆盖成空板块。
+        // 2026-10-03 实测: 不带 version 的 POST 会绕过下面的版本校验, 甚至把项目数据覆盖成空板块。
         if (clientVersion === undefined) {
             console.log('[Data] 客户端未携带数据版本(疑似旧页面/脏快照), 按冲突拒绝 project=' + projectId);
             return res.status(409).json({
@@ -443,7 +443,7 @@ router.post('/daily-summary/mail-export/msg', auth.authenticateToken, async func
 
         var scriptPath = pathMod.join(__dirname, '..', 'scripts', 'gen_msg.py');
         var tmpOut = pathMod.join(osMod.tmpdir(), 'gpu-msg-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.msg');
-        var sender = 'gpu-tracker@birentech.com';
+        var sender = process.env.MAIL_SENDER || 'sender@example.com';
 
         if (!cp || !fsMod.existsSync(scriptPath)) {
             return res.status(500).json({ success: false, error: '.msg 生成器不可用 (scripts/gen_msg.py 缺失)' });

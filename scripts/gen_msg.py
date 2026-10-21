@@ -125,7 +125,7 @@ def _drop_property_entries(prop_bytes, drop_ids):
     return bytes(out)
 
 
-def make_msg(subject, body_text, sender='gpu-tracker@birentech.com'):
+def make_msg(subject, body_text, sender='sender@example.com'):
     """Build an Outlook-openable .msg by mirroring msg_template.msg.
 
     Copies every stream/storage of the template exactly (so Outlook finds every object the
@@ -193,11 +193,11 @@ def main(argv):
         payload = json.load(sys.stdin)
         subject = payload.get('subject', '')
         body = payload.get('body', '')
-        sender = payload.get('sender', 'gpu-tracker@birentech.com')
+        sender = payload.get('sender') or os.environ.get('MAIL_SENDER', 'sender@example.com')
     else:
         body = argv[2]
         out = argv[3]
-        sender = argv[4] if len(argv) > 4 else 'gpu-tracker@birentech.com'
+        sender = argv[4] if len(argv) > 4 else os.environ.get('MAIL_SENDER', 'sender@example.com')
     data = make_msg(subject, body, sender)
     with open(out, 'wb') as f:
         f.write(data)

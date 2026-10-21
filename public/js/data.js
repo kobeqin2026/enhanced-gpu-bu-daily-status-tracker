@@ -151,7 +151,7 @@ async function loadDataFromAPI() {
         if (typeof loadJiraDomainProjects === 'function') loadJiraDomainProjects();
         
         // 2026-09-30: 项目配置了 jiraProject → 每次页面加载自动从 JIRA 拉取最新 Bug 并同步进本地(主页面Bug表)
-        // 2026-10-02: 不再要求 bugs 数组为空(原逻辑只要 bugs 非空就不自动拉, 导致 BR288Y-1615 等新 bug 不出现);
+        // 2026-10-02: 不再要求 bugs 数组为空(原逻辑只要 bugs 非空就不自动拉, 导致新拉取的 bug 不出现);
         //   _autoJiraBugSync 防同一次页面加载内重复触发(flag 在页面刷新后重置, 即每次页面加载同步一次)
         if (!App._autoJiraBugSync) {
             var syncProj = (App.projectsList || []).find(function(p) { return p.id === App.currentProject; });

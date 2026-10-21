@@ -23,7 +23,7 @@ function tryHardwareLogin(name, password) {
         var body = JSON.stringify({ name: name, password: password });
         var req = http.request({
             hostname: '127.0.0.1',
-            port: 3002,
+            port: Number(process.env.HARDWARE_AUTH_PORT || 3002), // Hardware 平台用户库端口(env 可配)
             path: '/api/users/login',
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }

@@ -1,7 +1,7 @@
 // JIRA Bug Dashboard - Frontend Logic
 // Chart.js via CDN: https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js
 
-// ============ 单点登录 / 项目透传 (门户 8090 -> 这里): URL ?token=&project= ============
+// ============ 单点登录 / 项目透传 (门户 -> 这里): URL ?token=&project= ============
 // 门户登录后免登录跳转: token = gpu-tracker 的会话 token (经 Authorization: Bearer 使用),
 // project = 门户 JIRA 项目选择; 为空表示"全部项目"。跨端口 cookie 不共享, 故 token 走 URL (内网环境)。
 var __urlParams = new URLSearchParams(location.search);

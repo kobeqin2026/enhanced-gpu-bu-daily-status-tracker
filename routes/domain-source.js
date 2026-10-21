@@ -117,7 +117,7 @@ router.get('/domain-source', auth.authenticateToken, async function(req, res) {
     }
 });
 
-// POST /api/data/domain-source/sync?project=br288y&jiraProject=XXXX — 组件 upsert 进 domains
+// POST /api/data/domain-source/sync?project=<project-id>&jiraProject=XXXX — 组件 upsert 进 domains
 router.post('/domain-source/sync', auth.authenticateToken, async function(req, res) {
     var projectId = req.query.project || (process.env['DAILY_PROJECT'] || 'demo-daily');
     var jiraProj = sourceProject(req);

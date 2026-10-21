@@ -4,7 +4,7 @@
 // 故拆分为独立 gate.js, 只做登录门 + 用户状态, 不触碰 dashboard 数据。
 // 依赖: App (globals.js), auth.js 的 updateUIBasedOnRole, data.js 的 loadDataFromAPI
 
-// ============ 门户 8090 免登录跳转 (SSO): URL ?token= ============
+// ============ 门户免登录跳转 (SSO): URL ?token= ============
 // 与 jira-dashboard.js 同款: 门户登录后拿 tracker token 走 URL 透传 (跨端口 cookie 不共享)。
 // 这里读取 ?token= 并在拿到用户后全局注入 Authorization: Bearer, 使本页所有 /api 请求都带认证。
 var __urlParams = new URLSearchParams(location.search);
