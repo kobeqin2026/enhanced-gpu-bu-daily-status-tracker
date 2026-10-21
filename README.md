@@ -1,7 +1,7 @@
 # GPU Bring-up Daily Status Tracker
 
 ![GPU Issue Debug Expert](https://img.shields.io/badge/GPU%20Issue%20Debug%20Expert-blue)
-![Version](https://img.shields.io/badge/version-v6.1.0-blue)
+![Version](https://img.shields.io/badge/version-v6.2.0-blue)
 
 一个用于追踪GPU芯片Bring-up进度的Web应用，支持多项目切换、用户权限管理和实时协作。
 
@@ -190,6 +190,26 @@ enhanced-gpu-bu-daily-status-tracker/
 - `GET /api/data/jira-dashboard-history/:project` - 获取历史快照数据用于趋势分析
 
 ## 版本历史
+
+### v6.2.0 (2026-10-21)
+**BR288Y Stage1/Stage2 退出数据固化归档 / sessions 30 秒空写刷盘修复 / 归档脚本化**
+
+#### 🏁 项目退出数据固化归档 (2026-10-21)
+- BR288Y 项目 stage1 与 stage2 均已宣布退出（19 个 Domain 全部 completed、35 条 BU 准出标准全部 pass、version 949），项目数据一次性固化归档，为下个项目做准备
+- **新增 `scripts/archive-br288y.sh` 归档脚本**：
+  - 归档前强制校验主数据完整性——仅当「19 域全部 completed + 35 准出标准全部 pass」才放行归档，否则拒绝打包（防止半途数据被固化）
+  - 只读归档当前全部有效运行时数据：`data/br288y.json`（主数据：178 条每日进度、90 条 Bug、19 Domain、35 准出标准）、`data/br288y.daily-summaries.json`（32 条每日总结快照）、`data/projects.json`、`data/sessions.json`、`data/users.json`（现场快照）、`data/taihu*.json`（旧项目）、`data/jira-cache/`（JIRA 同步缓存）、`data/mail-report/`（每日邮件正文）、`data/uploads/`（附件）
+  - 排除 `*.bak` 备份文件（会话自动保存的历史残留，无归档价值）
+  - 产出 `archives/br288y-stage-exit-20261021.tar.gz`（364KB，双副本）并附解包清单
+- 归档产物解包后与源文件逐字节 `cmp` 比对全部一致，且双副本保存（仓库 `archives/` + 用户目录备份），`archives/` 已加入 `.gitignore`（内含会话 token，不入库）
+
+#### 🔧 sessions 30 秒空写刷盘修复 (2026-10-21)
+- **根因**：`lib/sessions.js` 的 `startAutoSave` 每 30 秒无条件调用 `saveSessions` → `dataStore.safeWriteJSON` 每次都真实写盘并落一个带时间戳的 `.bak`——即使会话毫无变化。3 个月累积 **25.5 万个** `sessions.json.*.bak`（每次 340 字节，`data/` 膨胀到 1.8GB / 25.6 万文件），且持续以每小时 120 个文件的速度增长
+- **修复**：`saveSessions` 增加变更检测——序列化当前内存会话与上次成功落盘内容比对，无变化直接跳过写盘；`loadSessions` 建立初始基线；新增/删除会话（登录/登出）时仍立即精确落盘一次
+- 意义：下个项目继续运行时不再产生垃圾备份文件，目录不再膨胀；修复后线上实测 `pm2 restart` 后 70+ 秒零新增备份（修复前每 30 秒一个）
+
+#### 📦 同版本收尾
+- jira-cache 收尾入账：BH200-history.json 缓存、BR288Y-history 更新；mail-report 补录 2026-10-10 ~ 10-14 五期日报正文
 
 ### v6.1.0 (2026-10-04)
 **Debug Progress 时间戳化 / 会议模式聚焦 / 增量 AI 归纳 / 保存丢记录根因修复 / 域负责人默认域 / NPIVAL 域负责人登记**
