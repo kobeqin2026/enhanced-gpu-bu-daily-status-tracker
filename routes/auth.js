@@ -91,7 +91,9 @@ router.post('/login', async function(req, res) {
         var token = generateToken(username);
         var allSessions = getSessions();
         
-        allSessions[username] = {
+        // 会话按 token 作键 (支持同用户多会话): 再次登录不再覆盖旧会话, 避免旧 cookie 被孤儿化 →
+        // 旧 cookie 保存请求被 authenticateToken 判 401 "无效的 token" → 前端"保存失败"。
+        allSessions[token] = {
             username: user.username,
             role: user.role,
             name: user.name,
@@ -130,17 +132,10 @@ router.post('/logout', async function(req, res) {
         
         if (token) {
             var allSessions = getSessions();
-            var session = null;
-            var keys = Object.keys(allSessions);
-            for (var i = 0; i < keys.length; i++) {
-                if (allSessions[keys[i]].token === token) {
-                    session = allSessions[keys[i]];
-                    break;
-                }
-            }
+            var session = allSessions[token];
             if (session) {
                 logOperation(session.username, 'LOGOUT', 'users');
-                delete allSessions[session.username];
+                delete allSessions[token];
                 console.log('User logged out: ' + session.username);
                 await saveSessions();
             }

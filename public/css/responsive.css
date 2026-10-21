@@ -84,6 +84,12 @@
     .bu-exit-criteria-table td:nth-child(4), .bu-exit-criteria-table th:nth-child(4) { min-width: 120px; }
     .bu-exit-criteria-table td:nth-child(5), .bu-exit-criteria-table th:nth-child(5) { min-width: 100px; }
     .bu-exit-criteria-table td:nth-child(6), .bu-exit-criteria-table th:nth-child(6) { min-width: 80px; }
+    /* 2026-10-10: 弹窗小屏适配 —— 接近全宽 + 宽松高度 + 按钮/工具条换行 */
+    .modal { padding: 8px; }
+    .modal-content { max-height: 92vh; }
+    .modal-content .modal-buttons, .modal-content .modal-footer { flex-wrap: wrap; justify-content: flex-end; }
+    .modal-content input, .modal-content select, .modal-content textarea { max-width: 100%; box-sizing: border-box; }
+    .summary-control-bar, .summary-tabs, .mail-export-controls { flex-wrap: wrap; }
 }
 
 /* ==================== Tablet Responsive (769px - 1024px) ==================== */
@@ -101,4 +107,5 @@
     .bu-exit-criteria-table th, .bu-exit-criteria-table td {
         padding: 10px 8px;
     }
+    .modal-content { max-height: 92vh; }
 }

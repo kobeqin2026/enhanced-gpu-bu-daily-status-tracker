@@ -69,6 +69,14 @@
     text-overflow: ellipsis;
     max-width: 200px;
 }
+
+/* Domain Overview 备注列: 固定列宽 + 超长省略 + 悬停显示全文, 避免长备注撑破表格排版 (2026-10-04) */
+.status-table td.notes-cell {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
+}
 .bug-description, .task-description, .daily-content, .bu-criteria-content {
     white-space: normal !important;
     max-width: 300px !important;

@@ -140,9 +140,10 @@ router.delete('/:id', auth.authenticateToken, auth.requireAdmin, async function(
         await saveUsers(allUsers);
         
         var allSessions = sessions.getSessions();
-        if (allSessions[userId]) {
-            delete allSessions[userId];
-        }
+        // 会话按 token 作键: 登出该用户全部会话 (一个用户可有多个并发会话)
+        Object.keys(allSessions).forEach(function(k) {
+            if (allSessions[k] && allSessions[k].username === userId) delete allSessions[k];
+        });
         
         logOperation(req.user.username, 'DELETE', 'users', { targetUser: userId, role: deletedUser.role });
         console.log('User deleted: ' + userId + ' by ' + req.user.username);
@@ -195,10 +196,11 @@ router.put('/:id', auth.authenticateToken, async function(req, res) {
         await saveUsers(allUsers);
         
         var allSessions = sessions.getSessions();
-        if (allSessions[userId]) {
-            var updated = allUsers.find(function(u) { return u.username === userId; });
-            allSessions[userId].role = updated.role;
-        }
+        // 会话按 token 作键: 同步该用户全部会话的角色 (一个用户可有多个并发会话)
+        var updated = allUsers.find(function(u) { return u.username === userId; });
+        Object.keys(allSessions).forEach(function(k) {
+            if (allSessions[k] && allSessions[k].username === userId) allSessions[k].role = updated.role;
+        });
         
         logOperation(req.user.username, 'UPDATE', 'users', { targetUser: userId, changes: { name: name, role: role } });
         console.log('User updated: ' + userId + ' by ' + currentUser.username);

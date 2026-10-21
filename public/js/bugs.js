@@ -205,6 +205,7 @@ function renderBugs(bugs) {
         // Debug Progress (safe - LLM summary from JIRA comments or manual input)
         // 2026-10-01: 渲染为时间戳记录列表(新→旧), 每条 AI归纳 前带时间戳; 仅管理员可见 AI归纳/添加/每条编辑按钮
         // 2026-10-02: 每条记录各自带 ✏️(编辑该条), 行级不再提供单一"编辑"
+        // 2026-10-11: 只留最新的一条 — 不再累积历史, 仅展示/保存唯一的最新记录(hasProgress=false 仍标"⚠ 无显著进展")
         var progressCell = document.createElement('td');
         progressCell.className = 'debug-progress-cell';
         var progressRecords = bugProgressRecords(bug);
@@ -367,38 +368,31 @@ async function syncJiraBugsToProject() {
 
 // ==================== Debug Progress (AI归纳 + 手工输入) ====================
 
-// 取某 bug 的调试进展记录列表 (无 history 时回退单条文本)
+// 2026-10-11: 只留最新的一条 — 恒返回唯一的最新记录 (镜像字段 debugProgress 等本身即最新一条), 不再读取历史累积
 function bugProgressRecords(bug) {
-    if (bug && Array.isArray(bug.debugProgressHistory) && bug.debugProgressHistory.length) {
-        return bug.debugProgressHistory;
-    }
-    if (bug && bug.debugProgress) {
-        return [{ text: bug.debugProgress, timestamp: bug.debugProgressUpdatedAt, source: bug.debugProgressSource }];
-    }
-    return [];
+    if (!bug) return [];
+    var text = bug.debugProgress;
+    if (!text || !String(text).trim()) return [];
+    var rec = { text: text, timestamp: bug.debugProgressUpdatedAt, source: bug.debugProgressSource };
+    if (bug.debugProgressHasProgress === false) rec.hasProgress = false;
+    return [rec];
 }
 
-// 取"上一次 AI 归纳"的文本 (用于判断本次是否明显进展): 优先 history 里最近一条 source==='llm', 否则当前 debugProgress(仅当为 llm)
+// 取"上一次 AI 归纳"的文本 (用于判断本次是否明显进展): 最新记录(镜像字段)且来源为 llm
 function getPrevAiSummary(bug) {
     if (!bug) return '';
-    if (Array.isArray(bug.debugProgressHistory)) {
-        for (var i = bug.debugProgressHistory.length - 1; i >= 0; i--) {
-            if (bug.debugProgressHistory[i] && bug.debugProgressHistory[i].source === 'llm' && bug.debugProgressHistory[i].text) {
-                return bug.debugProgressHistory[i].text;
-            }
-        }
-    }
     if (bug.debugProgressSource === 'llm' && bug.debugProgress) return bug.debugProgress;
     return '';
 }
 
-// 追加一条进展记录并回写最新字段 (供 AI归纳 记录 / 手工编辑复用)
+// 2026-10-11: 只留最新的一条 — 新记录直接覆盖旧记录(不累积历史); 镜像字段本身即最新一条, 并清掉历史累积
 function appendBugProgressRecord(bug, rec) {
-    if (!bug.debugProgressHistory) bug.debugProgressHistory = [];
-    bug.debugProgressHistory.push(rec);
     bug.debugProgress = rec.text;
     bug.debugProgressSource = rec.source;
     bug.debugProgressUpdatedAt = rec.timestamp;
+    if (rec.hasProgress === false) bug.debugProgressHasProgress = false;
+    else delete bug.debugProgressHasProgress;
+    delete bug.debugProgressHistory;
 }
 
 // ISO → YYYY-MM-DD HH:mm 时间戳展示
@@ -497,15 +491,15 @@ function createDebugProgressItem(rec, bug) {
     return item;
 }
 
-// 编辑弹窗: rec 指定要编辑的某条记录(不传则编辑最新一条/唯一的 debugProgress)
+// 2026-10-11: 只留最新的一条 → 编辑即为修改唯一的最新记录 (rec 参数保留仅为兼容旧调用, 忽略)
 function editBugProgress(bugId, rec) {
     var bug = App.data.bugs.find(function(b) { return b.id === bugId; });
     if (!bug) return;
     App.currentEditProgressBugId = bugId;
-    App.currentEditProgressRec = rec || null;
-    App.currentProgressMode = rec ? 'editRec' : 'editLatest';
+    App.currentEditProgressRec = null;
+    App.currentProgressMode = 'editLatest';
     document.getElementById('edit-progress-bugid').value = bug.bugId || '';
-    document.getElementById('edit-progress-text').value = (rec ? (rec.text || '') : (bug.debugProgress || ''));
+    document.getElementById('edit-progress-text').value = bug.debugProgress || '';
     setProgressModalMode('edit');
     openModal('edit-progress-modal');
 }
@@ -535,16 +529,6 @@ function closeEditProgressModal() {
     App.currentProgressMode = null;
 }
 
-// 编辑后保持"最新"字段(debugProgress/debugProgressUpdatedAt/debugProgressSource)指向历史里最新一条, 供 daily-summary 等使用
-function syncDebugProgressLatest(bug) {
-    if (Array.isArray(bug.debugProgressHistory) && bug.debugProgressHistory.length) {
-        var last = bug.debugProgressHistory[bug.debugProgressHistory.length - 1];
-        bug.debugProgress = last.text;
-        bug.debugProgressSource = last.source;
-        bug.debugProgressUpdatedAt = last.timestamp;
-    }
-}
-
 function saveEditedProgress() {
     if (!App.currentEditProgressBugId) return;
     var bug = App.data.bugs.find(function(b) { return b.id === App.currentEditProgressBugId; });
@@ -553,23 +537,15 @@ function saveEditedProgress() {
     if (!text) { alert('调试进展内容不能为空'); return; }
 
     if (App.currentProgressMode === 'add') {
-        // 新增: 追加一条 source='manual' + 独立时间戳
+        // 2026-10-11: 只留最新一条 → 手动添加即覆盖为唯一的最新记录(source='manual' + 独立时间戳)
         appendBugProgressRecord(bug, { text: text, timestamp: new Date().toISOString(), source: 'manual' });
     } else {
-        var hasHistory = Array.isArray(bug.debugProgressHistory) && bug.debugProgressHistory.length;
-        if (hasHistory) {
-            // 编辑某条记录: 若指定了且确在历史数组里则改那条, 否则改最新一条; 保留该条时间戳/source
-            var rec = (App.currentEditProgressRec && bug.debugProgressHistory.indexOf(App.currentEditProgressRec) !== -1)
-                ? App.currentEditProgressRec
-                : bug.debugProgressHistory[bug.debugProgressHistory.length - 1];
-            rec.text = text;
-            syncDebugProgressLatest(bug);
-        } else {
-            // 仅单条 debugProgress(无历史) → 原地更新
-            bug.debugProgress = text;
-            bug.debugProgressUpdatedAt = new Date().toISOString();
-            bug.debugProgressSource = bug.debugProgressSource || 'manual';
-        }
+        // 2026-10-11: 只留最新的一条 → 编辑即为原地更新唯一的最新记录
+        bug.debugProgress = text;
+        bug.debugProgressUpdatedAt = new Date().toISOString();
+        bug.debugProgressSource = bug.debugProgressSource || 'manual';
+        delete bug.debugProgressHasProgress; // 手动编辑后不再保留 LLM 的 hasProgress 标注
+        delete bug.debugProgressHistory;
     }
     saveAndRefresh('edit-progress-modal', renderBugs, 'bugs', function() {
         App.currentEditProgressBugId = null;
@@ -580,8 +556,8 @@ function saveEditedProgress() {
 
 // ==================== 批量 AI 归纳所有 Debug Progress (2026-10-03) ====================
 // 遍历所有有JIRA单号的Bug逐个执行AI归纳:
-//   - 已有Debug Progress(任意来源) → 仅当LLM判定有新增内容(hasProgress!==false)才追加一条带时间戳记录; 无新增→跳过
-//   - 尚无Debug Progress → 首次归纳, 直接生成并追加一条记录
+//   - 已有Debug Progress(任意来源) → 仅当LLM判定有新增内容(hasProgress!==false)才更新为最新一条记录; 无新增→跳过
+//   - 尚无Debug Progress → 首次归纳, 直接生成一条记录
 // 逐条调用后端 /api/data/bug-debug-progress/summarize (单条请求, 不阻塞, 逐条刷新进度条)
 function getLatestProgressText(bug) {
     if (!bug) return '';
@@ -594,7 +570,7 @@ function getLatestProgressText(bug) {
 function setBatchProgressUI(fillEl, textEl, done, total, added, skipped, noComments, errors) {
     var pct = total ? Math.round(done / total * 100) : 100;
     fillEl.style.width = pct + '%';
-    var parts = [done + '/' + total, '新增' + added, '跳过' + skipped, '无评论' + noComments];
+    var parts = [done + '/' + total, '更新' + added, '跳过' + skipped, '无评论' + noComments];
     if (errors) parts.push('失败' + errors);
     textEl.textContent = parts.join('  |  ');
 }
@@ -612,7 +588,7 @@ async function batchSummarizeAllProgress() {
         return;
     }
     if (!confirm('将对 ' + total + ' 条有关联JIRA单号的Bug执行AI归纳：\n\n' +
-        '· 已有Debug Progress的，仅当JIRA有新增内容才追加一条带时间戳记录；\n' +
+        '· 已有Debug Progress的，仅当JIRA有新增内容才更新为最新一条记录；\n' +
         '· 无新增内容则跳过（保留原记录）；\n' +
         '· 尚无Debug Progress的，首次归纳生成一条记录。\n\n' +
         '每条会调用 JIRA + LLM，共约 ' + total + ' 次，耗时约几分钟，点击“确定”开始。')) {
@@ -675,7 +651,7 @@ async function batchSummarizeAllProgress() {
             renderBugs(App.data.bugs);
         }
 
-        var sumMsg = '批量AI归纳完成：新增 ' + added + ' 条，跳过(无新增) ' + skipped + ' 条，无评论 ' + noComments + ' 条' + (errors ? '，失败 ' + errors + ' 条' : '');
+        var sumMsg = '批量AI归纳完成：更新 ' + added + ' 条，跳过(无新增) ' + skipped + ' 条，无评论 ' + noComments + ' 条' + (errors ? '，失败 ' + errors + ' 条' : '');
         statusEl.textContent = '✓ ' + sumMsg;
         statusEl.style.display = 'block';
         showSyncStatus('✓ ' + sumMsg, 'success');

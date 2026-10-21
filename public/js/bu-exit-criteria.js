@@ -207,7 +207,7 @@ function updateBUSuccessBanner(criteriaList) {
             var proj = App.projectsList.find(function(p) { return p.id === App.currentProject; });
             if (proj) projectName = proj.name;
         }
-        banner.textContent = '🎉 ' + projectName + ' 项目顺利 Bringup 成功！';
+        banner.textContent = '🎉 ' + projectName + ' 项目stage1顺利 Bringup 成功！';
         banner.style.display = 'block';
         console.log('[BU-SUCCESS] banner SHOWN:', banner.textContent);
     } else {

@@ -100,7 +100,7 @@ function updateUIBasedOnRole() {
 function showLoginModal() {
     document.getElementById('login-username').value = '';
     document.getElementById('login-password').value = '';
-    document.getElementById('login-modal').style.display = 'block';
+    document.getElementById('login-modal').style.display = 'flex';
 }
 
 function closeLoginModal() {
@@ -229,7 +229,7 @@ function showUserManagementModal() {
         return;
     }
     
-    document.getElementById('user-management-modal').style.display = 'block';
+    document.getElementById('user-management-modal').style.display = 'flex';
     loadUserList();
 }
 
@@ -448,7 +448,7 @@ function showEditUserModal(username, name, role) {
     document.getElementById('edit-user-name').value = name;
     document.getElementById('edit-user-role').value = role;
     document.getElementById('edit-user-password').value = '';
-    document.getElementById('edit-user-modal').style.display = 'block';
+    document.getElementById('edit-user-modal').style.display = 'flex';
 }
 
 function closeEditUserModal() {

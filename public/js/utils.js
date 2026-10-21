@@ -104,7 +104,9 @@ function hideSyncStatus() {
 // ==================== Modal Helpers ====================
 
 function openModal(modalId) {
-    document.getElementById(modalId).style.display = 'block';
+    // 2026-10-10: 用 flex 显示(配合 .modal 的居中/超高滚动), 替代原 display:block
+    var el = document.getElementById(modalId);
+    if (el) el.style.display = 'flex';
 }
 
 function closeModal(modalId) {

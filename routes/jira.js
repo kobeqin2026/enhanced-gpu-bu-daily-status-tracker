@@ -311,12 +311,11 @@ var selectedProject;
 
             var labels = f.labels || [];
 
-            // 2026-09-30: domain 从 JIRA component 映射(组件名优先), 无则回退 labels[0] / TBD
+            // 2026-09-30: domain 从 JIRA component 映射(组件名优先); 无组件显示 TBD (不再回退 label)
+            // 2026-10-10: 去掉 label 回退 —— 与 dashboard 一致, domain 列严格对应 JIRA 组件
             var domain = 'TBD';
             if (f.components && f.components.length && f.components[0]) {
                 domain = f.components[0].name || 'TBD';
-            } else if (labels.length > 0) {
-                domain = labels[0];
             }
 
             var bug = {
@@ -660,6 +659,8 @@ router.post('/jira-dashboard', auth.authenticateToken, async function(req, res) 
         var project = req.body.project || null;
         var projects = req.body.projects || [];
         var includeClosed = req.body.includeClosed !== false; // default true for dashboard
+        var reportDateFrom = req.body.reportDateFrom || null;
+        var reportDateTo = req.body.reportDateTo || null;
         var jql;
 
         if (projects.length > 0) {
@@ -688,6 +689,16 @@ router.post('/jira-dashboard', auth.authenticateToken, async function(req, res) 
 
         // Fetch bugs from JIRA
         var allBugs = await fetchJiraBugs(authHeader, jql, maxResults);
+
+        // 报告日期筛选 (按 reportDate 含端点, YYYY-MM-DD 字符串比较)
+        if (reportDateFrom || reportDateTo) {
+            allBugs = allBugs.filter(function(b) {
+                var d = b.reportDate || '';
+                if (reportDateFrom && d < reportDateFrom) return false;
+                if (reportDateTo && d > reportDateTo) return false;
+                return true;
+            });
+        }
 
         // Build dashboard stats
         var stats = computeDashboardStats(allBugs);
@@ -849,11 +860,11 @@ function fetchJiraBugs(authHeader, jql, maxResults) {
                             }
                         }
 
-                        // Domain priority: first label -> first component -> TBD
+                        // Domain priority: first component -> TBD
+                        // 2026-10-10: 去掉 label 回退 —— domain 列严格对应 JIRA 组件, 无组件显示 TBD
+                        // (此前 labels 回退会把 bringup/sublas 等 label 当作域名显示, 与组件不对应)
                         var domain = 'TBD';
-                        if (labels.length > 0) {
-                            domain = labels[0];
-                        } else if (componentNames.length > 0) {
+                        if (componentNames.length > 0) {
                             domain = componentNames[0];
                         }
 

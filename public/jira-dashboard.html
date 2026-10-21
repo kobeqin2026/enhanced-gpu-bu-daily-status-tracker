@@ -31,6 +31,16 @@
         .control-group label { color: #e6e9f2 !important; }
         .refresh-btn { background: #1d2436 !important; color: #4f8cff !important; border: 1px solid #2a3350 !important; }
         .kpi-label { color: #8b93a7 !important; }
+        /* 报告日期筛选控件深色主题 (与 control-bar 一致) */
+        #report-date-from, #report-date-to {
+            background: #1d2436 !important;
+            border: 1px solid #2a3350 !important;
+            border-radius: 6px !important;
+            color: #e6e9f2 !important;
+            padding: 6px 10px !important;
+            font-size: 13px !important;
+            color-scheme: dark !important;
+        }
         .chart-card {
             background: #171d2b !important;
             border: 1px solid #2a3350 !important;
@@ -183,12 +193,22 @@
             <div class="control-group">
                 <label><input type="checkbox" id="include-closed" checked onchange="onFilterChange()"> 包含已关闭</label>
                 <label>时间范围:
-                    <select id="time-range" onchange="onFilterChange()">
+                    <select id="time-range" onchange="onTimeRangeChange()">
                         <option value="all">全部</option>
                         <option value="30">最近30天</option>
                         <option value="14">最近14天</option>
                         <option value="7">最近7天</option>
                     </select>
+                </label>
+            </div>
+            <!-- 报告日期筛选 (按 reportDate) -->
+            <div class="control-group">
+                <label style="display:flex; align-items:center; gap:6px;">
+                    <span>报告日期:</span>
+                    <input type="date" id="report-date-from" onchange="onReportDateChange()" />
+                    <span>~</span>
+                    <input type="date" id="report-date-to" onchange="onReportDateChange()" />
+                    <button class="clear-btn" onclick="clearReportDate()" title="清除报告日期筛选" style="padding:6px 10px;">✕</button>
                 </label>
             </div>
 
@@ -200,10 +220,11 @@
                 <label>自动刷新:
                     <select id="auto-refresh" onchange="toggleAutoRefresh()">
                         <option value="0">关闭</option>
-                        <option value="300000">5分钟</option>
+                        <option value="300000" selected>5分钟</option>
                         <option value="900000">15分钟</option>
                         <option value="1800000">30分钟</option>
                     </select>
+                    <span id="auto-refresh-status" style="margin-left:8px; font-size:12px;"></span>
                 </label>
             </div>
         </div>
@@ -403,6 +424,6 @@
         </div>
     </div>
 
-    <script src="/js/jira-dashboard.js?v=43"></script>
+    <script src="/js/jira-dashboard.js?v=52"></script>
 </body>
 </html>

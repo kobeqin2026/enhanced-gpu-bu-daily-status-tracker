@@ -1,5 +1,15 @@
 // Domain rendering and management
 
+// ===== 域编辑脏标记 (2026-10-04) =====
+// 背景: 页面加载自动 JIRA 同步(import-jira)会推进服务端 data.version; 若用户在同步回读完成前保存,
+//   客户端携带的 version 是旧值 → POST 409 冲突 → retrySaveWithMerge 合并时 domains 默认"以服务端为准"
+//   (防旧快照顶回服务端已更新的 owner/状态) → 用户刚编辑的备注/负责人/状态被丢弃 = "第一次保存不上"。
+// 解法: 用户本次会话直接编辑过的域打上脏标记, 合并时该域客户端版本优先; 保存成功后统一清除。
+var _dirtyDomainIds = {};
+function markDomainDirty(id) { if (id) _dirtyDomainIds[id] = true; }
+function getDirtyDomainIds() { return _dirtyDomainIds; }
+function clearDirtyDomainIds() { _dirtyDomainIds = {}; }
+
 function renderDomains(domains) {
     var tbody = getTableBody('domains-body');
     updateDomainActionThVisibility();
@@ -58,9 +68,11 @@ function renderDomains(domains) {
         tcCell.textContent = '…';
         row.appendChild(tcCell);
         
-        // Notes cell (safe)
+        // Notes cell (safe) — 固定列宽+超长省略+悬停显示全文, 避免长备注撑破表格排版 (2026-10-04)
         var notesCell = document.createElement('td');
+        notesCell.className = 'notes-cell';
         notesCell.textContent = domain.notes || '';
+        notesCell.title = domain.notes || '';
         row.appendChild(notesCell);
         
         // Actions cell (编辑: 仅 admin 或该 domain 的 owner 创建; 其他 domain 操作列留空=只读; 删除: 仅 admin)
@@ -195,6 +207,9 @@ function saveEditedDomain() {
     }
     domain.notes = document.getElementById('edit-domain-notes').value.trim();
     
+    // 本次会话编辑过该域 → 合并冲突时客户端优先 (防备注/负责人被 stale 合并丢弃, 2026-10-04)
+    markDomainDirty(domain.id);
+    
     saveAndRefresh('edit-domain-modal', renderDomains, 'domains', function() { App.currentEditDomainId = null; });
 }
 
@@ -212,6 +227,7 @@ function updateDomainStatus(domainId, newStatus) {
         domain.status = newStatus;
         domain.statusManual = true; // 手动状态不被自动一致性覆盖 (2026-09-10)
         if (newStatus === 'not-started') { domain.startDate = ''; domain.endDate = ''; } // 选未完成清空BU窗口 (2026-09-10)
+        markDomainDirty(domain.id);
         persistData();
         renderDomains(App.data.domains);
     }
@@ -231,6 +247,7 @@ function updateDomainTime(domainId, field, value) {
         }
     }
     domain[field] = value;
+    markDomainDirty(domain.id);
     persistData();
     renderDomains(App.data.domains);
 }

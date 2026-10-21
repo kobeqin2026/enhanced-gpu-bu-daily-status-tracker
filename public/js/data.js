@@ -213,6 +213,9 @@ async function saveDataToAPI() {
         console.error('Failed to save data to API:', error);
         showSyncStatus('⚠ 保存失败：记录尚未写入服务器(可能被限流/网络)，已暂留本页；请保存重试，刷新前先核对，避免丢记录', 'error');
         return false;
+    } finally {
+        // 保存流程(含合并重试)结束 → 清空域脏标记: 脏标记只覆盖"当前这笔待保存的编辑" (2026-10-04)
+        if (typeof clearDirtyDomainIds === 'function') clearDirtyDomainIds();
     }
 }
 
@@ -236,13 +239,32 @@ function mergeDataById(latest, local, preferServer) {
     return out;
 }
 
+// 域合并: 服务端集中维护的实体. 旧快照不推翻服务端 owner/状态, 但"本次会话刚编辑过的域"(脏标记)客户端优先,
+// 避免合并重试把用户刚填写/修改的备注/负责人/状态顶回服务端旧值 (2026-10-04 修复"第一次保存不上")
+function mergeDomainsPreservingEdits(latest, local) {
+    var dirty = (typeof getDirtyDomainIds === 'function') ? getDirtyDomainIds() : null;
+    var latestIds = (latest || []).map(function(x) { return x && x.id; });
+    var out = (latest || []).slice();
+    (local || []).forEach(function(l) {
+        if (!l || !l.id) return;
+        var idx = latestIds.indexOf(l.id);
+        if (idx >= 0) {
+            if (dirty && dirty[l.id]) out[idx] = l;  // 本会话刚编辑过 → 客户端优先
+        } else {
+            out.push(l);  // 客户端新增的域 → 保留
+        }
+    });
+    return out;
+}
+
 async function retrySaveWithMerge(latestData) {
     try {
         var merged = latestData || {};
-        ['domains', 'bugs', 'dailyProgress', 'buExitCriteria'].forEach(function(key) {
-            // domains: 服务端为准(域集中维护, stale 客户端不推翻服务端同 id 域的 owner/状态 — 防"刚设的 owner 被顶回");
+        // domains: 服务端为准, 但"本次会话刚编辑过的域"(脏标记)客户端优先 —— 防止合并重试丢弃刚编辑的备注/负责人/状态 (2026-10-04)
+        merged.domains = mergeDomainsPreservingEdits((merged.domains || []), (App.data.domains || []));
+        ['bugs', 'dailyProgress', 'buExitCriteria'].forEach(function(key) {
             // 其余记录: 客户端同 id 覆盖(客户端新造/编辑的记录以客户端为准)
-            merged[key] = mergeDataById((merged[key] || []), (App.data[key] || []), key === 'domains');
+            merged[key] = mergeDataById((merged[key] || []), (App.data[key] || []), false);
         });
         App.data = merged;
         // 重存 (携带合并后的最新 version)

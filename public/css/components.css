@@ -143,15 +143,22 @@
     width: 100%;
     height: 100%;
     background-color: rgba(0,0,0,0.5);
+    /* 2026-10-10: 弹窗响应式 —— flex 居中 + 边缘留白 + 超高兜底滚动 */
+    overflow-y: auto;
+    padding: 16px;
+    box-sizing: border-box;
 }
 .modal-content {
     background-color: #fefefe;
-    margin: 15% auto;
+    margin: auto;          /* flex 容器内自动居中 (水平+垂直), 内容超高时不会被裁切 */
     padding: 20px;
     border: 1px solid #888;
-    width: 80%;
+    width: 100%;           /* 填满 .modal 内容区(已扣 padding), 配合 max-width */
     max-width: 600px;
+    max-height: 90vh;      /* 永不超高 viewport */
+    overflow: auto;        /* 内容超高/超宽时内部滚动, 按钮/输入不致被裁 */
     border-radius: 8px;
+    box-sizing: border-box;
 }
 .modal h3 {
     margin-top: 0;

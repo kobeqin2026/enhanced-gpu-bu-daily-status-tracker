@@ -211,6 +211,8 @@ function enterDashboard() {
     if (qa) qa.style.display = 'flex';
     // 仅 JIRA Dashboard 页面才加载 dashboard 数据; index.html 借用 gate 门只放行主界面
     if (cb) loadJiraProjects();
+    // 2026-10-07: 进入看板默认开启自动刷新(每5分钟), 也可用"同步JIRA数据"按钮手动触发
+    startAutoRefresh();
 }
 
 async function gateLoginSubmit() {
@@ -438,6 +440,7 @@ function clearDashboard() {
         clearInterval(Dashboard.autoRefreshTimer);
         Dashboard.autoRefreshTimer = null;
     }
+    updateAutoRefreshStatus();
 
     showSyncStatus('✓ 数据已清空', 'success');
 }
@@ -449,12 +452,17 @@ async function fetchDashboardData() {
     var singleProject = document.getElementById('project-select').value;
     var multiProjects = Dashboard.selectedProjects;
     var includeClosed = document.getElementById('include-closed').checked;
-    var timeRange = document.getElementById('time-range').value;
 
     var body = {
         includeClosed: includeClosed,
         maxResults: 500
     };
+
+    // 报告日期筛选 (服务端过滤, 使表格/卡片/图表一致)
+    var reportDateFrom = document.getElementById('report-date-from').value;
+    var reportDateTo = document.getElementById('report-date-to').value;
+    if (reportDateFrom) body.reportDateFrom = reportDateFrom;
+    if (reportDateTo) body.reportDateTo = reportDateTo;
 
     if (multiProjects.length > 0) {
         body.projects = multiProjects;
@@ -483,14 +491,6 @@ async function fetchDashboardData() {
         if (data.success) {
             Dashboard.allBugs = data.bugs || [];
 
-            // Apply time range filter
-            if (timeRange !== 'all') {
-                var daysAgo = new Date(Date.now() - parseInt(timeRange) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-                Dashboard.allBugs = Dashboard.allBugs.filter(function(b) {
-                    return b.reportDate >= daysAgo;
-                });
-            }
-
             populateTagFilter(Dashboard.allBugs);
             renderKPI(data.stats);
             renderCharts(data.charts);
@@ -503,6 +503,7 @@ async function fetchDashboardData() {
             document.getElementById('bug-table-section').style.display = 'block';
             document.getElementById('last-updated').style.display = 'block';
             document.getElementById('last-updated-text').textContent = '最后更新: ' + new Date().toLocaleString('zh-CN');
+            updateAutoRefreshStatus();
         } else {
             var errMsg = data.error || data.message || '未知错误';
             showError('获取数据失败: ' + errMsg);
@@ -668,27 +669,59 @@ function renderSeverityChart(severityCount, severityOpenCount) {
 
     if (Dashboard.charts.severity) Dashboard.charts.severity.destroy();
 
-    // 自定义插件: 在每根柱顶端绘制 "未关X / 共Y"
-    var severityTotalLabel = {
-        id: 'severityTotalLabel',
+    // 自定义插件: 柱段上标注数字 (彩色=未关闭, 灰=已关闭); 段太小时强制最小可视高度, 保证小值类目(Highest/Low)可读
+    var severityBarLabels = {
+        id: 'severityBarLabels',
         afterDatasetsDraw: function(chart) {
             if (!chart || !chart.data || !chart.data.datasets[0]) return;
             var c = chart.ctx;
             var openArr = chart.data.datasets[0].data || [];
             var closeArr = chart.data.datasets[1].data || [];
-            var yScale = chart.scales.y;
+            var segMin = 15; // 最小段显示高度(px), 让小值类目也能看清
+            function drawNum(text, x, y) {
+                c.lineWidth = 3;
+                c.strokeStyle = 'rgba(0,0,0,0.55)';
+                c.fillStyle = '#ffffff';
+                c.strokeText(text, x, y);
+                c.fillText(text, x, y);
+            }
+            function drawRect(x, y, w, h, r, fill) {
+                c.fillStyle = fill;
+                c.beginPath();
+                if (c.roundRect) c.roundRect(x, y, w, h, r);
+                else c.rect(x, y, w, h);
+                c.fill();
+            }
             c.save();
-            c.fillStyle = '#e6e9f2';
-            c.font = '11px sans-serif';
+            c.font = 'bold 11px sans-serif';
             c.textAlign = 'center';
-            c.textBaseline = 'bottom';
-            openArr.forEach(function(open, i) {
-                var total = open + (closeArr[i] || 0);
-                if (total <= 0) return;
-                var x = chart.getDatasetMeta(0).data[i].x;
-                var y = yScale ? yScale.getPixelForValue(total) : chart.getDatasetMeta(0).data[i].y;
-                c.fillText('未关' + open + '/' + total, x, (y || 0) - 6);
-            });
+            c.textBaseline = 'middle';
+            for (var i = 0; i < openArr.length; i++) {
+                var open = openArr[i] || 0;
+                var closed = closeArr[i] || 0;
+                var total = open + closed;
+                if (total <= 0) continue;
+                var el0 = chart.getDatasetMeta(0).data[i];
+                var el1 = chart.getDatasetMeta(1).data[i];
+                var x = el0.x;
+                var w = el0.width || 0;
+                var b0 = (typeof el0.base === 'number') ? el0.base : el0.y;
+                var b1 = (typeof el1.base === 'number') ? el1.base : el1.y;
+                var col0 = chart.data.datasets[0].backgroundColor[i] || '#999';
+                var col1 = chart.data.datasets[1].backgroundColor || 'rgba(149,165,166,0.5)';
+                var hOpenTrue = Math.abs(b0 - el0.y);
+                var hClosedTrue = Math.abs(b1 - el1.y);
+                var coloredBottom = Math.max(el0.y, b0);                 // 彩色段底(=0)
+                var coloredTop = coloredBottom - Math.max(hOpenTrue, segMin);
+                var grayBottom = coloredTop;                             // 灰段叠在彩色段上方
+                var grayTop = grayBottom - Math.max(hClosedTrue, segMin);
+                // 仅当段被强制放大时重画该段, 否则保留 Chart.js 原图
+                if (open > 0 && hOpenTrue < segMin) drawRect(x - w/2, coloredTop, w, Math.max(hOpenTrue, segMin), 4, col0);
+                if (closed > 0 && hClosedTrue < segMin) drawRect(x - w/2, grayTop, w, Math.max(hClosedTrue, segMin), 4, col1);
+                // 数字: 彩色(未关闭)段=未关闭数, 灰(已关闭)段=已关闭数; 柱上不显示总数
+                if (open > 0) drawNum(String(open), x, (coloredTop + coloredBottom) / 2);
+                if (closed > 0) drawNum(String(closed), x, (grayTop + grayBottom) / 2);
+            }
             c.restore();
         }
     };
@@ -707,7 +740,8 @@ function renderSeverityChart(severityCount, severityOpenCount) {
             maintainAspectRatio: false,
             layout: { padding: { top: 28 } },
             plugins: {
-                legend: { display: true, position: 'top', labels: { padding: 12, font: { size: 11 } } },
+                barDataLabel: false, /* 禁用全局 barDataLabel, 避免与 severityBarLabels 的段内数字重复 */
+                legend: { display: true, position: 'top', labels: { padding: 12, font: { size: 11 }, filter: function(item) { return item.text !== '未关闭'; } } },
                 tooltip: {
                     callbacks: {
                         title: function(items) {
@@ -728,10 +762,10 @@ function renderSeverityChart(severityCount, severityOpenCount) {
             },
             scales: {
                 x: { stacked: true },
-                y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+                y: { stacked: true, beginAtZero: true, grace: '30%', ticks: { stepSize: 1 } }
             }
         },
-        plugins: [severityTotalLabel]
+        plugins: [severityBarLabels]
     });
 }
 
@@ -988,7 +1022,8 @@ function applyTableFilters() {
     }
 
     renderBugRows(filtered);
-    updateKPIFromFiltered(filtered);
+    // KPI 恒按在途范围(allBugs: 项目+包含已关闭+报告日期)统计, 不随表格子筛选(如"显示已关闭")变
+    updateKPIFromFiltered(Dashboard.allBugs || []);
 }
 
 // ============ KPI from Filtered Bugs ============
@@ -1203,18 +1238,45 @@ function sortBugs(field) {
 
 // ============ Auto Refresh ============
 
-function toggleAutoRefresh() {
-    var interval = parseInt(document.getElementById('auto-refresh').value);
-
+function startAutoRefresh() {
+    var el = document.getElementById('auto-refresh');
+    if (!el) return; // index.html 合体门无此元素, 防御
     if (Dashboard.autoRefreshTimer) {
         clearInterval(Dashboard.autoRefreshTimer);
         Dashboard.autoRefreshTimer = null;
     }
-
+    var interval = parseInt(el.value);
     if (interval > 0) {
+        Dashboard.autoRefreshInterval = interval;
         Dashboard.autoRefreshTimer = setInterval(function() {
             fetchDashboardData();
         }, interval);
+    }
+    updateAutoRefreshStatus();
+}
+
+function toggleAutoRefresh() {
+    startAutoRefresh();
+}
+
+// 展示自动刷新状态 (间隔 + 下次刷新时刻); 每次设置/刷新后调用以保持新鲜
+function updateAutoRefreshStatus() {
+    var statusEl = document.getElementById('auto-refresh-status');
+    if (!statusEl) return;
+    var el = document.getElementById('auto-refresh');
+    var min = parseInt(el && el.value) / 60000;
+    if (min > 0) {
+        var next = new Date(Date.now() + min * 60000);
+        var hh = next.getHours();
+        var mm = next.getMinutes();
+        var hhStr = (hh < 10 ? '0' : '') + hh;
+        var mmStr = (mm < 10 ? '0' : '') + mm;
+        var unit = min >= 60 ? (min / 60) + '小时' : min + '分钟';
+        statusEl.style.color = '#3ddc84';
+        statusEl.textContent = '自动刷新: 每' + unit + ' (下次 ' + hhStr + ':' + mmStr + ')';
+    } else {
+        statusEl.style.color = '#8b93a7';
+        statusEl.textContent = '自动刷新: 关闭';
     }
 }
 
@@ -1239,6 +1301,36 @@ function hideAllData() {
     document.getElementById('charts-grid').style.display = 'none';
     document.getElementById('bug-table-section').style.display = 'none';
     document.getElementById('last-updated').style.display = 'none';
+}
+
+// ============ 报告日期筛选 ============
+
+function todayStr() {
+    return new Date().toISOString().split('T')[0];
+}
+function getDateNDaysAgo(n) {
+    return new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+}
+function onTimeRangeChange() {
+    var v = document.getElementById('time-range').value;
+    var fromEl = document.getElementById('report-date-from');
+    var toEl = document.getElementById('report-date-to');
+    if (v === 'all') {
+        fromEl.value = '';
+        toEl.value = '';
+    } else if (v) {
+        fromEl.value = getDateNDaysAgo(parseInt(v, 10));
+        toEl.value = todayStr();
+    }
+    onFilterChange();
+}
+function onReportDateChange() {
+    onFilterChange();
+}
+function clearReportDate() {
+    document.getElementById('report-date-from').value = '';
+    document.getElementById('report-date-to').value = '';
+    onFilterChange();
 }
 
 function onFilterChange() {
