@@ -225,6 +225,13 @@ function refreshMainData() {
                 loadDataFromAPI().catch(function(e) { console.error('[gate] refresh data failed:', e); });
             }
         }
+        // 2026-10-23: 登录成功后无条件补载 JIRA 项目下拉。
+        // 页面初始加载(loadDataFromAPI 内的 loadJiraDomainProjects)发生在登录门 verifyAuth 之前,
+        // session 过期时该请求 401 -> 下拉停留"项目加载失败"; 登录后数据已就位 needFetch=false,
+        // 不补调就永远不恢复。此调用幂等(一个 GET), 正常流程重复调一次无害。
+        if (typeof loadJiraDomainProjects === 'function') {
+            loadJiraDomainProjects().catch(function(e) { console.error('[gate] reload jira projects failed:', e); });
+        }
         if (typeof App.renderAll === 'function') {
             // 稍后渲染, 等待 loadDataFromAPI 落地 (若触发)
             setTimeout(function() { App.renderAll(); }, needFetch ? 800 : 0);
